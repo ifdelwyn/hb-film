@@ -1,0 +1,6 @@
+{
+  "name": "FilmFlow",
+  "description": "Nền tảng xem phim trực tuyến chuyên nghiệp nâng tầm trải nghiệm điện ảnh với kho phim đa dạng, tốc độ tải cực nhanh và thiết kế mượt mà.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

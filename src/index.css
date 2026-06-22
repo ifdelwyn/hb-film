@@ -1,0 +1,347 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;700&family=Syne:wght@700;800;900&family=JetBrains+Mono:wght@400;500&family=Satisfy&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #E63946;
+  --color-brand-hover: #B02A33;
+  --color-bg-base: #0A0A0F;
+  --color-bg-elevated: #13131A;
+  --color-bg-overlay: #1C1C26;
+  --color-bg-surface: #242432;
+  
+  --font-sans: "Plus Jakarta Sans", "Noto Sans JP", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Noto Sans JP", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-signature: "Satisfy", cursive;
+}
+
+:root {
+  /* Brand */
+  --color-brand:          #E63946;
+  --color-brand-dim:      #B02A33;
+  --color-brand-glow:     rgba(230, 57, 70, 0.15);
+
+  /* Backgrounds */
+  --color-bg-base:        #0A0A0F;
+  --color-bg-elevated:    #13131A;
+  --color-bg-overlay:     #1C1C26;
+  --color-bg-surface:     #242432;
+
+  /* Text */
+  --color-text-primary:   #F0F0F5;
+  --color-text-secondary: #9898AE;
+  --color-text-muted:     #5A5A72;
+  --color-text-inverse:   #0A0A0F;
+
+  /* Borders */
+  --color-border:         #2A2A3A;
+  --color-border-focus:   #E63946;
+
+  /* Gradients */
+  --gradient-hero:        linear-gradient(to top, #0A0A0F 0%, rgba(10, 10, 15, 0.8) 50%, transparent 100%);
+  --gradient-card:        linear-gradient(to top, #0A0A0F 0%, transparent 100%);
+  --gradient-brand:       linear-gradient(135deg, #E63946, #C1121F);
+
+  /* Shadows */
+  --shadow-card:          0 10px 30px -10px rgba(0,0,0,0.7);
+  --shadow-elevated:      0 20px 50px -12px rgba(0,0,0,0.9);
+  --shadow-brand:         0 0 30px rgba(230,57,70,0.25);
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+}
+
+/* Custom Reset and Global Styles */
+html, body {
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: "Plus Jakarta Sans", sans-serif;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Custom Scrollbar for a premium look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand);
+}
+
+/* Base Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+/* Custom classes */
+.cinematic-glow {
+  box-shadow: var(--shadow-brand);
+}
+
+.text-gradient {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.backdrop-glass {
+  backdrop-filter: blur(16px);
+  background: rgba(19, 19, 26, 0.8);
+  border-bottom: 1px solid rgba(42, 42, 58, 0.5);
+}
+
+/* Scroll wrapper without visible scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Shimmer animation for loading */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #13131A 25%,
+    #242432 50%,
+    #13131A 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* ========================================== */
+/* LIGHT MODE PREMIUM STYLING OVERRIDES       */
+/* ========================================== */
+html.light,
+html.light :root {
+  /* Swapped Dynamic Background CSS Variables */
+  --color-bg-base:        #FAF9F6; /* Elegant bone white background */
+  --color-bg-elevated:    #FFFFFF; /* Pure white card/section */
+  --color-bg-overlay:     #F1F5F9; /* Light slate gray */
+  --color-bg-surface:     #E2E8F0; /* Soft card highlight */
+
+  /* Swapped Dynamic Text CSS Variables */
+  --color-text-primary:   #1E1E24; /* Premium charcoal text */
+  --color-text-secondary: #475569; /* Slate gray subtitle */
+  --color-text-muted:     #64748B; /* Soft light text */
+  --color-text-inverse:   #FAF9F6;
+
+  /* Swapped Borders */
+  --color-border:         #E2E8F0;
+
+  /* Swapped Gradients */
+  --gradient-hero:        linear-gradient(to top, #FAF9F6 0%, rgba(250, 249, 246, 0.8) 50%, transparent 100%);
+  --gradient-card:        linear-gradient(to top, #FAF9F6 0%, transparent 100%);
+  
+  color: #1E1E24 !important;
+}
+
+html.light, html.light body {
+  background-color: #FAF9F6 !important;
+  color: #1E1E24 !important;
+}
+
+/* Base Headings, specific white text colors, or arbitrary white labels */
+html.light h1,
+html.light h2,
+html.light h3,
+html.light h4,
+html.light h5,
+html.light h6,
+html.light .text-\[\#F0F0F5\] {
+  color: #111827 !important;
+}
+
+html.light p,
+html.light label,
+html.light span:not(.font-bold):not(.text-red-500):not(.text-emerald-400):not(.text-[#E63946]) {
+  color: #374151 !important;
+}
+
+/* Absolute Dark background overrides on wrappers & blocks */
+html.light .bg-black,
+html.light .bg-\[\#0A0A0F\],
+html.light .bg-zinc-950,
+html.light .bg-\[\#0C0C12\],
+html.light #app-global-footer,
+html.light footer {
+  background-color: #FAF9F6 !important;
+  color: #1E1E24 !important;
+}
+
+/* Card structures and elevated sections */
+html.light .bg-\[\#12121A\],
+html.light .bg-\[\#12121A\]\/30,
+html.light .bg-\[\#12121A\]\/40,
+html.light .bg-\[\#12121A\]\/45,
+html.light .bg-\[\#12121A\]\/55,
+html.light .bg-zinc-900,
+html.light .bg-zinc-900/50,
+html.light .bg-zinc-900/80 {
+  background-color: #FFFFFF !important;
+  color: #1E1E24 !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 4px 20px -2px rgba(0,0,0,0.05) !important;
+}
+
+html.light .bg-white\/5,
+html.light .bg-white\/10 {
+  background-color: #F1F5F9 !important;
+}
+
+html.light .bg-black\/35,
+html.light .bg-black\/40,
+html.light .bg-black\/50,
+html.light .bg-black\/60 {
+  background-color: rgba(241, 245, 249, 0.7) !important;
+}
+
+html.light .bg-zinc-950\/50,
+html.light .bg-zinc-950\/80 {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Command Palette searches input glass */
+html.light #command-palette-modal {
+  background-color: rgba(250, 249, 246, 0.85) !important;
+}
+
+/* Glass & Header overrides */
+html.light .backdrop-glass,
+html.light header {
+  background-color: rgba(250, 249, 246, 0.85) !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+}
+
+/* Text overrides */
+html.light .text-white,
+html.light .text-zinc-50,
+html.light .text-zinc-100,
+html.light .text-zinc-200 {
+  color: #111827 !important;
+}
+
+html.light .text-zinc-300,
+html.light .text-zinc-350,
+html.light .text-zinc-400 {
+  color: #475569 !important;
+}
+
+html.light .text-zinc-500 {
+  color: #64748B !important;
+}
+
+/* Border overrides */
+html.light .border-zinc-800,
+html.light .border-zinc-900,
+html.light .border-\[\#2A2A3A\],
+html.light .border-\[\#2A2A3A\]\/40,
+html.light .border-white\/5,
+html.light .border-white\/10 {
+  border-color: #E2E8F0 !important;
+}
+
+/* Inputs & Form controls in Light Mode */
+html.light input,
+html.light select,
+html.light textarea {
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
+  border-color: #CBD5E1 !important;
+}
+
+/* Toast panel staying readable */
+html.light .bg-\[\#161622\]\/95 {
+  background-color: #FFFFFF !important;
+  border-color: #10B981 !important;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1) !important;
+}
+
+/* Keep Video player component fully dark so movies can be watched clearly */
+html.light .bg-black.rounded-xl,
+html.light .bg-black.rounded-xl *,
+html.light video,
+html.light .group .absolute.inset-0,
+html.light .group .absolute.inset-0 * {
+  background-color: revert !important;
+  color: revert !important;
+  border-color: revert !important;
+}
+html.light .aspect-video,
+html.light .aspect-video * {
+  background-color: revert !important;
+  color: revert !important;
+  border-color: revert !important;
+}
+
+/* Slick Custom Premium CSS Keyframe Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
