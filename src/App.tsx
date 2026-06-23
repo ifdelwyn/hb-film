@@ -372,7 +372,8 @@ export default function App() {
                       onClick={() => handleAutocompleteItemClick(topic.slug)}
                       className="flex items-center gap-2 p-2 rounded-lg hover:bg-zinc-900 transition-colors text-xs font-semibold text-zinc-300 hover:text-white text-left cursor-pointer"
                     >
-                      <span>🎬 {topic.name}</span>
+                      <Film size={14} />
+                      <span>{topic.name}</span>
                     </button>
                   ))}
                   

@@ -105,7 +105,8 @@ export default function VideoPlayer({
     }
 
     const previousTime = video.currentTime;
-    const isHlsUrl = m3u8Url.includes('.m3u8') || !m3u8Url.toLowerCase().endsWith('.mp4');
+    const urlFmt = new URLSearchParams(m3u8Url.split('?')[1] || '').get('fmt');
+    const isHlsUrl = m3u8Url.includes('.m3u8') || urlFmt === 'm3u8' || (!m3u8Url.toLowerCase().endsWith('.mp4') && urlFmt !== 'mp4');
 
     if (isHlsUrl && Hls.isSupported()) {
       const hls = new Hls({
@@ -538,10 +539,10 @@ export default function VideoPlayer({
                 </div>
                 
                 <h4 className="text-sm sm:text-base font-black text-rose-500 tracking-wider uppercase mb-2 animate-pulse">
-                  🎬 FilmFlow Stream
+                  FilmFlow Stream
                 </h4>
                 <p className="text-xs sm:text-sm text-zinc-200 font-extrabold leading-snug">
-                  🎥 Đang chuẩn bị trải nghiệm xem phim tốt nhất cho bạn...
+                  Đang chuẩn bị trải nghiệm xem phim tốt nhất cho bạn...
                 </p>
                 <p className="text-[10px] text-zinc-500 font-bold mt-2 uppercase tracking-widest">
                   Chất lượng hình ảnh 1080p UHD • Băng thông cao điểm

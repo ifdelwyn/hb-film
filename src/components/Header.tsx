@@ -187,11 +187,11 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
                 </h4>
                 <div className="flex flex-col gap-2.5 max-h-60 overflow-y-auto">
                   <div className="text-xs hover:bg-zinc-800/40 p-2 rounded-lg cursor-pointer transition-colors">
-                    <p className="font-semibold text-white">🔥 Siêu kinh điển Dune: Phần 2</p>
+                    <p className="font-semibold text-white">Siêu kinh điển Dune: Phần 2</p>
                     <p className="text-[10px] text-zinc-500 mt-0.5">Vừa được phát sóng bản FHD Vietsub độ phân giải cao!</p>
                   </div>
                   <div className="text-xs hover:bg-zinc-800/40 p-2 rounded-lg cursor-pointer transition-colors">
-                    <p className="font-semibold text-white">🎬 Wednesday có cập nhật</p>
+                    <p className="font-semibold text-white">Wednesday có cập nhật</p>
                     <p className="text-[10px] text-zinc-500 mt-0.5">Học viện Nevermore mở rộng tập phim mới trọn bộ!</p>
                   </div>
                 </div>

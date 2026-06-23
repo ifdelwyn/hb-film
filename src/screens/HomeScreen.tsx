@@ -35,11 +35,11 @@ export default function HomeScreen({
 
       // 2. Fetch Detailed entries for the Hero Banner Carousel (5 specific spotlight movies)
       const spotlightSlugs = [
-        'tap-yeu-don-dau',
-        'hoang-phi-hong-bi-an-mot-huyen-thoai',
-        'tuyet-trung-huyet-dao-hanh',
-        'ma-thoi-den-nam-hai-quy-hu',
-        'tan-phong-than-nhi-lang-than'
+        'dune-hanh-tinh-cat-phan-2',
+        'nu-than-thu-tu-wednesday-phan-1',
+        'tro-choi-con-muc',
+        'your-name',
+        'frieren-beyond-journeys-end'
       ];
       
       const featuredPromises = spotlightSlugs.map(async (slug) => {

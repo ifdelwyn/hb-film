@@ -156,7 +156,7 @@ export default function WatchScreen({
           <div className="lg:col-span-8 flex flex-col gap-6">
             <div>
               <span className="text-[10px] text-[var(--color-brand)] font-bold tracking-widest uppercase mb-1 block">
-                🎬 ĐANG PHÁT TRỰC TUYẾN
+                DANG PHAT TRUC TUYEN
               </span>
               <h2 className="text-xl sm:text-2xl font-extrabold sm:font-black tracking-tighter text-white drop-shadow">
                 {movie.name} — <span className="text-[var(--color-brand)] font-black">Tập {activeEpisode.name}</span>
