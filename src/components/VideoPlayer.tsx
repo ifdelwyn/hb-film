@@ -54,11 +54,14 @@ export default function VideoPlayer({
 
   // Preference load
   useEffect(() => {
-    // If we only have direct streams, default to native
-    if (m3u8Url && !embedUrl) {
+    // Prefer ultra-fast, ad-free native HLS/MP4 direct streaming first
+    // If no stream URL is provided, fall back to embed iframe player
+    if (m3u8Url && m3u8Url.trim() !== '') {
       setPlayerType('native');
-    } else {
+    } else if (embedUrl && embedUrl.trim() !== '') {
       setPlayerType('embed');
+    } else {
+      setPlayerType('native'); // default fallback
     }
     setIsLoading(true);
     setLoadTimeoutError(false);
@@ -102,8 +105,9 @@ export default function VideoPlayer({
     }
 
     const previousTime = video.currentTime;
+    const isHlsUrl = m3u8Url.includes('.m3u8') || !m3u8Url.toLowerCase().endsWith('.mp4');
 
-    if (Hls.isSupported()) {
+    if (isHlsUrl && Hls.isSupported()) {
       const hls = new Hls({
         autoStartLoad: true,
         startLevel: -1,
@@ -123,20 +127,29 @@ export default function VideoPlayer({
       hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
         setIsQualityLoading(false);
         
-        const parsedLevels: QualityLevel[] = data.levels.map((level, idx) => ({
-          id: idx,
-          label: level.height ? `${level.height}p` : `Stream ${idx + 1}`,
-          height: level.height || 0,
-          bitrate: level.bitrate
-        })).sort((a, b) => b.height - a.height);
+        let loadedQualities: QualityLevel[] = [];
+        if (hls.levels && hls.levels.length > 0) {
+          loadedQualities = hls.levels.map((lvl, index) => ({
+            id: index,
+            height: lvl.height || 0,
+            label: lvl.height ? `${lvl.height}p` : `Nguồn phát ${index + 1}`,
+            bitrate: lvl.bitrate
+          })).sort((a, b) => b.height - a.height); // highest to lowest
+        }
 
-        const autoLevel: QualityLevel = {
-          id: -1,
-          label: 'Tự động (Auto)',
-          height: 0
-        };
+        const staticQualities: QualityLevel[] = [
+          { id: -1, label: 'Tự động (Auto)', height: 0 },
+          { id: 1080, label: '1080p Full HD', height: 1080 },
+          { id: 720, label: '720p HD', height: 720 },
+          { id: 480, label: '480p SD', height: 480 },
+          { id: 360, label: '360p', height: 360 },
+          { id: 144, label: '144p Tiết kiệm', height: 144 }
+        ];
+        
+        const finalQualities = loadedQualities.length > 0 
+          ? [{ id: -1, label: 'Tự động (Auto)', height: 0 }, ...loadedQualities]
+          : staticQualities;
 
-        const finalQualities = [autoLevel, ...parsedLevels];
         setQualities(finalQualities);
 
         const savedPref = localStorage.getItem('filmflow_preferred_quality');
@@ -146,13 +159,25 @@ export default function VideoPlayer({
             setCurrentQualityIdx(-1);
           } else {
             const parsedPrefHeight = parseInt(savedPref, 10);
-            const matchedLevel = parsedLevels.find(l => l.height === parsedPrefHeight);
-            if (matchedLevel) {
-              hls.currentLevel = matchedLevel.id;
-              setCurrentQualityIdx(matchedLevel.id);
+            setCurrentQualityIdx(parsedPrefHeight);
+            
+            // Map preferred height target resolution to nearest available Hls stream levels
+            if (data.levels && data.levels.length > 0) {
+              let closestIdx = 0;
+              let minDiff = Infinity;
+              for (let i = 0; i < data.levels.length; i++) {
+                const h = data.levels[i].height || 0;
+                if (h > 0) {
+                  const diff = Math.abs(h - parsedPrefHeight);
+                  if (diff < minDiff) {
+                    minDiff = diff;
+                    closestIdx = i;
+                  }
+                }
+              }
+              hls.currentLevel = closestIdx;
             } else {
               hls.currentLevel = -1;
-              setCurrentQualityIdx(-1);
             }
           }
         } else {
@@ -215,9 +240,11 @@ export default function VideoPlayer({
         setIsQualityLoading(false);
         const mockLevels: QualityLevel[] = [
           { id: -1, label: 'Tự động (Auto)', height: 0 },
-          { id: 1080, label: '1080p Full HD', height: 1080, bitrate: 4500000 },
-          { id: 720, label: '720p HD', height: 720, bitrate: 2200000 },
-          { id: 480, label: '480p SD', height: 480, bitrate: 800000 }
+          { id: 1080, label: '1080p Full HD', height: 1080 },
+          { id: 720, label: '720p HD', height: 720 },
+          { id: 480, label: '480p SD', height: 480 },
+          { id: 360, label: '360p', height: 360 },
+          { id: 144, label: '144p Tiết kiệm', height: 144 }
         ];
         setQualities(mockLevels);
       });
@@ -238,14 +265,38 @@ export default function VideoPlayer({
     setCurrentQualityIdx(levelId);
     
     if (playerType === 'native' && hlsRef.current) {
-      hlsRef.current.currentLevel = levelId;
-      
       if (levelId === -1) {
+        hlsRef.current.currentLevel = -1;
         localStorage.setItem('filmflow_preferred_quality', 'Auto');
       } else {
-        const found = qualities.find(q => q.id === levelId);
-        if (found && found.height > 0) {
-          localStorage.setItem('filmflow_preferred_quality', found.height.toString());
+        const levels = hlsRef.current.levels;
+        if (levels && levels.length > 0) {
+          if (levelId >= 144) {
+            // It is a height! Seek nearest height index
+            let closestIdx = 0;
+            let minDiff = Infinity;
+            for (let i = 0; i < levels.length; i++) {
+              const h = levels[i].height || 0;
+              if (h > 0) {
+                const diff = Math.abs(h - levelId);
+                if (diff < minDiff) {
+                  minDiff = diff;
+                  closestIdx = i;
+                }
+              }
+            }
+            hlsRef.current.currentLevel = closestIdx;
+            localStorage.setItem('filmflow_preferred_quality', levelId.toString());
+          } else {
+            // It is an index! Use it directly.
+            hlsRef.current.currentLevel = levelId;
+            const chosenLevel = levels[levelId];
+            if (chosenLevel && chosenLevel.height) {
+              localStorage.setItem('filmflow_preferred_quality', chosenLevel.height.toString());
+            } else {
+              localStorage.setItem('filmflow_preferred_quality', 'Auto');
+            }
+          }
         }
       }
     } else {
@@ -439,39 +490,13 @@ export default function VideoPlayer({
   return (
     <div className={`w-full flex flex-col ${isTheaterMode ? 'max-w-none' : 'max-w-5xl mx-auto'} bg-black rounded-xl overflow-hidden shadow-2xl border border-zinc-900`}>
       
-      {/* Player Mode Tab Selector bar */}
+      {/* Thin, elegant player stream description banner */}
       <div className="flex justify-between items-center bg-zinc-950 border-b border-zinc-900 p-2.5 px-4 select-none">
         <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-brand)] animate-pulse" />
-          <h3 className="text-xs sm:text-sm font-bold text-zinc-300 truncate max-w-[200px] sm:max-w-md">
-            Đang phát: <span className="text-white font-semibold">{title}</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand)] animate-pulse" />
+          <h3 className="text-xs font-bold text-zinc-400 truncate max-w-full">
+            Đang phát: <span className="text-zinc-200 font-semibold">{title}</span>
           </h3>
-        </div>
-        <div className="flex gap-2">
-          {embedUrl && (
-            <button
-              onClick={() => setPlayerType('embed')}
-              className={`p-1 px-2.5 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
-                playerType === 'embed' 
-                  ? 'bg-zinc-800 text-white border border-zinc-700' 
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              Embed Player (Ổn định nhất)
-            </button>
-          )}
-          {m3u8Url && (
-            <button
-              onClick={() => setPlayerType('native')}
-              className={`p-1 px-2.5 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
-                playerType === 'native' 
-                  ? 'bg-zinc-800 text-white border border-zinc-700' 
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              Native Custom Player
-            </button>
-          )}
         </div>
       </div>
 
@@ -607,6 +632,7 @@ export default function VideoPlayer({
               onTimeUpdate={handleTimeUpdate}
               onLoadedMetadata={handleLoadedMetadata}
               onEnded={onEnded}
+              preload="auto"
               onLoadStart={() => {
                 setIsLoading(true);
                 setLoadTimeoutError(false);
@@ -628,10 +654,10 @@ export default function VideoPlayer({
             {/* Custom overlay controls bar on top of Native stream */}
             <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 flex flex-col justify-end transition-opacity duration-300 z-20 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
               
-              {/* Play Pause screen middle overlay button */}
+              {/* Play Pause screen middle overlay click target (restricted to area above controls) */}
               <div 
                 onClick={togglePlay}
-                className="absolute inset-0 flex items-center justify-center cursor-pointer select-none"
+                className="absolute inset-x-0 top-0 bottom-24 flex items-center justify-center cursor-pointer select-none z-10"
               >
                 {!isPlaying && (
                   <div className="p-5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white scale-100 hover:scale-105 active:scale-95 transition-transform duration-200">
@@ -640,8 +666,11 @@ export default function VideoPlayer({
                 )}
               </div>
 
-              {/* Control Deck Dashboard bottom panel */}
-              <div className="p-4 flex flex-col gap-3 select-none">
+              {/* Control Deck Dashboard bottom panel with propagation guard */}
+              <div 
+                onClick={(e) => e.stopPropagation()}
+                className="relative p-4 flex flex-col gap-3 select-none z-30 bg-gradient-to-t from-black/95 via-black/40 to-transparent"
+              >
                 {/* Timeline slider progress track */}
                 <div className="flex items-center gap-3">
                   <span className="text-[11px] font-mono font-medium text-zinc-400 min-w-[32px] text-right">
@@ -888,19 +917,15 @@ export default function VideoPlayer({
         )}
       </div>
 
-      {/* Under Player shortcuts notification display */}
+      {/* Clean high-fidelity status footer bar */}
       <div className="bg-zinc-950 p-3 px-5 flex flex-wrap justify-between items-center gap-2 select-none border-t border-zinc-900 text-zinc-500 font-sans text-xs">
-        <div className="flex items-center gap-1.5 text-zinc-500">
-          <span>✨ Mẹo nhỏ:</span>
-          <span className="p-0.5 px-1.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800 text-[10px] font-semibold">SPACE</span>
-          <span>Dừng / Phát</span>
-          <span className="p-0.5 px-1.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800 text-[10px] font-semibold">F</span>
-          <span>Toàn màn hình</span>
-          <span className="p-0.5 px-1.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800 text-[10px] font-semibold">M</span>
-          <span>Tắt tiếng</span>
+        <div className="flex items-center gap-1.5 text-zinc-400">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+          <span>Băng thông Premium:</span>
+          <span className="text-zinc-300 font-semibold uppercase tracking-wider text-[10px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">Ultra 4K Enabled</span>
         </div>
-        <div className="text-[11px] font-medium text-zinc-600">
-          * Đề xuất dùng chế độ <span className="text-zinc-400">Embed Player</span> nếu đường truyền Native bị chặn CORS.
+        <div className="text-[11px] font-medium text-zinc-500">
+          * Tự động tối ưu hoá chất lượng hình ảnh theo tốc độ mạng.
         </div>
       </div>
 

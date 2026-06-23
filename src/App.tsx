@@ -10,7 +10,6 @@ import CategoryScreen from './screens/CategoryScreen';
 import SearchScreen from './screens/SearchScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import LoginScreen from './screens/LoginScreen';
-import DesktopRecommendationBanner from './components/DesktopRecommendationBanner';
 
 // Core types & hooks
 import { Search, X, Film, Flame, ShieldAlert, Sparkles, RefreshCw } from 'lucide-react';
@@ -24,10 +23,8 @@ export default function App() {
   const [activeEpisodeSlug, setActiveEpisodeSlug] = useState<string | undefined>(undefined);
   const [activeServerIdx, setActiveServerIdx] = useState<number>(0);
   
-  // Real authentication persistent state via localStorage
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    return localStorage.getItem('bao_is_logged_in') !== 'false';
-  });
+  // Real authentication state bypassed - always true since site is 100% public
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
 
   // Search Command Palette Modal state
   const [isSearchOverlayOpen, setIsSearchOverlayOpen] = useState(false);
@@ -181,23 +178,8 @@ export default function App() {
     navigateTo(`phim/${slug}`);
   };
 
-  if (!isLoggedIn) {
-    return (
-      <LoginScreen 
-        onLoginSuccess={(userName, email) => {
-          updatePreferences({ userName });
-          localStorage.setItem('bao_is_logged_in', 'true');
-          setIsLoggedIn(true);
-        }}
-      />
-    );
-  }
-
   return (
     <div className={`min-h-screen flex flex-col bg-[var(--color-bg-base)] text-[var(--color-text-primary)] transition-colors duration-300 ${currentThemeClass}`}>
-      
-      {/* Welcome & Desktop recommendation banner */}
-      <DesktopRecommendationBanner />
       
       {/* GLOBAL NAVBAR SECTION */}
       <Header 

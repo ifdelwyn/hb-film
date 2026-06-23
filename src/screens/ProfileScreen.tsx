@@ -19,11 +19,12 @@ interface ProfileScreenProps {
 
 // Predefined premium cinematic avatars
 const PREMIUM_AVATARS = [
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80'
+  'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=150&h=150&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=150&h=150&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1563089145-599997674d42?w=150&h=150&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1580477667995-2b94f01c9516?w=150&h=150&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1618336753974-aae8e04506aa?w=150&h=150&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=150&h=150&fit=crop&q=80'
 ];
 
 export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatch, onLogout }: ProfileScreenProps) {
@@ -32,7 +33,7 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
   const { preferences, updatePreferences } = useUserPreferences();
   
   // High-fidelity tab management
-  const [activeTab, setActiveTab] = useState<'overview' | 'security' | 'history' | 'watchlist' | 'vip' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'security' | 'history' | 'watchlist' | 'vip' | 'settings'>('watchlist');
   const [isTabLoading, setIsTabLoading] = useState(false);
   
   // Custom toast notification states
@@ -242,23 +243,23 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
               <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] font-black tracking-wider text-white transition-opacity duration-300 uppercase">
                 Thay ảnh
               </div>
-              <span className={`absolute bottom-1 right-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider text-white border border-[#2A2A3A] shadow-md ${vipTier === 'vip' ? 'bg-gradient-to-r from-amber-500 to-yellow-600' : 'bg-zinc-650'}`}>
-                {vipTier === 'vip' ? 'ULTRA 4K' : 'FREE'}
+              <span className="absolute bottom-1 right-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider text-white border border-[#2A2A3A] shadow-md bg-gradient-to-r from-emerald-500 to-teal-600">
+                100% FREE
               </span>
             </div>
 
             <div className="text-center sm:text-left">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                 <span className="text-[10px] font-extrabold text-[#E63946] uppercase tracking-widest bg-[#E63946]/10 border border-[#E63946]/20 rounded-full px-2.5 py-0.5">
-                  ID: HB-831920
+                  TỦ PHIM CỦA BẠN
                 </span>
-                <span className="text-[10px] font-bold text-zinc-400">Tham gia: Tháng 6, 2024</span>
+                <span className="text-[10px] font-bold text-zinc-400">Trình phát công cộng miễn phí</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-2 flex items-center justify-center sm:justify-start gap-2">
-                {preferences.userName}
-                {vipTier === 'vip' && <Sparkles size={18} className="text-amber-400 fill-amber-400/20" />}
+                {preferences.userName || 'Phim Thủ'}
+                <Sparkles size={18} className="text-emerald-400" />
               </h1>
-              <p className="text-xs text-zinc-500 font-medium mt-1">Hội viên cao cấp trực thuộc hệ thống rạp bao</p>
+              <p className="text-xs text-zinc-500 font-medium mt-1">Lưu trữ tất cả danh mục yêu thích và lịch sử xem tiện lợi</p>
             </div>
           </div>
 
@@ -325,16 +326,8 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* LEFT INTERACTIVE SIDEBAR - STYLISH NAV */}
-          <div className="lg:col-span-3 flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-3 lg:pb-0 scrollbar-none border-b lg:border-none border-white/5 scroll-smooth">
+          <div className="lg:col-span-3 flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-3 lg:pb-0 scrollbar-none border-b lg:border-none border-white/5 scroll-smooth col-span-12">
             
-            <button
-              onClick={() => handleTabChange('overview')}
-              className={`flex items-center gap-3 px-4 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer flex-shrink-0 w-auto lg:w-full ${activeTab === 'overview' ? 'bg-[#E63946] text-white shadow-lg shadow-red-500/10 scale-[1.03]' : 'bg-transparent text-zinc-400 hover:text-white hover:bg-white/5'}`}
-            >
-              <User size={16} />
-              <span>Tổng quan</span>
-            </button>
-
             <button
               onClick={() => handleTabChange('watchlist')}
               className={`flex items-center gap-3 px-4 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer flex-shrink-0 w-auto lg:w-full ${activeTab === 'watchlist' ? 'bg-[#E63946] text-white shadow-lg shadow-red-500/10 scale-[1.03]' : 'bg-transparent text-zinc-400 hover:text-white hover:bg-white/5'}`}
@@ -352,42 +345,11 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
             </button>
 
             <button
-              onClick={() => handleTabChange('security')}
-              className={`flex items-center gap-3 px-4 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer flex-shrink-0 w-auto lg:w-full ${activeTab === 'security' ? 'bg-[#E63946] text-white shadow-lg shadow-red-500/10 scale-[1.03]' : 'bg-transparent text-zinc-400 hover:text-white hover:bg-white/5'}`}
-            >
-              <Lock size={16} />
-              <span>Bảo mật</span>
-            </button>
-
-            <button
-              onClick={() => handleTabChange('vip')}
-              className={`flex items-center gap-3 px-4 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer flex-shrink-0 w-auto lg:w-full ${activeTab === 'vip' ? 'bg-[#E63946] text-white shadow-lg shadow-red-500/10 scale-[1.03]' : 'bg-transparent text-zinc-400 hover:text-white hover:bg-white/5'}`}
-            >
-              <Sparkles size={16} />
-              <span>Thành viên VIP</span>
-            </button>
-
-            <button
               onClick={() => handleTabChange('settings')}
               className={`flex items-center gap-3 px-4 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer flex-shrink-0 w-auto lg:w-full ${activeTab === 'settings' ? 'bg-[#E63946] text-white shadow-lg shadow-red-500/10 scale-[1.03]' : 'bg-transparent text-zinc-400 hover:text-white hover:bg-white/5'}`}
             >
               <Settings size={16} />
               <span>Cài đặt hệ thống</span>
-            </button>
-
-            <hr className="my-3 border-white/5 hidden lg:block" />
-
-            <button
-              onClick={() => {
-                triggerToast('Đã đăng xuất tài khoản thành công! Hẹn gặp lại.');
-                if (onLogout) {
-                  setTimeout(onLogout, 1200);
-                }
-              }}
-              className="hidden lg:flex items-center gap-3 px-4 py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider text-red-500 hover:bg-red-500/10 transition-colors w-full cursor-pointer text-left"
-            >
-              <LogOut size={16} />
-              <span>Đăng xuất</span>
             </button>
           </div>
 
@@ -917,43 +879,6 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
                           onChange={(e) => updatePreferences({ userName: e.target.value })}
                           className="p-2.5 px-4 rounded-xl bg-black border border-white/5 text-xs font-bold text-white outline-none focus:border-[#E63946] min-w-[220px]"
                         />
-                      </div>
-
-                      {/* Admin panel control for welcome recommendation banner */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
-                        <div>
-                          <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
-                            <Monitor size={15} className="text-[#E63946]" />
-                            Đề xuất phiên bản máy tính (Welcome Banner)
-                          </h4>
-                          <p className="text-[11px] text-zinc-500 mt-1">Tuỳ chỉnh bật/tắt hoặc reset hiển thị thông báo khuyên dùng máy tính cho người dùng mới.</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              localStorage.removeItem('bao_desktop_rec_dismissed');
-                              triggerToast('Đã khôi phục trạng thái hiển thị Welcome Banner!');
-                            }}
-                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 hover:text-white font-bold text-[10px] uppercase tracking-wider transition-colors cursor-pointer"
-                          >
-                            Reset Trạng Thái
-                          </button>
-                          <button
-                            onClick={() => {
-                              const nextVal = !isAdminBannerDisabled;
-                              setIsAdminBannerDisabled(nextVal);
-                              localStorage.setItem('bao_desktop_banner_admin_disabled', String(nextVal));
-                              triggerToast(nextVal ? 'Đã tắt Welcome Banner theo quản trị hệ thống!' : 'Đã bật Welcome Banner theo quản trị hệ thống!');
-                            }}
-                            className={`p-1.5 px-3.5 rounded-lg text-[10px] font-black border transition-all cursor-pointer ${
-                              !isAdminBannerDisabled 
-                                ? 'bg-[#E63946]/20 text-[#E63946] border-[#E63946]/30 shadow-md shadow-red-500/5' 
-                                : 'bg-black text-zinc-500 border-white/5'
-                            }`}
-                          >
-                            {!isAdminBannerDisabled ? 'ĐANG BẬT' : 'ĐANG TẮT'}
-                          </button>
-                        </div>
                       </div>
 
                       {/* Language Selection Setting */}

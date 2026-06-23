@@ -198,19 +198,19 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
               </div>
             </div>
 
-            {/* Avatar Profile Page Trigger */}
+            {/* Public Movie Box Page Trigger */}
             <button
               id="navbar-profile-btn"
               onClick={() => navigateTo('tai-khoan')}
               className="flex items-center gap-2 p-1 pl-1 pr-3 border border-white/10 rounded-full hover:bg-white/5 transition-all text-left cursor-pointer group"
             >
               <img
-                src={preferences.avatarUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=60&auto=format&fit=crop&q=80"}
-                alt={preferences.userName}
+                src={preferences.avatarUrl || "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=60&h=60&fit=crop&q=80"}
+                alt={preferences.userName || "Khách"}
                 className="w-8 h-8 rounded-full object-cover border border-[var(--color-brand)] shadow-[0_0_8px_rgba(230,57,70,0.3)]"
               />
               <span className="text-xs font-semibold text-zinc-300 group-hover:text-white transition-colors hidden sm:inline">
-                {preferences.userName || "My Cinema"}
+                {preferences.userName ? `${preferences.userName}` : "Tủ Phim"}
               </span>
             </button>
 
@@ -256,7 +256,7 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
               onClick={() => navigateTo('tai-khoan')}
               className={`text-lg font-bold p-2 rounded-lg ${currentRoute === 'tai-khoan' ? 'text-[var(--color-brand)] bg-zinc-900/40' : 'text-zinc-300'}`}
             >
-              Tài Khoản & Watchlist
+              Tủ Phim Cá Nhân
             </span>
           </div>
 

@@ -143,47 +143,9 @@ export const MOCK_MOVIES: DetailedMovie[] = [
   },
   {
     movie: {
-      name: 'Khóa Chặt Cửa Nào Suzume',
-      slug: 'khoa-chat-cua-nao-suzume',
-      origin_name: 'Suzume no Tojimari',
-      content: 'Suzume, một cô gái 17 tuổi sống tại thị trấn yên tĩnh ở Kyushu, gặp một chàng trai trẻ đang tìm kiếm một cánh cửa. Hai người cùng nhau đi sâu vào những ngọn núi đổ nát và phát hiện ra một cánh cửa cũ kỹ đứng cô độc. Như bị dẫn dắt bởi một thế lực bí ẩn, Suzume chạm tay vào nắm cửa, và từ đó hàng loạt biến cố xảy ra khắp Nhật Bản.',
-      type: 'single',
-      status: 'completed',
-      thumb_url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=60',
-      poster_url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=60',
-      year: 2023,
-      view: 195000,
-      actor: ['Nanoka Hara', 'Hokuto Matsumura', 'Eri Fukatsu', 'Shota Sometani'],
-      director: ['Makoto Shinkai'],
-      category: [{ id: '4', name: 'Hoạt Hình', slug: 'hoat-hinh' }, { id: '2', name: 'Tình Cảm', slug: 'tinh-cam' }],
-      country: [{ id: 'jp', name: 'Nhật Bản', slug: 'nhat-ban' }],
-      time: '122 phút',
-      episode_current: 'Full',
-      episode_total: '1 tập',
-      lang: 'Vietsub',
-      quality: 'FHD',
-      imdb: { star: '7.8', vote: 45000 }
-    },
-    episodes: [
-      {
-        server_name: 'Anime Server',
-        server_data: [
-          {
-            name: 'Full',
-            slug: 'full',
-            filename: 'suzume_no_tojimari.mp4',
-            link_embed: 'https://www.youtube.com/embed/fD5t2J7t8kg',
-            link_m3u8: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4'
-          }
-        ]
-      }
-    ]
-  },
-  {
-    movie: {
-      name: 'Tên Cậu Là Gì?',
-      slug: 'ten-cau-la-gi',
-      origin_name: 'Your Name.',
+      name: 'Tên Cậu Là Gì? (Your Name)',
+      slug: 'your-name',
+      origin_name: 'Kimi no Na wa.',
       content: 'Mitsuha là một cô nữ sinh trung học sống tại một vùng nông thôn yên bình của Nhật Bản, trong khi Taki là một cậu học sinh trung học sống ở thủ đô Tokyo tấp nập. Hai con người, hai thế giới xa lạ bỗng nhiên bị hoán đổi cơ thể cho nhau sau sự xuất hiện của một ngôi sao chổi huyền ảo. Họ bắt đầu tìm cách liên lạc và tìm kiếm nhau giữa ranh giới của không gian và thời gian.',
       type: 'single',
       status: 'completed',
@@ -198,21 +160,56 @@ export const MOCK_MOVIES: DetailedMovie[] = [
       time: '106 phút',
       episode_current: 'Full',
       episode_total: '1 tập',
-      lang: 'Vietsub',
-      quality: 'FHD',
-      imdb: { star: '8.4', vote: 290000 }
+      lang: 'Vietsub Premium',
+      quality: 'Ultra 4K UHD',
+      imdb: { star: '8.8', vote: 290000 }
     },
     episodes: [
       {
-        server_name: 'Anime Server',
+        server_name: 'Anime Server Quốc Tế',
         server_data: [
           {
             name: 'Full',
             slug: 'full',
             filename: 'your_name.mp4',
-            link_embed: 'https://www.youtube.com/embed/NooWeGeyXpI',
+            link_embed: '',
             link_m3u8: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4'
           }
+        ]
+      }
+    ]
+  },
+  {
+    movie: {
+      name: 'Pháp Sư Tiễn Đưa: Frieren',
+      slug: 'frieren-beyond-journeys-end',
+      origin_name: 'Sousou no Frieren',
+      content: 'Hành trình ý nghĩa, sâu sắc và đầy xúc cảm của một nữ pháp sư Elf sau khi thế giới đã hòa bình. Cô đi tìm hiểu thêm về bản chất con người và ý nghĩa thâm sâu của thời gian cứu rỗi.',
+      type: 'series',
+      status: 'completed',
+      thumb_url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=800&auto=format&fit=crop&q=60',
+      poster_url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=800&auto=format&fit=crop&q=60',
+      year: 2023,
+      view: 480000,
+      actor: ['Atsumi Tanezaki', 'Kana Ichinose', 'Nobuhiko Okamoto'],
+      director: ['Keiichiro Saito'],
+      category: [{ id: '4', name: 'Hoạt Hình', slug: 'hoat-hinh' }, { id: '5', name: 'Khoa Học Viễn Tưởng', slug: 'vien-tuong' }],
+      country: [{ id: 'jp', name: 'Nhật Bản', slug: 'nhat-ban' }],
+      time: '24 phút / tập',
+      episode_current: 'Tập 28',
+      episode_total: '28 tập',
+      lang: 'Vietsub Premium',
+      quality: 'Ultra 4K UHD',
+      imdb: { star: '9.39', vote: 55000 }
+    },
+    episodes: [
+      {
+        server_name: 'Anime Server Quốc Tế',
+        server_data: [
+          { name: '1', slug: 'tap-1', filename: 'frieren_e1.mp4', link_embed: '', link_m3u8: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' },
+          { name: '2', slug: 'tap-2', filename: 'frieren_e2.mp4', link_embed: '', link_m3u8: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4' },
+          { name: '3', slug: 'tap-3', filename: 'frieren_e3.mp4', link_embed: '', link_m3u8: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4' },
+          { name: '4', slug: 'tap-4', filename: 'frieren_e4.mp4', link_embed: '', link_m3u8: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4' }
         ]
       }
     ]
@@ -378,6 +375,44 @@ export const MOCK_MOVIES: DetailedMovie[] = [
         server_name: 'Mirror 1',
         server_data: [
           { name: 'Full', slug: 'full', filename: 'quy_cau.mp4', link_embed: 'https://www.youtube.com/embed/5T5ZAtxI-t0', link_m3u8: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' }
+        ]
+      }
+    ]
+  },
+  {
+    movie: {
+      name: 'Thanh Gươm Diệt Quỷ: Chuyến Tàu Vô Tận',
+      slug: 'thanh-guom-diet-quy-chuyen-tau-vo-tan',
+      origin_name: 'Demon Slayer: Mugen Train',
+      content: 'Tanjiro và đồng đội cùng Hà Trụ Viêm Trụ Rengoku Kyojuro lên Chuyến Tàu Vô Tận để điều tra vụ mất tích bí ẩn của hơn 40 hành khách. Tại đây họ đối đầu với chiến binh Thượng Huyền Quỷ đầy tàn độc ranh ma.',
+      type: 'single',
+      status: 'completed',
+      thumb_url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=800&auto=format&fit=crop&q=60',
+      poster_url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=800&auto=format&fit=crop&q=60',
+      year: 2020,
+      view: 450000,
+      actor: ['Natsuki Hanae', 'Akari Kito', 'Satoshi Hino'],
+      director: ['Haruo Sotozaki'],
+      category: [{ id: '4', name: 'Hoạt Hình', slug: 'hoat-hinh' }, { id: '1', name: 'Hành Động', slug: 'hanh-dong' }],
+      country: [{ id: 'jp', name: 'Nhật Bản', slug: 'nhat-ban' }],
+      time: '117 phút',
+      episode_current: 'Full',
+      episode_total: '1 tập',
+      lang: 'Vietsub Premium',
+      quality: 'Ultra 4K UHD',
+      imdb: { star: '8.2', vote: 120000 }
+    },
+    episodes: [
+      {
+        server_name: 'Anime Server Quốc Tế',
+        server_data: [
+          {
+            name: 'Full',
+            slug: 'full',
+            filename: 'mugen_train.mp4',
+            link_embed: '',
+            link_m3u8: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4'
+          }
         ]
       }
     ]

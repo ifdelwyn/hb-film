@@ -93,7 +93,6 @@ export function validateImageSize(url: string, minWidth = 1080): Promise<boolean
       if (img.width >= minWidth) {
         resolve(true);
       } else {
-        console.warn(`[PosterProvider] Image size too small: ${img.width}x${img.height} (Required >= ${minWidth}px) for ${url}`);
         resolve(false);
       }
     };

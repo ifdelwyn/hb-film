@@ -96,9 +96,17 @@ export default function WatchScreen({
 
   if (isLoading || !movie || !activeEpisode) {
     return (
-      <div className="w-full min-h-screen bg-black text-white pt-24 pb-20 select-none flex flex-col items-center justify-center animate-pulse gap-4">
-        <Tv size={42} className="text-[var(--color-brand)] animate-pulse" />
-        <p className="text-xs text-zinc-500 font-medium">Đang chuyển mã kênh và tải cấu hình dòng truyền tải...</p>
+      <div className="w-full min-h-screen bg-black text-white py-20 select-none flex flex-col items-center justify-center gap-6">
+        <div className="relative flex items-center justify-center">
+          <div className="w-16 h-16 rounded-full border-4 border-zinc-800 border-t-[var(--color-brand)] animate-spin"></div>
+          <Tv size={24} className="text-[var(--color-brand)] absolute animate-pulse" />
+        </div>
+        <div className="text-center max-w-sm px-4">
+          <p className="text-sm font-black text-white uppercase tracking-wider">ĐANG KHỞI TẠO LUỒNG PHÁT</p>
+          <p className="text-xs text-zinc-500 font-medium mt-1.5 leading-relaxed">
+            Kết nối luồng truyền tải m3u8 và cấu hình hệ thống CDN tốc độ cao...
+          </p>
+        </div>
       </div>
     );
   }
@@ -158,17 +166,14 @@ export default function WatchScreen({
               </p>
             </div>
 
-            {/* Servers listing tags */}
-            <div className="flex flex-col gap-3 p-4 rounded-xl bg-zinc-900/40 border border-zinc-900">
-              <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+            {/* Servers listing tags: Tinh gọn và chuyên nghiệp, không chiếm nhiều diện tích */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-zinc-900/30 border border-zinc-900/60 transition-all">
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5 shrink-0 select-none">
                 <Flame size={12} className="text-[var(--color-brand)] animate-pulse" />
-                Thay đổi cổng truyền phát (Servers)
-              </h4>
-              <p className="text-[11px] text-zinc-500 leading-normal">
-                Nếu video không tải được hoặc bị kẹt mạng, vui lòng đổi cổng truyền phát (Server) dưới đây để nhận liên kết mượt mà hơn.
-              </p>
+                Nguồn phát:
+              </span>
               
-              <div className="flex flex-wrap gap-2.5 mt-2">
+              <div className="flex flex-wrap gap-2">
                 {episodes.map((svr, idx) => (
                   <button
                     key={idx}
@@ -179,10 +184,10 @@ export default function WatchScreen({
                       const matchingep = otherServerList.find(e => e.slug === activeEpisode.slug);
                       setActiveEpisode(matchingep || otherServerList[0]);
                     }}
-                    className={`text-xs py-2 px-4 rounded-lg font-bold border transition-all cursor-pointer ${
+                    className={`text-[11px] py-1 px-3 rounded-md font-bold border transition-all cursor-pointer ${
                       activeServerIdx === idx 
-                        ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] shadow-lg shadow-red-500/10' 
-                        : 'bg-zinc-950 text-zinc-400 border-zinc-900 hover:border-zinc-800'
+                        ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] shadow-md shadow-red-500/10' 
+                        : 'bg-zinc-950 text-zinc-400 border-zinc-900 hover:border-zinc-800 hover:text-white'
                     }`}
                   >
                     {svr.server_name}
