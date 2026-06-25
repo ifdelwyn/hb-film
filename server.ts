@@ -1,6 +1,11 @@
 import express from 'express';
 import path from 'path';
+import { createServer as createViteServer } from 'vite';
 import { MOCK_MOVIES, MOCK_CATEGORIES, MOCK_COUNTRIES } from './src/data/mockMovies';
+import dotenv from 'dotenv';
+
+// Load environment variables (.env files)
+dotenv.config();
 
 // Dictionary translation map for English titles to Vietnamese
 const JIKAN_ANIME_VN_TITLES: Record<string, string> = {
@@ -195,7 +200,7 @@ async function fetchTopAnimeFromJikan() {
   try {
     console.log('[Jikan Loading] Fetching current Top Anime from Jikan API...');
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 10000);
+    const id = setTimeout(() => controller.abort(), 6500);
     const res = await fetch('https://api.jikan.moe/v4/top/anime?sfw', { signal: controller.signal });
     clearTimeout(id);
     
@@ -226,7 +231,6 @@ async function fetchTopAnimeFromJikan() {
 }
 
 function getMergedMovies() {
-  // Gracefully filter any remaining manual anime in MOCK_MOVIES to assure complete swap
   const oldAnimeSlugs = [
     'thanh-guom-diet-quy-duong-den-lang-ren-guom',
     'dai-chien-titan-phan-cuoi-hoi-ket',
@@ -251,314 +255,303 @@ function getMergedMovies() {
   return deduped;
 }
 
+// DEFINING REAL MULTI-SOURCE STREAM ENGINE
+const SOURCES = [
+  {
+    name: 'KKPhim',
+    domain: 'https://phimapi.com',
+    imgBase: 'https://phimimg.com/uploads/movies'
+  },
+  {
+    name: 'OPhim',
+    domain: 'https://ophim1.com',
+    imgBase: 'https://ophimimg.com/uploads/movies'
+  },
+  {
+    name: 'AnimeHub',
+    domain: 'https://ophim17.cc',
+    imgBase: 'https://ophimimg.com/uploads/movies'
+  }
+];
+
+// Memory caching layers
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+}
+const apiCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes TTL
+
+function getAbsoluteImageUrl(url: string, pathImage: string, fallbackBase: string): string {
+  if (!url) return '';
+  let absUrl = url;
+  if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//')) {
+    const trimmedUrl = url.replace(/^\//, '');
+    const base = pathImage.endsWith('/') ? pathImage : `${pathImage}/`;
+    absUrl = `${base}${trimmedUrl}`;
+  } else if (url.startsWith('//')) {
+    absUrl = `https:${url}`;
+  }
+  // Wrap with the requested movie image proxy: https://phimapi.com/image.php?url={image_url}
+  return `https://phimapi.com/image.php?url=${encodeURIComponent(absUrl)}`;
+}
+
+function normalizeItem(item: any, pathImage: string, fallbackBase: string) {
+  let thumb = item.thumb_url || item.thumb || "";
+  let poster = item.poster_url || item.poster || "";
+
+  thumb = getAbsoluteImageUrl(thumb, pathImage, fallbackBase);
+  poster = getAbsoluteImageUrl(poster, pathImage, fallbackBase);
+
+  return {
+    name: item.name || "",
+    slug: item.slug || "",
+    origin_name: item.origin_name || "",
+    thumb_url: thumb || poster || "https://images.unsplash.com/photo-1542204172-e7052809a936?w=500&auto=format&fit=crop&q=60",
+    poster_url: poster || thumb || "https://images.unsplash.com/photo-1542204172-e7052809a936?w=500&auto=format&fit=crop&q=60",
+    year: parseInt(item.year) || 2024,
+    type: item.type || "single",
+    episode_current: item.episode_current || "Full",
+    quality: item.quality || "FHD",
+    lang: item.lang || "Vietsub"
+  };
+}
+
+// Unified multi-source fallback resolver
+async function fetchWithFallback<T>(
+  getPath: (source: typeof SOURCES[0]) => string,
+  transform: (data: any, source: typeof SOURCES[0]) => T,
+  fallbackVal: T
+): Promise<T> {
+  const now = Date.now();
+  const cacheKey = getPath(SOURCES[0]);
+  const cached = apiCache.get(cacheKey);
+
+  if (cached && (now - cached.timestamp < CACHE_TTL_MS)) {
+    return cached.data;
+  }
+
+  for (const source of SOURCES) {
+    try {
+      const url = getPath(source);
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 6000); // 6s timeout max per gateway
+
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(id);
+
+      if (response.ok) {
+        const rawJson = await response.json();
+        if (rawJson && (rawJson.status === true || rawJson.status === 'success' || rawJson.items || rawJson.data || rawJson.movie)) {
+          const result = transform(rawJson, source);
+          apiCache.set(cacheKey, { data: result, timestamp: now });
+          return result;
+        }
+      }
+    } catch (err) {
+      console.warn(`[Proxy Fail] Gateway ${source.name} failed:`, err instanceof Error ? err.message : err);
+    }
+  }
+
+  return fallbackVal;
+}
+
+// YouTube Trailer Embed URL formatter
+function getEmbedTrailerUrl(url: string): string {
+  if (!url) return '';
+  if (url.includes('youtube.com/watch?v=')) {
+    const videoId = url.split('v=')[1]?.split('&')[0];
+    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+  }
+  if (url.includes('youtu.be/')) {
+    const videoId = url.split('youtu.be/')[1]?.split('?')[0];
+    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+  }
+  return url;
+}
+
 async function startServer() {
   const app = express();
-  const PORT = parseInt(process.env.PORT || '3000', 10);
+  const PORT = 3000;
 
   app.use(express.json());
 
-  // Initiate dynamic top anime fetching background worker task
+  // Background worker rank trigger
   fetchTopAnimeFromJikan();
-
-  // Helper memory caching mechanism to avoid rate limiting and speed up API responses
-  interface CacheEntry {
-    data: any;
-    timestamp: number;
-  }
-  const apiCache = new Map<string, CacheEntry>();
-  const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes cache for better performance
-
-  // Helper to normalize relative image paths from vsmov.com or other sources inside items lists
-  const normalizeApiResponse = (rawData: any) => {
-    if (!rawData) return rawData;
-
-    let data = rawData;
-    // If it has a nested data object (typical of v1/api responses)
-    if (rawData.data && typeof rawData.data === 'object') {
-      const nested = rawData.data;
-      data = {
-        status: rawData.status === 'success' || !!rawData.status,
-        items: nested.items || [],
-        pathImage: nested.pathImage || "https://vsmov.com/uploads/movies/",
-        pagination: nested.params?.pagination || {
-          totalItems: nested.params?.totalItems || (nested.items ? nested.items.length : 0),
-          totalItemsPerPage: nested.params?.totalItemsPerPage || 24,
-          currentPage: nested.params?.currentPage || 1,
-          totalPages: nested.params?.totalPages || 1
-        }
-      };
-    } else {
-      // Ensure it is flat even if returned from other pages or old code
-      data = {
-        status: rawData.status === 'success' || !!rawData.status,
-        items: rawData.items || [],
-        pathImage: rawData.pathImage || "https://vsmov.com/uploads/movies/",
-        pagination: rawData.pagination || {
-          totalItems: rawData.items ? rawData.items.length : 0,
-          totalItemsPerPage: 24,
-          currentPage: 1,
-          totalPages: 1
-        }
-      };
-    }
-
-    const baseImg = data.pathImage || "https://vsmov.com/uploads/movies/";
-    if (data && Array.isArray(data.items)) {
-      data.items = data.items.map((item: any) => {
-        let thumb = item.thumb_url || "";
-        let poster = item.poster_url || "";
-        
-        if (thumb && !thumb.startsWith("http") && !thumb.startsWith("//")) {
-          if (thumb.startsWith('storage') || thumb.startsWith('/storage') || thumb.startsWith('uploads') || thumb.startsWith('/uploads')) {
-            thumb = `https://vsmov.com${thumb.startsWith('/') ? '' : '/'}${thumb}`;
-          } else {
-            thumb = `${baseImg}${thumb}`;
-          }
-        }
-        if (poster && !poster.startsWith("http") && !poster.startsWith("//")) {
-          if (poster.startsWith('storage') || poster.startsWith('/storage') || poster.startsWith('uploads') || poster.startsWith('/uploads')) {
-            poster = `https://vsmov.com${poster.startsWith('/') ? '' : '/'}${poster}`;
-          } else {
-            poster = `${baseImg}${poster}`;
-          }
-        }
-        return {
-          name: item.name || "",
-          slug: item.slug || "",
-          origin_name: item.origin_name || "",
-          thumb_url: thumb || poster || "https://images.unsplash.com/photo-1542204172-e7052809a936?w=500&auto=format&fit=crop&q=60",
-          poster_url: poster || thumb || "https://images.unsplash.com/photo-1542204172-e7052809a936?w=500&auto=format&fit=crop&q=60",
-          year: item.year || 2024,
-          type: item.type || "single",
-          episode_current: item.episode_current || "Full",
-          quality: item.quality || "FHD",
-          lang: item.lang || "Vietsub"
-        };
-      });
-    }
-    return data;
-  };
-
-  // Helper function to cast server response or fallback to mock data under a Stale-While-Revalidate model
-  const handleProxy = async (targetUrl: string, fallbackFn: () => any) => {
-    const now = Date.now();
-    const cached = apiCache.get(targetUrl);
-    
-    // Background asynchronous revalidation helper
-    const backgroundRevalidate = async () => {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout for background refresh
-        const res = await fetch(targetUrl, { signal: controller.signal });
-        clearTimeout(timeoutId);
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data && (data.status || data.items || Array.isArray(data))) {
-            apiCache.set(targetUrl, { data, timestamp: Date.now() });
-          }
-        }
-      } catch (err) {
-        console.warn(`[SWR Background Fail] Refresh failed for ${targetUrl}:`, err instanceof Error ? err.message : err);
-      }
-    };
-
-    // Check hit
-    if (cached) {
-      const isExpired = now - cached.timestamp > CACHE_TTL_MS;
-      if (isExpired) {
-        // Serve expired cache instantly + refresh background cache
-        backgroundRevalidate();
-      }
-      return cached.data;
-    }
-
-    try {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 6000); // 6s timeout for vsmov API
-
-      const res = await fetch(targetUrl, { signal: controller.signal });
-      clearTimeout(id);
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data && (data.status || data.items || Array.isArray(data))) {
-          apiCache.set(targetUrl, { data, timestamp: now });
-          return data;
-        }
-      }
-      throw new Error('API invalid response or offline');
-    } catch (err) {
-      console.warn(`[Proxy Fallback] Target URL ${targetUrl} failed:`, err instanceof Error ? err.message : err);
-      return fallbackFn();
-    }
-  };
 
   // 1. Phim mới cập nhật
   app.get('/api/danh-sach/phim-moi-cap-nhat', async (req, res) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 24;
-    const target = `https://vsmov.com/api/danh-sach/phim-moi-cap-nhat?page=${page}`;
 
-    let data = await handleProxy(target, () => {
-      // Return beautiful mock response in the requested shape
-      const items = getMergedMovies().map(item => ({
-        name: item.movie.name,
-        slug: item.movie.slug,
-        origin_name: item.movie.origin_name,
-        thumb_url: item.movie.thumb_url,
-        poster_url: item.movie.poster_url,
-        year: item.movie.year,
-        type: item.movie.type,
-        episode_current: item.movie.episode_current,
-        quality: item.movie.quality,
-        lang: item.movie.lang
-      }));
+    const getPath = (source: typeof SOURCES[0]) => {
+      if (source.name === 'AnimeHub') {
+        return `${source.domain}/v1/api/danh-sach/hoat-hinh?page=${page}`;
+      }
+      if (source.name === 'KKPhim') {
+        return `${source.domain}/danh-sach/phim-moi-cap-nhat?page=${page}`;
+      }
+      return `${source.domain}/danh-sach/phim-moi-cap-nhat?page=${page}`;
+    };
 
-      // Paginate mock data
-      const startIndex = (page - 1) * limit;
-      const paginatedItems = items.slice(startIndex, startIndex + limit);
+    const transform = (rawData: any, source: typeof SOURCES[0]) => {
+      let items: any[] = [];
+      let totalItems = 0;
+      let totalPages = 1;
+      let pathImage = source.imgBase;
+
+      if (rawData.data && Array.isArray(rawData.data.items)) {
+        items = rawData.data.items;
+        pathImage = rawData.data.pathImage || source.imgBase;
+        const pag = rawData.data.params?.pagination;
+        if (pag) {
+          totalItems = pag.totalItems || items.length;
+          totalPages = pag.totalPages || 1;
+        }
+      } else if (Array.isArray(rawData.items)) {
+        items = rawData.items;
+        pathImage = rawData.pathImage || source.imgBase;
+        const pag = rawData.pagination;
+        if (pag) {
+          totalItems = pag.totalItems || items.length;
+          totalPages = pag.totalPages || 1;
+        }
+      } else if (rawData.data && Array.isArray(rawData.data)) {
+        items = rawData.data;
+      }
+
+      if (!totalItems) totalItems = items.length;
+      if (!totalPages) totalPages = Math.ceil(totalItems / limit);
+
+      const normalizedItems = items.map(item => normalizeItem(item, pathImage, source.imgBase));
 
       return {
         status: true,
-        items: paginatedItems,
+        items: normalizedItems,
         pagination: {
-          totalItems: items.length,
+          totalItems,
           totalItemsPerPage: limit,
           currentPage: page,
-          totalPages: Math.ceil(items.length / limit)
+          totalPages
         }
       };
-    });
+    };
 
-    data = normalizeApiResponse(data);
+    const fallbackVal = {
+      status: true,
+      items: getMergedMovies().slice((page - 1) * limit, page * limit).map(item => normalizeItem(item.movie, '', '')),
+      pagination: {
+        totalItems: getMergedMovies().length,
+        totalItemsPerPage: limit,
+        currentPage: page,
+        totalPages: Math.ceil(getMergedMovies().length / limit)
+      }
+    };
+
+    const data = await fetchWithFallback(getPath, transform, fallbackVal);
     res.json(data);
   });
 
-  // 2. Danh sách có bộ lọc (type, category, country, year, sort)
+  // 2. Danh sách phim có bộ lọc (type, category, country, year)
   app.get('/api/danh-sach', async (req, res) => {
     const { type, page = '1', limit = '24', category, country, year } = req.query;
-
-    let targetUrl = `https://vsmov.com/api/danh-sach?page=${page}&limit=${limit}`;
-
-    if (category) {
-      targetUrl = `https://vsmov.com/api/the-loai/${category}?page=${page}&limit=${limit}`;
-    } else if (country) {
-      targetUrl = `https://vsmov.com/api/quoc-gia/${country}?page=${page}&limit=${limit}`;
-    } else if (type) {
-      if (type === 'hoathinh') {
-        targetUrl = `https://vsmov.com/api/the-loai/hoat-hinh?page=${page}&limit=${limit}`;
-      } else if (type === 'tvshows') {
-        targetUrl = `https://vsmov.com/api/the-loai/tv-shows?page=${page}&limit=${limit}`;
-      } else {
-        targetUrl = `https://vsmov.com/api/danh-sach?type=${type}&page=${page}&limit=${limit}`;
-      }
-    }
-
     const parsedPage = parseInt(page as string) || 1;
     const parsedLimit = parseInt(limit as string) || 24;
 
-    let data = await handleProxy(targetUrl, () => {
-      let filtered = getMergedMovies();
-
-      if (type) {
-        filtered = filtered.filter(item => item.movie.type === type);
-      }
+    const getPath = (source: typeof SOURCES[0]) => {
+      // OPhim / KKPhim / AnimeHub lists
       if (category) {
-        filtered = filtered.filter(item => item.movie.category.some(c => c.slug === category));
+        return `${source.domain}/v1/api/the-loai/${category}?page=${parsedPage}`;
       }
       if (country) {
-        filtered = filtered.filter(item => item.movie.country.some(c => c.slug === country));
+        return `${source.domain}/v1/api/quoc-gia/${country}?page=${parsedPage}`;
       }
       if (year) {
-        filtered = filtered.filter(item => item.movie.year.toString() === year.toString());
+        return `${source.domain}/v1/api/nam/${year}?page=${parsedPage}`;
+      }
+      if (type) {
+        if (type === 'hoathinh' || type === 'hoat-hinh') {
+          return `${source.domain}/v1/api/danh-sach/hoat-hinh?page=${parsedPage}`;
+        }
+        if (type === 'tvshows' || type === 'tv-shows') {
+          return `${source.domain}/v1/api/danh-sach/tv-shows?page=${parsedPage}`;
+        }
+        if (type === 'single') {
+          return `${source.domain}/v1/api/danh-sach/phim-le?page=${parsedPage}`;
+        }
+        if (type === 'series') {
+          return `${source.domain}/v1/api/danh-sach/phim-bo?page=${parsedPage}`;
+        }
+      }
+      return `${source.domain}/danh-sach/phim-moi-cap-nhat?page=${parsedPage}`;
+    };
+
+    const transform = (rawData: any, source: typeof SOURCES[0]) => {
+      let items: any[] = [];
+      let totalItems = 0;
+      let totalPages = 1;
+      let pathImage = source.imgBase;
+
+      const innerData = rawData.data;
+      if (innerData && Array.isArray(innerData.items)) {
+        items = innerData.items;
+        pathImage = innerData.pathImage || source.imgBase;
+        const pag = innerData.params?.pagination;
+        if (pag) {
+          totalItems = pag.totalItems || items.length;
+          totalPages = pag.totalPages || 1;
+        }
+      } else if (Array.isArray(rawData.items)) {
+        items = rawData.items;
+        pathImage = rawData.pathImage || source.imgBase;
+        const pag = rawData.pagination;
+        if (pag) {
+          totalItems = pag.totalItems || items.length;
+          totalPages = pag.totalPages || 1;
+        }
       }
 
-      const items = filtered.map(item => ({
-        name: item.movie.name,
-        slug: item.movie.slug,
-        origin_name: item.movie.origin_name,
-        thumb_url: item.movie.thumb_url,
-        poster_url: item.movie.poster_url,
-        year: item.movie.year,
-        type: item.movie.type,
-        episode_current: item.movie.episode_current,
-        quality: item.movie.quality,
-        lang: item.movie.lang
-      }));
+      if (!totalItems) totalItems = items.length;
+      if (!totalPages) totalPages = Math.ceil(totalItems / parsedLimit);
 
-      const startIndex = (parsedPage - 1) * parsedLimit;
-      const paginated = items.slice(startIndex, startIndex + parsedLimit);
+      const normalized = items.map(item => normalizeItem(item, pathImage, source.imgBase));
 
       return {
         status: true,
-        items: paginated,
+        items: normalized,
         pagination: {
-          totalItems: items.length,
+          totalItems,
           totalItemsPerPage: parsedLimit,
           currentPage: parsedPage,
-          totalPages: Math.ceil(items.length / parsedLimit)
+          totalPages
         }
       };
-    });
+    };
 
-    data = normalizeApiResponse(data);
+    const fallbackVal = {
+      status: true,
+      items: getMergedMovies().slice((parsedPage - 1) * parsedLimit, parsedPage * parsedLimit).map(item => normalizeItem(item.movie, '', '')),
+      pagination: {
+        totalItems: getMergedMovies().length,
+        totalItemsPerPage: parsedLimit,
+        currentPage: parsedPage,
+        totalPages: Math.ceil(getMergedMovies().length / parsedLimit)
+      }
+    };
 
+    const data = await fetchWithFallback(getPath, transform, fallbackVal);
     res.json(data);
   });
 
-  // 3. Tìm kiếm
+  // 3. Tìm kiếm hợp nhất tất cả các nguồn (OPhim, KKPhim, NguonC)
   app.get('/api/tim-kiem', async (req, res) => {
     const { keyword = '', page = '1', limit = '24' } = req.query;
-    const targetUrl = `https://vsmov.com/api/tim-kiem?keyword=${encodeURIComponent(keyword as string)}&page=${page}&limit=${limit}`;
-
     const parsedPage = parseInt(page as string) || 1;
     const parsedLimit = parseInt(limit as string) || 24;
 
-    let data = await handleProxy(targetUrl, () => {
-      const query = (keyword as string).toLowerCase().trim();
-      const filtered = getMergedMovies().filter(item => {
-        return (
-          item.movie.name.toLowerCase().includes(query) ||
-          item.movie.origin_name.toLowerCase().includes(query) ||
-          item.movie.content.toLowerCase().includes(query) ||
-          item.movie.actor.some(a => a.toLowerCase().includes(query)) ||
-          item.movie.director.some(d => d.toLowerCase().includes(query))
-        );
-      });
-
-      const items = filtered.map(item => ({
-        name: item.movie.name,
-        slug: item.movie.slug,
-        origin_name: item.movie.origin_name,
-        thumb_url: item.movie.thumb_url,
-        poster_url: item.movie.poster_url,
-        year: item.movie.year,
-        type: item.movie.type,
-        episode_current: item.movie.episode_current,
-        quality: item.movie.quality,
-        lang: item.movie.lang
-      }));
-
-      const startIndex = (parsedPage - 1) * parsedLimit;
-      const paginated = items.slice(startIndex, startIndex + parsedLimit);
-
-      return {
-        status: true,
-        items: paginated,
-        pagination: {
-          totalItems: items.length,
-          totalItemsPerPage: parsedLimit,
-          currentPage: parsedPage,
-          totalPages: Math.ceil(items.length / parsedLimit)
-        }
-      };
-    });
-
-    data = normalizeApiResponse(data);
-
-    if (!data) {
-      data = {
+    const query = (keyword as string).toLowerCase().trim();
+    if (!query) {
+      return res.json({
         status: true,
         items: [],
         pagination: {
@@ -567,138 +560,272 @@ async function startServer() {
           currentPage: parsedPage,
           totalPages: 0
         }
-      };
+      });
     }
 
-    if (!Array.isArray(data.items)) {
-      data.items = [];
-    }
+    const encKeyword = encodeURIComponent(keyword as string);
+    const seenSlugs = new Set<string>();
+    const mergedList: any[] = [];
 
-    // Normalize all poster and thumb URLs to be absolute paths
-    const baseImg = "https://vsmov.com/uploads/movies/";
-    const normalizedList = data.items.map((item: any) => {
-      if (!item) return item;
-      let thumb = item.thumb_url || item.thumb || "";
-      let poster = item.poster_url || item.poster || "";
-      
-      if (thumb && !thumb.startsWith("http") && !thumb.startsWith("//")) {
-        if (thumb.startsWith('storage') || thumb.startsWith('/storage') || thumb.startsWith('uploads') || thumb.startsWith('/uploads')) {
-          item.thumb_url = `https://vsmov.com${thumb.startsWith('/') ? '' : '/'}${thumb}`;
+    // Parallel search queries for lightning-fast aggregation
+    const searchPromises = SOURCES.map(async (src) => {
+      try {
+        const searchUrl = `${src.domain}/v1/api/tim-kiem?keyword=${encKeyword}&page=${parsedPage}&limit=16`;
+
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 7500); // Fail fast
+        const response = await fetch(searchUrl, { signal: controller.signal });
+        clearTimeout(tid);
+
+        if (response.ok) {
+          const raw = await response.json();
+          let itemsList: any[] = [];
+          let pathImg = src.imgBase;
+
+          if (raw.data && Array.isArray(raw.data.items)) {
+            itemsList = raw.data.items;
+            pathImg = raw.data.pathImage || src.imgBase;
+          } else if (Array.isArray(raw.items)) {
+            itemsList = raw.items;
+            pathImg = raw.pathImage || src.imgBase;
+          } else if (raw.data && Array.isArray(raw.data)) {
+            itemsList = raw.data;
+          }
+
+          return itemsList.map(item => normalizeItem(item, pathImg, src.imgBase));
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          console.log(`[Search] Source ${src.name} took too long and was aborted.`);
         } else {
-          item.thumb_url = `${baseImg}${thumb}`;
+          console.log(`[Search] Source ${src.name} query status:`, err instanceof Error ? err.message : err);
         }
       }
-      if (poster && !poster.startsWith("http") && !poster.startsWith("//")) {
-        if (poster.startsWith('storage') || poster.startsWith('/storage') || poster.startsWith('uploads') || poster.startsWith('/uploads')) {
-          item.poster_url = `https://vsmov.com${poster.startsWith('/') ? '' : '/'}${poster}`;
-        } else {
-          item.poster_url = `${baseImg}${poster}`;
-        }
-      }
-      if (!item.thumb_url && item.poster_url) item.thumb_url = item.poster_url;
-      if (!item.poster_url && item.thumb_url) item.poster_url = item.thumb_url;
-      return item;
+      return [];
     });
 
-    data.items = normalizedList;
-    if (data.pagination) {
-      data.pagination.totalItems = normalizedList.length;
-      data.pagination.totalPages = Math.ceil(normalizedList.length / parsedLimit);
-    } else {
-      data.pagination = {
-        totalItems: normalizedList.length,
+    const promiseResults = await Promise.all(searchPromises);
+    promiseResults.forEach(list => {
+      list.forEach(item => {
+        if (item && item.slug && !seenSlugs.has(item.slug)) {
+          seenSlugs.add(item.slug);
+          mergedList.push(item);
+        }
+      });
+    });
+
+    // Merge Jikan and mock search indicators
+    const customMatches = getMergedMovies().filter(item => {
+      return (
+        item.movie.name.toLowerCase().includes(query) ||
+        item.movie.origin_name.toLowerCase().includes(query) ||
+        item.movie.content.toLowerCase().includes(query)
+      );
+    });
+
+    customMatches.forEach(item => {
+      if (!seenSlugs.has(item.movie.slug)) {
+        seenSlugs.add(item.movie.slug);
+        mergedList.push(normalizeItem(item.movie, '', ''));
+      }
+    });
+
+    res.json({
+      status: true,
+      items: mergedList,
+      pagination: {
+        totalItems: mergedList.length,
         totalItemsPerPage: parsedLimit,
         currentPage: parsedPage,
-        totalPages: Math.ceil(normalizedList.length / parsedLimit)
-      };
-    }
-
-    res.json(data);
+        totalPages: Math.ceil(mergedList.length / parsedLimit)
+      }
+    });
   });
 
   // 4. Thể loại
   app.get('/api/the-loai', async (req, res) => {
-    const targetUrl = 'https://vsmov.com/api/the-loai';
-    const rawData = await handleProxy(targetUrl, () => MOCK_CATEGORIES);
-    
-    let processed = MOCK_CATEGORIES;
-    // Map from vsmov response format {"status": "success", "data": {"items": [...]}}
-    if (rawData && rawData.data && Array.isArray(rawData.data.items)) {
-      processed = rawData.data.items;
-    } else if (Array.isArray(rawData)) {
-      processed = rawData;
-    }
-    res.json(processed);
+    res.json(MOCK_CATEGORIES);
   });
 
   // 5. Quốc gia
   app.get('/api/quoc-gia', async (req, res) => {
-    const targetUrl = 'https://vsmov.com/api/quoc-gia';
-    const rawData = await handleProxy(targetUrl, () => MOCK_COUNTRIES);
-
-    let processed = MOCK_COUNTRIES;
-    if (rawData && rawData.data && Array.isArray(rawData.data.items)) {
-      processed = rawData.data.items;
-    } else if (Array.isArray(rawData)) {
-      processed = rawData;
-    }
-    res.json(processed);
+    res.json(MOCK_COUNTRIES);
   });
 
-  // 6. Chi tiết phim
+  // 6. Chi tiết phim tích hợp TMDB (Trailers + HD Backdrops) + Gỡ bỏ các server Hà Nội
   app.get('/api/phim/:slug', async (req, res) => {
     const slug = req.params.slug;
 
-    const targetUrl = `https://vsmov.com/api/phim/${slug}`;
+    // Fast-path interceptor for custom Jikan anime or pre-seeded mocks
+    const foundCustom = getMergedMovies().find(item => item.movie.slug === slug);
+    if (foundCustom) {
+      return res.json({
+        status: true,
+        msg: 'Thành công',
+        movie: foundCustom.movie,
+        episodes: foundCustom.episodes
+      });
+    }
 
-    const data = await handleProxy(targetUrl, () => {
-      const found = getMergedMovies().find(item => item.movie.slug === slug);
-      if (found) {
-        return {
-          status: true,
-          msg: 'Thành công',
-          movie: found.movie,
-          episodes: found.episodes
-        };
-      }
-      return {
-        status: false,
-        msg: 'Không tìm thấy phim'
+    const getPath = (source: typeof SOURCES[0]) => {
+      return `${source.domain}/phim/${slug}`;
+    };
+
+    const transform = (rawData: any, source: typeof SOURCES[0]) => {
+      if (!rawData || (!rawData.movie && !rawData.data?.movie)) return null;
+
+      const movieData = rawData.movie || rawData.data?.movie;
+      const rawEpisodes = rawData.episodes || rawData.data?.episodes || [];
+
+      let poster = movieData.poster_url || movieData.poster || "";
+      let thumb = movieData.thumb_url || movieData.thumb || "";
+
+      const pathImage = rawData.pathImage || rawData.data?.pathImage || source.imgBase;
+      poster = getAbsoluteImageUrl(poster, pathImage, source.imgBase);
+      thumb = getAbsoluteImageUrl(thumb, pathImage, source.imgBase);
+
+      const parseCategoryOrCountry = (data: any) => {
+        if (!data) return [];
+        let items: any[] = [];
+        if (Array.isArray(data)) {
+          items = data;
+        } else if (typeof data === 'object') {
+          if (data.name || data.slug) {
+            items = [data];
+          } else {
+            items = Object.values(data);
+          }
+        } else if (typeof data === 'string') {
+          items = data.split(',').map(s => ({ name: s.trim() })).filter(x => x.name);
+        }
+        return items.map((cat: any) => {
+          if (!cat) return null;
+          const name = cat.name || (typeof cat === 'string' ? cat : "");
+          const slug = cat.slug || (name ? slugify(name) : "");
+          const id = cat.id || slug || slugify(name);
+          return { id, name, slug };
+        }).filter((x): x is { id: string; name: string; slug: string } => x !== null && !!x.name);
       };
+
+      const category = parseCategoryOrCountry(movieData.category);
+
+      const country = parseCategoryOrCountry(movieData.country);
+
+      const actors = Array.isArray(movieData.actor) 
+        ? movieData.actor.filter(Boolean) 
+        : (typeof movieData.actor === 'string' ? movieData.actor.split(',').map((a: string) => a.trim()).filter(Boolean) : []);
+
+      const directors = Array.isArray(movieData.director) 
+        ? movieData.director.filter(Boolean) 
+        : (typeof movieData.director === 'string' ? movieData.director.split(',').map((d: string) => d.trim()).filter(Boolean) : []);
+
+      const normalizedMovie = {
+        name: movieData.name || "",
+        slug: movieData.slug || "",
+        origin_name: movieData.origin_name || movieData.original_name || "",
+        content: movieData.content || movieData.description || "",
+        type: movieData.type || "single",
+        status: movieData.status || "completed",
+        thumb_url: thumb || poster,
+        poster_url: poster || thumb,
+        backdrop_url: thumb || poster,
+        trailer_url: getEmbedTrailerUrl(movieData.trailer_url || movieData.trailer || ""),
+        year: parseInt(movieData.year) || 2024,
+        view: parseInt(movieData.view) || 12500,
+        actor: actors,
+        director: directors,
+        category: category,
+        country: country,
+        time: movieData.time || "120 phút",
+        episode_current: movieData.episode_current || "Full",
+        episode_total: movieData.episode_total || "1 tập",
+        lang: movieData.lang || "Vietsub",
+        quality: movieData.quality || "FHD",
+        imdb: {
+          star: movieData.imdb?.star || movieData.imdb_rating || "7.5",
+          vote: movieData.imdb?.vote || "1,200"
+        }
+      };
+
+      const normalizedEpisodes = rawEpisodes.map((server: any) => {
+        const rawDataList = server.server_data || server.items || [];
+        const server_data = rawDataList.map((ep: any) => ({
+          name: ep.name || "",
+          slug: ep.slug || "",
+          filename: ep.filename || "",
+          link_embed: ep.link_embed || ep.embed || "",
+          link_m3u8: ep.link_m3u8 || ep.m3u8 || ""
+        }));
+
+        const originalServerName = server.server_name || "Vietsub";
+        const cleanServerName = originalServerName === "Default" || originalServerName === "Default Server" || originalServerName === "Kênh truyền tải"
+          ? source.name
+          : `${source.name} - ${originalServerName}`;
+
+        return {
+          server_name: cleanServerName,
+          server_data: server_data
+        };
+      });
+
+      return {
+        status: true,
+        movie: normalizedMovie,
+        episodes: normalizedEpisodes
+      };
+    };
+
+    // Parallel fetch across all three sources for robust fallback & comprehensive stream choice
+    const fetchPromises = SOURCES.map(async (source) => {
+      try {
+        const url = getPath(source);
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 6000); // 6s timeout max per gateway
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(id);
+
+        if (response.ok) {
+          const rawJson = await response.json();
+          if (rawJson && (rawJson.status === true || rawJson.status === 'success' || rawJson.items || rawJson.data || rawJson.movie)) {
+            const result = transform(rawJson, source);
+            return { source, data: result };
+          }
+        }
+      } catch (err) {
+        console.warn(`[Proxy Detail] Source ${source.name} failed for slug ${slug}:`, err instanceof Error ? err.message : err);
+      }
+      return null;
     });
 
-    if (data && data.status && data.movie) {
-      const baseImg = "https://vsmov.com/uploads/movies/";
-      let thumb = data.movie.thumb_url || "";
-      let poster = data.movie.poster_url || "";
-      if (thumb && !thumb.startsWith("http") && !thumb.startsWith("//")) {
-        if (thumb.startsWith('storage') || thumb.startsWith('/storage') || thumb.startsWith('uploads') || thumb.startsWith('/uploads')) {
-          data.movie.thumb_url = `https://vsmov.com${thumb.startsWith('/') ? '' : '/'}${thumb}`;
-        } else {
-          data.movie.thumb_url = `${baseImg}${thumb}`;
-        }
-      }
-      if (poster && !poster.startsWith("http") && !poster.startsWith("//")) {
-        if (poster.startsWith('storage') || poster.startsWith('/storage') || poster.startsWith('uploads') || poster.startsWith('/uploads')) {
-          data.movie.poster_url = `https://vsmov.com${poster.startsWith('/') ? '' : '/'}${poster}`;
-        } else {
-          data.movie.poster_url = `${baseImg}${poster}`;
+    const results = await Promise.all(fetchPromises);
+    const validResults = results.filter((r): r is { source: typeof SOURCES[0], data: any } => r !== null);
+
+    if (validResults.length > 0) {
+      // Prioritize the highest-ranking successful source's movie metadata (main title, poster, etc.)
+      const primaryResult = validResults[0].data;
+
+      // Aggregate all servers from successful sources in sequence
+      const combinedEpisodes: any[] = [];
+      for (const item of validResults) {
+        if (item.data && Array.isArray(item.data.episodes)) {
+          combinedEpisodes.push(...item.data.episodes);
         }
       }
 
-      // Proxy embed/video URLs to bypass CORS
-      const proxyUrl = (url: string, type: 'embed' | 'video', fmt?: string) => {
-        let proxyPath = `/api/proxy/${type}?url=${encodeURIComponent(url)}`;
-        if (fmt) proxyPath += `&fmt=${fmt}`;
-        return proxyPath;
+      const data = {
+        status: true,
+        movie: primaryResult.movie,
+        episodes: combinedEpisodes
       };
 
+      // 1. Filter Hanoi servers completely ("nguồn phát hãy xóa Hà Nội đi")
       if (Array.isArray(data.episodes)) {
         data.episodes = data.episodes.filter((server: any) => {
           const sName = (server.server_name || "").toLowerCase();
           return !sName.includes("hà nội") && !sName.includes("hanoi");
         });
 
+        // Resolve sequential backup stream pointers for any blank episode sources
         data.episodes = data.episodes.map((server: any, sIdx: number) => {
           if (!server.server_data || !Array.isArray(server.server_data)) {
             server.server_data = [];
@@ -706,68 +833,141 @@ async function startServer() {
           server.server_data = server.server_data.map((ep: any, epIdx: number) => {
             const hasM3u8 = ep.link_m3u8 && ep.link_m3u8.trim().length > 0;
             const hasEmbed = ep.link_embed && ep.link_embed.trim().length > 0;
-
-            if (hasM3u8) {
-              const isM3u8 = ep.link_m3u8.includes('.m3u8');
-              ep.link_m3u8 = proxyUrl(ep.link_m3u8, 'video', isM3u8 ? 'm3u8' : 'mp4');
-            }
-            if (hasEmbed) {
-              ep.link_embed = proxyUrl(ep.link_embed, 'embed');
-            }
             if (!hasM3u8 && !hasEmbed) {
-              const fallbackUrl = BACKUP_STREAMS[(epIdx + sIdx) % BACKUP_STREAMS.length];
-              ep.link_m3u8 = proxyUrl(fallbackUrl, 'video', 'mp4');
+              ep.link_m3u8 = BACKUP_STREAMS[(epIdx + sIdx) % BACKUP_STREAMS.length];
             }
             return ep;
           });
-          if (server.server_data.length === 0) {
-            const fallbackUrl = BACKUP_STREAMS[sIdx % BACKUP_STREAMS.length];
-            server.server_data.push({
-              name: "Full",
-              slug: "full",
-              filename: `${data.movie.slug}_full.mp4`,
-              link_embed: "",
-              link_m3u8: proxyUrl(fallbackUrl, 'video', 'mp4')
-            });
-          }
           return server;
         });
       }
-      
-      if (!data.episodes || data.episodes.length === 0) {
-        let totalEps = 1;
-        const totalStr = data.movie.episode_total || data.movie.episode_current || "";
-        const match = totalStr.match(/(\d+)/);
-        if (match) {
-          totalEps = parseInt(match[1]);
-        }
-        if (totalEps < 1 || isNaN(totalEps)) {
-          totalEps = data.movie.type === 'single' ? 1 : 12;
-        }
-        if (totalEps > 40) totalEps = 40;
 
-        const server_data = [];
-        for (let idx = 1; idx <= totalEps; idx++) {
-          const streamUrl = BACKUP_STREAMS[(idx - 1) % BACKUP_STREAMS.length];
-          server_data.push({
-            name: totalEps === 1 ? "Full" : idx.toString(),
-            slug: totalEps === 1 ? "full" : `tap-${idx}`,
-            filename: `${data.movie.slug}_tap_${idx}.mp4`,
-            link_embed: "",
-            link_m3u8: proxyUrl(streamUrl, 'video', 'mp4')
-          });
-        }
-
-        data.episodes = [
-          {
-            server_name: "HD Server",
-            server_data: server_data
-          }
-        ];
-      }
+      return res.json(data);
     }
 
-    res.json(data);
+    res.status(404).json({ status: false, msg: 'Không tìm thấy phim' });
+  });
+
+  // 6.25 Library & Sources Diagnostic Scanner
+  app.get('/api/admin/scan', async (req, res) => {
+    // 1. Measure live gateway latencies
+    const latencyResults = await Promise.all(
+      SOURCES.map(async (src) => {
+        const start = Date.now();
+        try {
+          const controller = new AbortController();
+          const id = setTimeout(() => controller.abort(), 3000);
+          const response = await fetch(`${src.domain}/danh-sach/phim-moi-cap-nhat?page=1`, { signal: controller.signal });
+          clearTimeout(id);
+          const latency = Date.now() - start;
+          return {
+            name: src.name,
+            domain: src.domain,
+            status: response.ok ? 'Hoạt động' : 'Nguồn lỗi',
+            latency: `${latency}ms`
+          };
+        } catch {
+          return {
+            name: src.name,
+            domain: src.domain,
+            status: 'Nguồn lỗi',
+            latency: 'Không kết nối được'
+          };
+        }
+      })
+    );
+
+    // 2. Scan critical spotlight/featured movies to detect stream integrity
+    const slugsToScan = [
+      'tan-phong-than-nhi-lang-than',
+      'tap-yeu-don-dau',
+      'hoang-phi-hong-bi-an-mot-huyen-thoai',
+      'ma-thoi-den-nam-hai-quy-hu',
+      'truong-nguyet-tan-minh',
+      'nhat-niem-quan-son',
+      'phon-hoa',
+      'than-an'
+    ];
+
+    const scannedItems = await Promise.all(
+      slugsToScan.map(async (slug) => {
+        const match = getMergedMovies().find(m => m.movie.slug === slug);
+        const name = match ? match.movie.name : (slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '));
+
+        let kkphimFound = false;
+        let ophimFound = false;
+        let animehubFound = false;
+        let hasM3u8 = false;
+        let hasEmbed = false;
+
+        const checkPromises = SOURCES.map(async (source) => {
+          const url = `${source.domain}/phim/${slug}`;
+
+          try {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), 3500);
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(id);
+
+            if (response.ok) {
+              const json = await response.json();
+              if (json && (json.status === true || json.status === 'success' || json.movie)) {
+                if (source.name === 'KKPhim') kkphimFound = true;
+                if (source.name === 'OPhim') ophimFound = true;
+                if (source.name === 'AnimeHub') animehubFound = true;
+
+                const epSource = json.episodes || (json.data && json.data.episodes);
+                if (Array.isArray(epSource)) {
+                  epSource.forEach((srv: any) => {
+                    const serverData = srv.server_data || srv.items || [];
+                    if (Array.isArray(serverData)) {
+                      serverData.forEach((ep: any) => {
+                        if (ep.link_m3u8 || ep.m3u8) hasM3u8 = true;
+                        if (ep.link_embed || ep.embed) hasEmbed = true;
+                      });
+                    }
+                  });
+                }
+              }
+            }
+          } catch {
+            // ignore timeout/error on single source
+          }
+        });
+
+        await Promise.all(checkPromises);
+
+        const totalCheckedSources = (kkphimFound ? 1 : 0) + (ophimFound ? 1 : 0) + (animehubFound ? 1 : 0);
+        let status = 'Hoạt động';
+
+        if (totalCheckedSources === 0) {
+          status = 'Thiếu nguồn';
+        } else if (!hasM3u8 && !hasEmbed) {
+          status = 'Nguồn lỗi';
+        }
+
+        return {
+          slug,
+          name,
+          status,
+          sourcesChecked: {
+            KKPhim: kkphimFound,
+            OPhim: ophimFound,
+            AnimeHub: animehubFound
+          },
+          hasM3u8,
+          hasEmbed,
+          lastChecked: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        };
+      })
+    );
+
+    res.json({
+      status: true,
+      latencies: latencyResults,
+      scannedMovies: scannedItems,
+      systemHealth: latencyResults.filter(r => r.status === 'Hoạt động').length >= 2 ? 'Hoạt động ổn định' : 'Nguồn lỗi một phần'
+    });
   });
 
   // 6.5 Diễn viên (Actors details proxy)
@@ -778,114 +978,8 @@ async function startServer() {
     });
   });
 
-  // 7. Video proxy endpoint - bypass CORS for vsmov streams
-  app.get('/api/proxy/video', async (req, res) => {
-    const videoUrl = req.query.url as string;
-    if (!videoUrl) {
-      return res.status(400).json({ error: 'Missing url' });
-    }
-
-    try {
-      const proxyHeaders: Record<string, string> = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': 'https://vsmov.com/',
-        'Origin': 'https://vsmov.com',
-      };
-
-      const range = req.headers.range;
-      if (range) {
-        proxyHeaders['Range'] = range;
-      }
-
-      const response = await fetch(videoUrl, { headers: proxyHeaders });
-
-      if (!response.ok && response.status !== 206) {
-        return res.status(response.status).end();
-      }
-
-      res.set('Access-Control-Allow-Origin', '*');
-      res.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-      res.set('Access-Control-Allow-Headers', '*');
-
-      const contentType = response.headers.get('content-type');
-      if (contentType) res.set('Content-Type', contentType);
-
-      const contentLength = response.headers.get('content-length');
-      if (contentLength) res.set('Content-Length', contentLength);
-
-      const contentRange = response.headers.get('content-range');
-      if (contentRange) {
-        res.status(206);
-        res.set('Content-Range', contentRange);
-      }
-
-      const acceptRanges = response.headers.get('accept-ranges');
-      if (acceptRanges) res.set('Accept-Ranges', acceptRanges);
-
-      const reader = response.body.getReader();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        res.write(value);
-      }
-      res.end();
-    } catch (err) {
-      res.status(502).json({ error: 'Proxy failed' });
-    }
-  });
-
-  // 8. Embed proxy - wrap vsmov player page to allow iframe embedding
-  app.get('/api/proxy/embed', async (req, res) => {
-    const embedUrl = req.query.url as string;
-    if (!embedUrl) {
-      return res.status(400).json({ error: 'Missing url' });
-    }
-
-    try {
-      const response = await fetch(embedUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Referer': 'https://vsmov.com/',
-        }
-      });
-
-      if (!response.ok) {
-        return res.status(response.status).send('Proxy error');
-      }
-
-      res.set('Access-Control-Allow-Origin', '*');
-      res.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-      res.set('Access-Control-Allow-Headers', '*');
-
-      const reader = response.body.getReader();
-      let html = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        html += new TextDecoder().decode(value);
-      }
-
-      // Remove X-Frame-Options to allow iframe embedding
-      html = html.replace(/X-Frame-Options/gi, 'X-Frame-Options-Disabled');
-      html = html.replace(/frame-ancestors/gi, 'frame-ancestors-disabled');
-
-      // Add base tag to resolve relative URLs
-      const baseUrl = new URL(embedUrl);
-      const baseOrigin = `${baseUrl.protocol}//${baseUrl.host}`;
-      if (!html.includes('<base ')) {
-        html = html.replace('<head>', `<head><base href="${baseOrigin}/">`);
-      }
-
-      res.set('Content-Type', 'text/html; charset=utf-8');
-      res.send(html);
-    } catch (err) {
-      res.status(502).json({ error: 'Embed proxy failed' });
-    }
-  });
-
-  // Vite middleware setup (dynamic import to avoid production errors)
+  // Vite development vs production compiler
   if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa'

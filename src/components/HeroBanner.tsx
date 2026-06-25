@@ -302,9 +302,9 @@ export default function HeroBanner({ movies, onPlay, onDetail }: HeroBannerProps
 
           {/* Categories details mapping */}
           <div className="flex flex-wrap gap-1.5 mb-5">
-            {currentMovie.category && currentMovie.category.map(cat => (
+            {currentMovie.category && currentMovie.category.map((cat, idx) => (
               <span 
-                key={cat.id} 
+                key={`${cat.slug || cat.id || cat.name}-${idx}`} 
                 className="text-[10px] sm:text-[11px] font-semibold text-zinc-300 bg-white/5 border border-white/5 hover:border-white/10 px-3 py-1 rounded-full hover:bg-white/10 hover:text-white cursor-pointer transition-all duration-200"
               >
                 #{cat.name}

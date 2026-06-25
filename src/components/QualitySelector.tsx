@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Info, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { Check, Info, Loader2, Sparkles, AlertCircle, Lock } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export interface QualityLevel {
@@ -26,6 +26,32 @@ export default function QualitySelector({
   activeHeight,
   error = null
 }: QualitySelectorProps) {
+  const [lockedMsg, setLockedMsg] = React.useState<string | null>(null);
+
+  const getSavedTier = () => {
+    if (typeof window === 'undefined') return 'free';
+    return localStorage.getItem('filmflow_vip_tier') || 'free';
+  };
+
+  const isLevelLocked = (height: number) => {
+    if (height <= 0) return false;
+    const tier = getSavedTier();
+    if (tier === 'ultra') return false;
+    if (tier === 'premium') {
+      return height > 1440; // Lock 4K
+    }
+    return height > 720; // Lock 1080p, 2K, 4K
+  };
+
+  const handleActivateDemoVip = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('filmflow_vip_tier', 'ultra');
+      window.dispatchEvent(new Event('storage'));
+    }
+    setLockedMsg(null);
+  };
   
   // Format bitrate into human-readable text
   const formatBitrate = (bitrate?: number) => {
@@ -74,6 +100,19 @@ export default function QualitySelector({
         )}
       </div>
 
+      {/* Locked Alert Box */}
+      {lockedMsg && (
+        <div className="flex flex-col gap-2 p-3 text-center bg-amber-500/10 border border-amber-500/20 rounded-xl my-2">
+          <p className="text-[10px] text-zinc-300 font-bold leading-normal">{lockedMsg}</p>
+          <button
+            onClick={handleActivateDemoVip}
+            className="bg-amber-500 hover:bg-amber-400 text-black text-[9px] font-black py-1 px-2.5 rounded-lg transition-colors cursor-pointer self-center"
+          >
+            ⚡ Kích Hoạt Demo VIP Ngay
+          </button>
+        </div>
+      )}
+
       {/* Loading Skeleton Panel */}
       {isLoading ? (
         <div className="flex flex-col gap-2 py-4 animate-pulse">
@@ -103,10 +142,23 @@ export default function QualitySelector({
         <div className="flex flex-col max-h-[220px] overflow-y-auto pr-1 gap-1.5 no-scrollbar">
           {levels.map((lvl) => {
             const isSelected = currentLevelIndex === lvl.id;
+            const isLocked = isLevelLocked(lvl.height);
             return (
               <button
                 key={lvl.id}
-                onClick={() => onLevelChange(lvl.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (isLocked) {
+                    const tier = getSavedTier();
+                    const tierLabel = tier === 'free' ? 'Thành viên Free' : 'Gói Premium';
+                    const requiredTier = lvl.height >= 2160 ? 'Ultra 4K' : 'Premium 1080p/2K';
+                    setLockedMsg(`Luồng phát ${lvl.height}p yêu cầu gói ${requiredTier}. Hiện bạn là ${tierLabel}.`);
+                    return;
+                  }
+                  setLockedMsg(null);
+                  onLevelChange(lvl.id);
+                }}
                 className={`relative flex items-center justify-between w-full p-2.5 rounded-lg text-left text-xs transition-all duration-250 cursor-pointer ${
                   isSelected 
                     ? 'bg-gradient-to-r from-[var(--color-brand)]/20 to-[var(--color-brand)]/5 border border-[var(--color-brand)]/30 text-white font-extrabold shadow-[0_4px_12px_rgba(230,57,70,0.15)]' 
@@ -116,12 +168,16 @@ export default function QualitySelector({
                 {/* Left Side Labels */}
                 <div className="flex items-center gap-2">
                   <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-colors ${
-                    isSelected ? 'bg-[var(--color-brand)] text-white' : 'border border-zinc-700'
+                    isLocked ? 'border border-zinc-800 bg-zinc-950/40' : (isSelected ? 'bg-[var(--color-brand)] text-white' : 'border border-zinc-700')
                   }`}>
-                    {isSelected && <Check size={10} strokeWidth={3} />}
+                    {isLocked ? (
+                      <Lock size={8} className="text-zinc-600" />
+                    ) : (
+                      isSelected && <Check size={10} strokeWidth={3} />
+                    )}
                   </div>
                   <div className="flex flex-col">
-                    <span className="tracking-wide">
+                    <span className={`tracking-wide ${isLocked ? 'text-zinc-500 line-through' : ''}`}>
                       {getDisplayLabel(lvl)}
                     </span>
                     {lvl.height > 0 && (
@@ -133,7 +189,11 @@ export default function QualitySelector({
                 </div>
 
                 {/* Right Side Quality Tag Badge */}
-                {lvl.id === -1 ? (
+                {isLocked ? (
+                  <span className="text-[8px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1.5 py-0.5 rounded-full font-black uppercase tracking-widest flex items-center gap-1 shrink-0">
+                    <Lock size={7} /> VIP
+                  </span>
+                ) : lvl.id === -1 ? (
                   <span className="text-[10px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded-full font-black uppercase text-[9px]">
                     Auto
                   </span>

@@ -35,11 +35,11 @@ export default function HomeScreen({
 
       // 2. Fetch Detailed entries for the Hero Banner Carousel (5 specific spotlight movies)
       const spotlightSlugs = [
-        'dune-hanh-tinh-cat-phan-2',
-        'nu-than-thu-tu-wednesday-phan-1',
-        'tro-choi-con-muc',
-        'your-name',
-        'frieren-beyond-journeys-end'
+        'tap-yeu-don-dau',
+        'hoang-phi-hong-bi-an-mot-huyen-thoai',
+        'tuyet-trung-huyet-dao-hanh',
+        'ma-thoi-den-nam-hai-quy-hu',
+        'tan-phong-than-nhi-lang-than'
       ];
       
       const featuredPromises = spotlightSlugs.map(async (slug) => {
@@ -141,7 +141,7 @@ export default function HomeScreen({
 
           {isLoading ? renderSkeletonRow() : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
-              {phimMoi.slice(0, 12).map(item => (
+              {phimMoi.slice(0, 12).map((item) => (
                 <MovieCard 
                   key={item.slug}
                   movie={item}
@@ -171,7 +171,7 @@ export default function HomeScreen({
 
           {isLoading ? renderSkeletonRow() : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
-              {phimLe.map(item => (
+              {phimLe.map((item) => (
                 <MovieCard 
                   key={item.slug}
                   movie={item}
@@ -228,7 +228,7 @@ export default function HomeScreen({
 
           {isLoading ? renderSkeletonRow() : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
-              {phimBo.map(item => (
+              {phimBo.map((item) => (
                 <MovieCard 
                   key={item.slug}
                   movie={item}
@@ -258,7 +258,7 @@ export default function HomeScreen({
 
           {isLoading ? renderSkeletonRow() : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
-              {phimAnime.map(item => (
+              {phimAnime.map((item) => (
                 <MovieCard 
                   key={item.slug}
                   movie={item}

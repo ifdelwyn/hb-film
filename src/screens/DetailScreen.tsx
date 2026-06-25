@@ -4,6 +4,7 @@ import { Movie, EpisodeServer, MovieListItem } from '../types/movie';
 import { useWatchlist } from '../lib/hooks/useWatchlist';
 import MovieCard from '../components/MovieCard';
 import { Play, Plus, Check, Star, Calendar, Clock, Tv, Film, Compass, Users, Tag, Share2, Award, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getCustomSourceName } from '../config/sourceDisplayMap';
 
 interface DetailScreenProps {
   slug: string;
@@ -89,6 +90,8 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
   // Watchlist hook integration
   const { isInWatchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
 
+  const hasActors = !!(movie && movie.actor && movie.actor.length > 0 && movie.actor.some(a => a && a.trim() !== "" && a.trim() !== "N/A" && a.trim() !== "Đang cập nhật"));
+
   useEffect(() => {
     const loadActorsCatalog = async () => {
       try {
@@ -115,10 +118,10 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
     loadActorsCatalog();
   }, []);
 
-  const findActorImage = (actName: string) => {
+  const findActorImage = (actName: string): string | null => {
     const key = actName.toLowerCase().trim();
     if (actorImageDict[key]) return actorImageDict[key];
-    return getActorImageUrl(actName);
+    return null;
   };
 
   useEffect(() => {
@@ -211,7 +214,7 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
       {/* 3A. CINEMATIC COVER BACKDROP HEADER */}
       <div className="absolute top-0 inset-x-0 h-[50vh] sm:h-[65vh] overflow-hidden">
         <img
-          src={movie.poster_url || movie.thumb_url}
+          src={movie.backdrop_url || movie.poster_url || movie.thumb_url}
           alt={movie.name}
           className="w-full h-full object-cover object-top filter blur-xl scale-110 opacity-30 pointer-events-none"
           referrerPolicy="no-referrer"
@@ -268,9 +271,9 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
 
             {/* Genre tags with enhanced contrast, size, and hover transitions */}
             <div className="flex flex-wrap gap-2 mb-6">
-              {movie.category.map(cat => (
+              {movie.category.map((cat, idx) => (
                 <span 
-                  key={cat.id} 
+                  key={`${cat.slug || cat.id || cat.name}-${idx}`} 
                   className="flex items-center gap-1.5 text-xs sm:text-[13px] text-white bg-zinc-900/50 hover:bg-white/10 border border-white/15 px-4 py-2 rounded-full cursor-pointer transition-all duration-300 hover:scale-[1.04] hover:border-[var(--color-brand)] hover:shadow-[0_0_15px_rgba(230,57,70,0.3)] font-medium"
                 >
                   <Tag size={11} className="text-[var(--color-brand)]" />
@@ -378,13 +381,15 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
               {activeTab === 'info' && <span className="absolute bottom-[-13px] left-0 right-0 h-0.5 bg-[var(--color-brand)] rounded-full animate-scale-in" />}
             </button>
 
-            <button
-              onClick={() => setActiveTab('cast')}
-              className={`text-sm font-bold pb-2 transition-colors cursor-pointer select-none uppercase tracking-wider relative ${activeTab === 'cast' ? 'text-[var(--color-brand)]' : 'text-zinc-500 hover:text-white'}`}
-            >
-              Diễn viên chính
-              {activeTab === 'cast' && <span className="absolute bottom-[-13px] left-0 right-0 h-0.5 bg-[var(--color-brand)] rounded-full animate-scale-in" />}
-            </button>
+            {hasActors && (
+              <button
+                onClick={() => setActiveTab('cast')}
+                className={`text-sm font-bold pb-2 transition-colors cursor-pointer select-none uppercase tracking-wider relative ${activeTab === 'cast' ? 'text-[var(--color-brand)]' : 'text-zinc-500 hover:text-white'}`}
+              >
+                Diễn viên chính
+                {activeTab === 'cast' && <span className="absolute bottom-[-13px] left-0 right-0 h-0.5 bg-[var(--color-brand)] rounded-full animate-scale-in" />}
+              </button>
+            )}
 
             <button
               onClick={() => setActiveTab('related')}
@@ -408,15 +413,18 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
                     {/* Server selectors */}
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs text-zinc-500 font-bold uppercase tracking-wider mr-2">Cổng Truyền:</span>
-                      {episodes.map((svr, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => setActiveServerIdx(idx)}
-                          className={`text-xs py-1.5 px-4 rounded-lg font-bold border transition-colors cursor-pointer ${activeServerIdx === idx ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] shadow-lg shadow-red-500/10' : 'bg-zinc-900 text-zinc-400 border-zinc-800'}`}
-                        >
-                          {svr.server_name}
-                        </button>
-                      ))}
+                      {episodes.map((svr, idx) => {
+                        const customName = getCustomSourceName(svr.server_name, idx);
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => setActiveServerIdx(idx)}
+                            className={`text-xs py-1.5 px-4 rounded-lg font-bold border transition-colors cursor-pointer ${activeServerIdx === idx ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] shadow-lg shadow-red-500/10' : 'bg-zinc-900 text-zinc-400 border-zinc-800'}`}
+                          >
+                            {customName}
+                          </button>
+                        );
+                      })}
                     </div>
 
                     {/* Episodes list triggers */}
@@ -424,9 +432,9 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
                       <p className="text-xs text-zinc-400 font-medium mb-3">Vui lòng bấm chọn tập phim để truyền phát:</p>
                       
                       <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-3">
-                        {episodes[activeServerIdx]?.server_data?.map((ep) => (
+                        {episodes[activeServerIdx]?.server_data?.map((ep, idx) => (
                           <button
-                            key={ep.slug}
+                            key={`${ep.slug}-${idx}`}
                             id={`btn-ep-select-detail-${ep.slug}`}
                             onClick={() => onNavigateToWatch(movie.slug, ep.slug, activeServerIdx)}
                             className="p-3 text-xs font-bold text-center rounded-lg bg-zinc-900 hover:bg-[var(--color-brand)] hover:text-white hover:scale-105 active:scale-95 transition-all cursor-pointer border border-zinc-800/80 hover:border-transparent"
@@ -454,6 +462,24 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
                   <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed max-w-xl">
                     {movie.content}
                   </p>
+
+                  {movie.trailer_url && (
+                    <div className="mt-8">
+                      <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-zinc-900 pb-2 mb-4">
+                        <Film size={14} className="text-[var(--color-brand)]" />
+                        Trailer chính thức
+                      </h3>
+                      <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-zinc-800 shadow-2xl">
+                        <iframe
+                          src={movie.trailer_url}
+                          title={`${movie.name} - Official Trailer`}
+                          className="absolute inset-0 w-full h-full border-0"
+                          allowFullScreen
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Additional metrics info sidebar */}
@@ -486,7 +512,7 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
             )}
 
             {/* 3. CAST (tab: cast) */}
-            {activeTab === 'cast' && (
+            {activeTab === 'cast' && hasActors && (
               <div className="animate-scale-in select-none flex flex-col gap-5 relative group/cast">
                 <div className="flex justify-between items-center border-b border-zinc-900 pb-2 mb-2">
                   <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
@@ -495,63 +521,88 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
                   </h3>
                   
                   {/* Slide controls */}
-                  {movie.actor.length > 0 && (
-                    <div className="flex gap-1.5">
-                      <button 
-                        onClick={() => {
-                          if (actorSliderRef.current) {
-                            actorSliderRef.current.scrollBy({ left: -250, behavior: 'smooth' });
-                          }
-                        }}
-                        className="p-1 px-2 rounded-lg bg-zinc-900 border border-zinc-850 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer flex items-center justify-center shadow-md active:scale-95"
-                        title="Trượt sang trái"
-                      >
-                        <ChevronLeft size={16} />
-                      </button>
-                      <button 
-                        onClick={() => {
-                          if (actorSliderRef.current) {
-                            actorSliderRef.current.scrollBy({ left: 250, behavior: 'smooth' });
-                          }
-                        }}
-                        className="p-1 px-2 rounded-lg bg-zinc-900 border border-zinc-850 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer flex items-center justify-center shadow-md active:scale-95"
-                        title="Trượt sang phải"
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex gap-1.5">
+                    <button 
+                      onClick={() => {
+                        if (actorSliderRef.current) {
+                          actorSliderRef.current.scrollBy({ left: -250, behavior: 'smooth' });
+                        }
+                      }}
+                      className="p-1 px-2 rounded-lg bg-zinc-900 border border-zinc-850 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer flex items-center justify-center shadow-md active:scale-95"
+                      title="Trượt sang trái"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (actorSliderRef.current) {
+                          actorSliderRef.current.scrollBy({ left: 250, behavior: 'smooth' });
+                        }
+                      }}
+                      className="p-1 px-2 rounded-lg bg-zinc-900 border border-zinc-850 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer flex items-center justify-center shadow-md active:scale-95"
+                      title="Trượt sang phải"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
                 </div>
 
-                {movie.actor.length === 0 ? (
-                  <p className="text-xs text-zinc-500 font-medium">Danh sách diễn viên chưa hiển thị công khai.</p>
-                ) : (
-                  <div 
-                    ref={actorSliderRef}
-                    className="flex gap-4 overflow-x-auto pb-4 scroll-smooth scrollbar-none snap-x snap-mandatory"
-                  >
-                    {movie.actor.map((actName, idx) => (
+                <div 
+                  ref={actorSliderRef}
+                  className="flex gap-4 overflow-x-auto pb-4 scroll-smooth scrollbar-none snap-x snap-mandatory"
+                >
+                  {movie.actor.map((actName, idx) => {
+                    if (!actName || actName.trim() === "") return null;
+                    const realImg = findActorImage(actName);
+                    
+                    // Fallback initials or stylized name abbreviation for the unified premium placeholder
+                    const initials = actName
+                      .split(' ')
+                      .filter(Boolean)
+                      .map(n => n[0])
+                      .slice(-2)
+                      .join('')
+                      .toUpperCase() || 'FF';
+
+                    return (
                       <div 
                         key={idx} 
-                        className="flex-shrink-0 w-[140px] flex flex-col items-center text-center p-4 rounded-xl bg-zinc-900/40 border border-zinc-850 hover:border-zinc-700 transition-all hover:-translate-y-1 duration-300 shadow-lg snap-start"
+                        className="flex-shrink-0 w-[140px] flex flex-col items-center text-center p-4 rounded-xl bg-zinc-900/40 border border-zinc-850 hover:border-zinc-700 transition-all hover:-translate-y-1 duration-300 shadow-lg snap-start group/card"
                       >
-                        <div className="relative">
-                          <img
-                            src={findActorImage(actName)}
-                            alt={actName}
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80';
-                            }}
-                            className="w-20 h-20 rounded-full object-cover border-2 border-zinc-800 shadow-[0_4px_12px_rgba(0,0,0,0.5)] group-hover:scale-105 transition-transform duration-300"
-                            referrerPolicy="no-referrer"
-                          />
+                        <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-zinc-800 shadow-[0_4px_12px_rgba(0,0,0,0.5)] group-hover/card:scale-105 transition-transform duration-300 flex items-center justify-center bg-gradient-to-tr from-[#13131A] to-[#1C1C26]">
+                          {realImg ? (
+                            <img
+                              src={realImg}
+                              alt={actName}
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none';
+                                const parent = (e.target as HTMLElement).parentElement;
+                                if (parent) {
+                                  const fallback = parent.querySelector('.actor-placeholder-fallback');
+                                  if (fallback) {
+                                    fallback.classList.remove('hidden');
+                                  }
+                                }
+                              }}
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : null}
+                          
+                          {/* Unified premium placeholder of FilmFlow */}
+                          <div className={`actor-placeholder-fallback absolute inset-0 bg-gradient-to-tr from-[#13131A] to-[#1C1C26] flex flex-col items-center justify-center select-none ${realImg ? 'hidden' : ''}`}>
+                            <span className="text-sm font-black text-[#E63946] tracking-widest">{initials}</span>
+                            <span className="text-[7px] text-zinc-500 font-extrabold tracking-widest uppercase mt-0.5">FilmFlow</span>
+                            {/* Small red gradient accent circle */}
+                            <div className="absolute bottom-1 right-2 w-1.5 h-1.5 rounded-full bg-gradient-to-r from-[#E63946] to-[#C1121F] animate-pulse" />
+                          </div>
                         </div>
                         <h4 className="text-xs font-bold text-white mt-3.5 truncate w-full" title={actName}>{actName}</h4>
-                        <p className="text-[10px] text-zinc-500 mt-1 font-semibold uppercase tracking-wider">Acting</p>
+                        <p className="text-[10px] text-zinc-500 mt-1 font-semibold uppercase tracking-wider">Diễn viên</p>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -562,7 +613,7 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
                   <p className="text-xs text-zinc-500 font-medium">Không tìm thấy tiêu điểm liên quan khác khớp thể loại.</p>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                    {related.map(item => (
+                    {related.map((item) => (
                       <MovieCard
                         key={item.slug}
                         movie={item}

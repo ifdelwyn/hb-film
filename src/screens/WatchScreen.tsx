@@ -4,6 +4,7 @@ import { Movie, EpisodeServer, EpisodeData } from '../types/movie';
 import { useWatchHistory } from '../lib/hooks/useWatchHistory';
 import VideoPlayer from '../components/VideoPlayer';
 import { Play, Tv, ChevronRight, HelpCircle, Flame, Star, Compass, ArrowLeft } from 'lucide-react';
+import { getCustomSourceName } from '../config/sourceDisplayMap';
 
 interface WatchScreenProps {
   slug: string;
@@ -156,7 +157,7 @@ export default function WatchScreen({
           <div className="lg:col-span-8 flex flex-col gap-6">
             <div>
               <span className="text-[10px] text-[var(--color-brand)] font-bold tracking-widest uppercase mb-1 block">
-                DANG PHAT TRUC TUYEN
+                🎬 ĐANG PHÁT TRỰC TUYẾN
               </span>
               <h2 className="text-xl sm:text-2xl font-extrabold sm:font-black tracking-tighter text-white drop-shadow">
                 {movie.name} — <span className="text-[var(--color-brand)] font-black">Tập {activeEpisode.name}</span>
@@ -166,33 +167,37 @@ export default function WatchScreen({
               </p>
             </div>
 
-            {/* Servers listing tags: Tinh gọn và chuyên nghiệp, không chiếm nhiều diện tích */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-zinc-900/30 border border-zinc-900/60 transition-all">
-              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5 shrink-0 select-none">
-                <Flame size={12} className="text-[var(--color-brand)] animate-pulse" />
+            {/* Servers listing tags: Thiết kế Netflix-style, bo góc 999px, nền đỏ gradient, font Plus Jakarta Sans SemiBold, hover sáng nhẹ */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3.5 p-4 rounded-2xl bg-[#12121A]/50 border border-zinc-900 shadow-xl backdrop-blur-sm transition-all">
+              <span className="text-xs font-black text-zinc-300 uppercase tracking-widest flex items-center gap-1.5 shrink-0 select-none">
+                <Flame size={14} className="text-[#E63946] animate-pulse fill-[#E63946]/10" />
                 Nguồn phát:
               </span>
               
-              <div className="flex flex-wrap gap-2">
-                {episodes.map((svr, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setActiveServerIdx(idx);
-                      // Reset to first episode of that server, matching same episode if possible
-                      const otherServerList = episodes[idx]?.server_data || [];
-                      const matchingep = otherServerList.find(e => e.slug === activeEpisode.slug);
-                      setActiveEpisode(matchingep || otherServerList[0]);
-                    }}
-                    className={`text-[11px] py-1 px-3 rounded-md font-bold border transition-all cursor-pointer ${
-                      activeServerIdx === idx 
-                        ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] shadow-md shadow-red-500/10' 
-                        : 'bg-zinc-950 text-zinc-400 border-zinc-900 hover:border-zinc-800 hover:text-white'
-                    }`}
-                  >
-                    {svr.server_name}
-                  </button>
-                ))}
+              <div className="flex flex-wrap gap-2.5">
+                {episodes.map((svr, idx) => {
+                  const customName = getCustomSourceName(svr.server_name, idx);
+                  const isActive = activeServerIdx === idx;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setActiveServerIdx(idx);
+                        // Reset to first episode of that server, matching same episode if possible
+                        const otherServerList = episodes[idx]?.server_data || [];
+                        const matchingep = otherServerList.find(e => e.slug === activeEpisode?.slug);
+                        setActiveEpisode(matchingep || otherServerList[0]);
+                      }}
+                      className={`text-xs px-5 py-2.5 rounded-[999px] font-semibold tracking-wide transition-all duration-300 transform hover:scale-[1.03] cursor-pointer ${
+                        isActive 
+                          ? 'bg-gradient-to-r from-[#E63946] to-[#C1121F] text-white font-semibold border-none shadow-[0_0_15px_rgba(230,57,70,0.4)] hover:brightness-110' 
+                          : 'bg-zinc-900 hover:bg-zinc-850 text-zinc-400 hover:text-zinc-200 border border-zinc-800 hover:border-zinc-700'
+                      }`}
+                    >
+                      {customName}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -219,16 +224,16 @@ export default function WatchScreen({
             ) : (
               <div className="flex flex-col gap-3">
                 <p className="text-[11px] text-zinc-500 mb-1 leading-normal">
-                  Bạn đang xem server: <span className="text-white font-bold font-sans">{episodes[activeServerIdx]?.server_name || 'N/A'}</span>
+                  Bạn đang xem: <span className="text-white font-extrabold font-sans">{episodes[activeServerIdx] ? getCustomSourceName(episodes[activeServerIdx].server_name, activeServerIdx) : 'N/A'}</span>
                 </p>
 
                 {/* Episodes button grid list */}
                 <div className="grid grid-cols-4 gap-2.5 max-h-[300px] overflow-y-auto pr-1 no-scrollbar">
-                  {currentServerList.map((ep) => {
+                  {currentServerList.map((ep, idx) => {
                     const isWatching = activeEpisode.slug === ep.slug;
                     return (
                       <button
-                        key={ep.slug}
+                        key={`${ep.slug}-${idx}`}
                         id={`btn-ep-watch-select-${ep.slug}`}
                         onClick={() => {
                           setActiveEpisode(ep);

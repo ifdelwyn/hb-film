@@ -17,6 +17,26 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
   const [genreOpen, setGenreOpen] = useState(false);
   const [countryOpen, setCountryOpen] = useState(false);
 
+  // Flags mapping for countries
+  const getCountryFlag = (slug: string): string => {
+    switch (slug) {
+      case 'han-quoc':
+        return '🇰🇷';
+      case 'trung-quoc':
+        return '🇨🇳';
+      case 'thai-lan':
+        return '🇹🇭';
+      case 'au-my':
+        return '🇺🇸';
+      case 'nhat-ban':
+        return '🇯🇵';
+      case 'viet-nam':
+        return '🇻🇳';
+      default:
+        return '🌐';
+    }
+  };
+
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 50) {
@@ -98,17 +118,60 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
 
               {genreOpen && (
                 <div 
-                  className="absolute top-full left-0 mt-1 w-64 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl p-3 grid grid-cols-2 gap-2 shadow-2xl animate-scale-in z-50 p-4"
+                  className="absolute top-full left-[-120px] md:left-[-180px] mt-2.5 w-[420px] md:w-[480px] bg-zinc-950/95 backdrop-blur-xl border border-zinc-900 rounded-[20px] p-6 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.9)] animate-scale-in z-50 flex flex-col gap-4 text-left border-zinc-800/80"
                 >
-                  {MOCK_CATEGORIES.map(cat => (
-                    <span
-                      key={cat.id}
-                      onClick={() => navigateTo(`the-loai/${cat.slug}`)}
-                      className="text-xs text-zinc-400 hover:text-[var(--color-text-primary)] hover:bg-zinc-800/40 p-2 rounded-lg cursor-pointer transition-colors"
+                  {/* Category main grid: 3 columns */}
+                  <div className="grid grid-cols-3 gap-x-5 gap-y-3 pb-4 border-b border-zinc-900/80">
+                    {MOCK_CATEGORIES.map(cat => (
+                      <span
+                        key={cat.id}
+                        onClick={() => navigateTo(`the-loai/${cat.slug}`)}
+                        className="group/item flex items-center gap-2 text-xs text-zinc-400 hover:text-[#E63946] p-1.5 rounded-lg cursor-pointer transition-all duration-300 hover:scale-[1.05] hover:translate-x-0.5 select-none font-medium"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-700 group-hover/item:bg-[#E63946] group-hover/item:scale-125 transition-all duration-300" />
+                        {cat.name}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Popular Categories Sub-section */}
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <Award size={13} className="text-[#E63946] animate-pulse" />
+                      <span className="text-[10px] font-extrabold text-zinc-500 uppercase tracking-widest">
+                        Thể loại phổ biến tuần này
+                      </span>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      {['Hành Động', 'Hoạt Hình', 'Kinh Dị', 'Tình Cảm'].map((popularName) => {
+                        const matchingCat = MOCK_CATEGORIES.find(c => c.name === popularName);
+                        const slug = matchingCat ? matchingCat.slug : 'hanh-dong';
+                        return (
+                          <span
+                            key={popularName}
+                            onClick={() => navigateTo(`the-loai/${slug}`)}
+                            className="text-[10px] px-2.5 py-1 rounded-full bg-zinc-900/60 hover:bg-[#E63946]/10 text-zinc-400 hover:text-[#E63946] border border-zinc-850 hover:border-[#E63946]/30 cursor-pointer transition-all duration-300 select-none font-bold"
+                          >
+                            🔥 {popularName}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Bottom Footer View All Actions CTA */}
+                  <div className="mt-1 pt-3 border-t border-zinc-900/60 flex justify-end">
+                    <button
+                      onClick={() => {
+                        navigateTo('search');
+                      }}
+                      className="text-[10px] font-black text-zinc-400 hover:text-[#E63946] uppercase tracking-wider flex items-center gap-1 hover:gap-1.5 transition-all cursor-pointer"
                     >
-                      {cat.name}
-                    </span>
-                  ))}
+                      <span>Xem tất cả thể loại</span>
+                      <ChevronDown size={12} className="-rotate-90" />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -130,17 +193,23 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
 
               {countryOpen && (
                 <div 
-                  className="absolute top-full left-0 mt-1 w-52 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl p-3 flex flex-col gap-1 shadow-2xl animate-scale-in z-50 p-4"
+                  className="absolute top-full left-[-30px] mt-2.5 w-56 bg-zinc-950/95 backdrop-blur-xl border border-zinc-900 rounded-[20px] p-4 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.9)] animate-scale-in z-50 flex flex-col gap-1 text-left border-zinc-800/80"
                 >
-                  {MOCK_COUNTRIES.map(c => (
-                    <span
-                      key={c.id}
-                      onClick={() => navigateTo(`quoc-gia/${c.slug}`)}
-                      className="text-xs text-zinc-400 hover:text-[var(--color-text-primary)] hover:bg-zinc-800/40 p-2 rounded-lg cursor-pointer transition-colors"
-                    >
-                      {c.name}
-                    </span>
-                  ))}
+                  <div className="flex flex-col gap-1.5">
+                    {MOCK_COUNTRIES.map(c => {
+                      const flag = getCountryFlag(c.slug);
+                      return (
+                        <span
+                          key={c.id}
+                          onClick={() => navigateTo(`quoc-gia/${c.slug}`)}
+                          className="group/item flex items-center gap-3 text-xs text-zinc-400 hover:text-[#E63946] hover:bg-zinc-900/40 px-3 py-2 rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.04] hover:translate-x-0.5 select-none font-medium"
+                        >
+                          <span className="text-base group-hover/item:scale-125 transition-transform duration-300">{flag}</span>
+                          <span>{c.name}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -187,11 +256,11 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
                 </h4>
                 <div className="flex flex-col gap-2.5 max-h-60 overflow-y-auto">
                   <div className="text-xs hover:bg-zinc-800/40 p-2 rounded-lg cursor-pointer transition-colors">
-                    <p className="font-semibold text-white">Siêu kinh điển Dune: Phần 2</p>
+                    <p className="font-semibold text-white">🔥 Siêu kinh điển Dune: Phần 2</p>
                     <p className="text-[10px] text-zinc-500 mt-0.5">Vừa được phát sóng bản FHD Vietsub độ phân giải cao!</p>
                   </div>
                   <div className="text-xs hover:bg-zinc-800/40 p-2 rounded-lg cursor-pointer transition-colors">
-                    <p className="font-semibold text-white">Wednesday có cập nhật</p>
+                    <p className="font-semibold text-white">🎬 Wednesday có cập nhật</p>
                     <p className="text-[10px] text-zinc-500 mt-0.5">Học viện Nevermore mở rộng tập phim mới trọn bộ!</p>
                   </div>
                 </div>
@@ -284,15 +353,19 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
               <Globe size={12} /> QUỐC GIA
             </h4>
             <div className="grid grid-cols-2 gap-2 mt-2">
-              {MOCK_COUNTRIES.map(num => (
-                <span
-                  key={num.id}
-                  onClick={() => navigateTo(`quoc-gia/${num.slug}`)}
-                  className="text-xs text-zinc-400 p-2 bg-zinc-900/30 border border-zinc-900 rounded-lg hover:text-white"
-                >
-                  {num.name}
-                </span>
-              ))}
+              {MOCK_COUNTRIES.map(num => {
+                const flag = getCountryFlag(num.slug);
+                return (
+                  <span
+                    key={num.id}
+                    onClick={() => navigateTo(`quoc-gia/${num.slug}`)}
+                    className="text-xs text-zinc-400 p-2.5 bg-zinc-900/30 border border-zinc-900 rounded-xl hover:text-white flex items-center gap-2 hover:bg-zinc-900/60 transition-all cursor-pointer"
+                  >
+                    <span>{flag}</span>
+                    <span>{num.name}</span>
+                  </span>
+                );
+              })}
             </div>
           </div>
 

@@ -67,13 +67,19 @@ export default function VideoPlayer({
     setLoadTimeoutError(false);
   }, [embedUrl, m3u8Url]);
 
-  // Redundant 10s loading safety watchdog timer
+  // Redundant 10s loading safety watchdog timer with automatic embed fallback
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
     if (isLoading) {
       setLoadTimeoutError(false);
       timer = setTimeout(() => {
-        setLoadTimeoutError(true);
+        if (playerType === 'native' && embedUrl && embedUrl.trim() !== '') {
+          console.warn('Stream loading timed out (10s). Falling back to Embed player automatically.');
+          setPlayerType('embed');
+          setIsLoading(true); // Let iframe load
+        } else {
+          setLoadTimeoutError(true);
+        }
       }, 10000); // 10 seconds timeout threshold
     } else {
       setLoadTimeoutError(false);
@@ -81,7 +87,7 @@ export default function VideoPlayer({
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [isLoading]);
+  }, [isLoading, playerType, embedUrl]);
 
   // HLS.js streaming configuration and lifecycle
   useEffect(() => {
@@ -105,8 +111,7 @@ export default function VideoPlayer({
     }
 
     const previousTime = video.currentTime;
-    const urlFmt = new URLSearchParams(m3u8Url.split('?')[1] || '').get('fmt');
-    const isHlsUrl = m3u8Url.includes('.m3u8') || urlFmt === 'm3u8' || (!m3u8Url.toLowerCase().endsWith('.mp4') && urlFmt !== 'mp4');
+    const isHlsUrl = m3u8Url.includes('.m3u8') || !m3u8Url.toLowerCase().endsWith('.mp4');
 
     if (isHlsUrl && Hls.isSupported()) {
       const hls = new Hls({
@@ -194,6 +199,7 @@ export default function VideoPlayer({
         }
       });
 
+      let fatalCount = 0;
       hls.on(Hls.Events.ERROR, (event, data) => {
         // Handle chunk/fragment loading faults to downgrade streaming resolution automatically to the next lower level
         if (
@@ -210,6 +216,14 @@ export default function VideoPlayer({
         }
 
         if (data.fatal) {
+          fatalCount++;
+          if (fatalCount > 3 && embedUrl && embedUrl.trim() !== '') {
+            console.warn('Too many HLS fatal errors. Switching to Embed player automatically.');
+            setPlayerType('embed');
+            setIsLoading(false);
+            return;
+          }
+
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
               hls.startLoad();
@@ -539,10 +553,10 @@ export default function VideoPlayer({
                 </div>
                 
                 <h4 className="text-sm sm:text-base font-black text-rose-500 tracking-wider uppercase mb-2 animate-pulse">
-                  FilmFlow Stream
+                  🎬 FilmFlow Stream
                 </h4>
                 <p className="text-xs sm:text-sm text-zinc-200 font-extrabold leading-snug">
-                  Đang chuẩn bị trải nghiệm xem phim tốt nhất cho bạn...
+                  🎥 Đang chuẩn bị trải nghiệm xem phim tốt nhất cho bạn...
                 </p>
                 <p className="text-[10px] text-zinc-500 font-bold mt-2 uppercase tracking-widest">
                   Chất lượng hình ảnh 1080p UHD • Băng thông cao điểm
@@ -641,6 +655,13 @@ export default function VideoPlayer({
               onWaiting={() => setIsLoading(true)}
               onCanPlay={() => setIsLoading(false)}
               onPlaying={() => setIsLoading(false)}
+              onError={(e) => {
+                console.warn("Native video playback error, checking for embed fallback...", e);
+                if (embedUrl && embedUrl.trim() !== '') {
+                  setPlayerType('embed');
+                  setIsLoading(false);
+                }
+              }}
               className={(() => {
                 const base = "w-full h-full cursor-pointer transition-all duration-300";
                 if (aspectRatio === 'fill') return `${base} object-fill`;
@@ -730,7 +751,9 @@ export default function VideoPlayer({
                     <div className="relative">
                       <button 
                         id="player-unified-settings-btn"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
                           setShowSettingsMenu(!showSettingsMenu);
                           setSettingsSubMenu('main');
                         }}
@@ -746,7 +769,13 @@ export default function VideoPlayer({
                       </button>
 
                       {showSettingsMenu && (
-                        <div className="absolute bottom-full right-0 mb-2.5 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] p-3 rounded-xl flex flex-col gap-1 w-64 text-[var(--color-text-primary)] shadow-2xl z-50 backdrop-blur-md animate-scale-in">
+                        <div 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                          }}
+                          className="absolute bottom-full right-0 mb-2.5 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] p-3 rounded-xl flex flex-col gap-1 w-64 text-[var(--color-text-primary)] shadow-2xl z-50 backdrop-blur-md animate-scale-in"
+                        >
                           
                           {/* 1. MAIN MENU PAGE */}
                           {settingsSubMenu === 'main' && (
@@ -757,7 +786,11 @@ export default function VideoPlayer({
 
                               {/* Option: Chất lượng */}
                               <button 
-                                onClick={() => setSettingsSubMenu('quality')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  setSettingsSubMenu('quality');
+                                }}
                                 className="flex items-center justify-between p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-left transition-colors cursor-pointer text-xs font-semibold"
                               >
                                 <span className="flex items-center gap-2">
@@ -772,7 +805,11 @@ export default function VideoPlayer({
 
                               {/* Option: Tốc độ phát */}
                               <button 
-                                onClick={() => setSettingsSubMenu('speed')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  setSettingsSubMenu('speed');
+                                }}
                                 className="flex items-center justify-between p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-left transition-colors cursor-pointer text-xs font-semibold"
                               >
                                 <span className="flex items-center gap-2">
@@ -787,7 +824,11 @@ export default function VideoPlayer({
 
                               {/* Option: Tỷ lệ khung hình */}
                               <button 
-                                onClick={() => setSettingsSubMenu('ratio')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  setSettingsSubMenu('ratio');
+                                }}
                                 className="flex items-center justify-between p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-left transition-colors cursor-pointer text-xs font-semibold"
                               >
                                 <span className="flex items-center gap-2">
@@ -809,7 +850,11 @@ export default function VideoPlayer({
                           {settingsSubMenu === 'quality' && (
                             <div className="flex flex-col gap-1 text-sm">
                               <button 
-                                onClick={() => setSettingsSubMenu('main')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  setSettingsSubMenu('main');
+                                }}
                                 className="flex items-center gap-1 p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer text-xs font-bold select-none border-b border-[var(--color-border)] mb-1"
                               >
                                 <ChevronLeft size={16} />
@@ -833,7 +878,11 @@ export default function VideoPlayer({
                           {settingsSubMenu === 'speed' && (
                             <div className="flex flex-col gap-1 text-sm">
                               <button 
-                                onClick={() => setSettingsSubMenu('main')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  setSettingsSubMenu('main');
+                                }}
                                 className="flex items-center gap-1 p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer text-xs font-bold select-none border-b border-[var(--color-border)] mb-1"
                               >
                                 <ChevronLeft size={16} />
@@ -843,7 +892,9 @@ export default function VideoPlayer({
                               {[0.5, 0.75, 1, 1.25, 1.5, 2].map(speed => (
                                 <button
                                   key={speed}
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
                                     handleSpeedChange(speed);
                                     setSettingsSubMenu('main');
                                   }}
@@ -862,7 +913,11 @@ export default function VideoPlayer({
                           {settingsSubMenu === 'ratio' && (
                             <div className="flex flex-col gap-1 text-sm">
                               <button 
-                                onClick={() => setSettingsSubMenu('main')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  setSettingsSubMenu('main');
+                                }}
                                 className="flex items-center gap-1 p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer text-xs font-bold select-none border-b border-[var(--color-border)] mb-1"
                               >
                                 <ChevronLeft size={16} />
@@ -877,7 +932,9 @@ export default function VideoPlayer({
                               ].map(ratio => (
                                 <button
                                   key={ratio.id}
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
                                     setAspectRatio(ratio.id as any);
                                     setSettingsSubMenu('main');
                                   }}

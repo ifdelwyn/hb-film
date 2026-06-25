@@ -24,7 +24,13 @@ const PREMIUM_AVATARS = [
   'https://images.unsplash.com/photo-1563089145-599997674d42?w=150&h=150&fit=crop&q=80',
   'https://images.unsplash.com/photo-1580477667995-2b94f01c9516?w=150&h=150&fit=crop&q=80',
   'https://images.unsplash.com/photo-1618336753974-aae8e04506aa?w=150&h=150&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=150&h=150&fit=crop&q=80'
+  'https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=150&h=150&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=150&h=150&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1509248961158-e54f6934749c?w=150&h=150&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=150&h=150&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=150&h=150&fit=crop&q=80',
+  ...Array.from({ length: 25 }, (_, i) => `https://api.dicebear.com/7.x/adventurer/svg?seed=AnimeBoy${i + 1}&backgroundColor=b6e3f4,c0aede,d1d4f9`),
+  ...Array.from({ length: 25 }, (_, i) => `https://api.dicebear.com/7.x/lorelei/svg?seed=AnimeGirl${i + 1}&backgroundColor=ffdfbf,ffd5dc,d1d4f9`)
 ];
 
 export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatch, onLogout }: ProfileScreenProps) {
@@ -33,8 +39,48 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
   const { preferences, updatePreferences } = useUserPreferences();
   
   // High-fidelity tab management
-  const [activeTab, setActiveTab] = useState<'overview' | 'security' | 'history' | 'watchlist' | 'vip' | 'settings'>('watchlist');
+  const [activeTab, setActiveTab] = useState<'overview' | 'security' | 'history' | 'watchlist' | 'vip' | 'settings' | 'scanner'>('overview');
   const [isTabLoading, setIsTabLoading] = useState(false);
+
+  // Scanner state variables for movie library diagnostics
+  const [scanData, setScanData] = useState<{
+    latencies: Array<{ name: string; domain: string; status: string; latency: string }>;
+    scannedMovies: Array<{
+      slug: string;
+      name: string;
+      status: string;
+      sourcesChecked: { KKPhim: boolean; OPhim: boolean; AnimeHub: boolean };
+      hasM3u8: boolean;
+      hasEmbed: boolean;
+      lastChecked: string;
+    }>;
+    systemHealth: string;
+  } | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+
+  const handleScanLibrary = async () => {
+    setIsScanning(true);
+    try {
+      const response = await fetch('/api/admin/scan');
+      if (response.ok) {
+        const data = await response.json();
+        setScanData(data);
+        triggerToast('Quét & kiểm tra thư viện phim hoàn tất!');
+      } else {
+        triggerToast('Kiểm tra thư viện thất bại do lỗi máy chủ.');
+      }
+    } catch (err) {
+      triggerToast('Lỗi kết nối khi quét thư viện.');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'scanner' && !scanData && !isScanning) {
+      handleScanLibrary();
+    }
+  }, [activeTab]);
   
   // Custom toast notification states
   const [showToast, setShowToast] = useState(false);
@@ -42,6 +88,7 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
   
   // Avatar Picker states
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [customAvatarInput, setCustomAvatarInput] = useState('');
   
   // Security Form inputs
   const [oldPassword, setOldPassword] = useState('');
@@ -50,8 +97,27 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
   const [showPassword, setShowPassword] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   
-  // VIP active states
-  const [vipTier, setVipTier] = useState<'free' | 'vip'>('vip');
+  // VIP active states - Free, Premium, or Ultra
+  const [vipTier, setVipTier] = useState<'free' | 'premium' | 'ultra'>(() => {
+    return (localStorage.getItem('filmflow_vip_tier') as 'free' | 'premium' | 'ultra') || 'free';
+  });
+
+  const updateVipTier = (tier: 'free' | 'premium' | 'ultra') => {
+    setVipTier(tier);
+    localStorage.setItem('filmflow_vip_tier', tier);
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  useEffect(() => {
+    const handleStorageSync = () => {
+      const saved = localStorage.getItem('filmflow_vip_tier');
+      if (saved === 'free' || saved === 'premium' || saved === 'ultra') {
+        setVipTier(saved as 'free' | 'premium' | 'ultra');
+      }
+    };
+    window.addEventListener('storage', handleStorageSync);
+    return () => window.removeEventListener('storage', handleStorageSync);
+  }, []);
   
   // Custom interface settings
   const [appearance, setAppearance] = useState<'dark' | 'light' | 'auto'>(preferences.theme || 'dark');
@@ -233,31 +299,47 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
           <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none" />
 
           <div className="flex flex-col sm:flex-row items-center gap-6 z-10 w-full lg:w-auto">
-            {/* Interactive Portrait Ring */}
+            {/* Interactive Portrait Ring based on vipTier */}
             <div className="relative group cursor-pointer" onClick={() => setShowAvatarPicker(true)}>
               <img
                 src={preferences.avatarUrl || PREMIUM_AVATARS[0]}
                 alt={preferences.userName}
-                className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover ring-4 ring-white/10 group-hover:ring-[var(--color-brand)] transition-all duration-300"
+                className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover ring-4 transition-all duration-300 ${
+                  vipTier === 'ultra' 
+                    ? 'ring-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.4)] animate-pulse' 
+                    : vipTier === 'premium' 
+                    ? 'ring-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.3)]' 
+                    : 'ring-zinc-600'
+                }`}
               />
-              <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] font-black tracking-wider text-white transition-opacity duration-300 uppercase">
+              <div className="absolute inset-0 rounded-full bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[9px] font-black tracking-widest text-white transition-opacity duration-300 uppercase">
                 Thay ảnh
               </div>
-              <span className="absolute bottom-1 right-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider text-white border border-[#2A2A3A] shadow-md bg-gradient-to-r from-emerald-500 to-teal-600">
-                100% FREE
+              
+              {/* Dynamic Subscription Badge */}
+              <span className={`absolute -bottom-1.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider text-white border shadow-md whitespace-nowrap ${
+                vipTier === 'ultra'
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 border-amber-400'
+                  : vipTier === 'premium'
+                  ? 'bg-gradient-to-r from-purple-500 to-indigo-600 border-purple-400'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-400'
+              }`}>
+                {vipTier === 'ultra' ? 'Ultra 4K 👑' : vipTier === 'premium' ? 'Premium 2K' : 'Free Member'}
               </span>
             </div>
 
             <div className="text-center sm:text-left">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                <span className="text-[10px] font-extrabold text-[#E63946] uppercase tracking-widest bg-[#E63946]/10 border border-[#E63946]/20 rounded-full px-2.5 py-0.5">
+                <span className="text-[9px] font-extrabold text-[#E63946] uppercase tracking-widest bg-[#E63946]/10 border border-[#E63946]/20 rounded-full px-2.5 py-0.5">
                   TỦ PHIM CỦA BẠN
                 </span>
-                <span className="text-[10px] font-bold text-zinc-400">Trình phát công cộng miễn phí</span>
+                <span className="text-[10px] font-bold text-zinc-400">
+                  {vipTier === 'ultra' ? 'Đã kích hoạt Demo VIP Ultra 4K cao cấp' : vipTier === 'premium' ? 'Đã mở khóa chất lượng Premium 1080p/2K' : 'Đang sử dụng gói xem phim thường 720p'}
+                </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-2 flex items-center justify-center sm:justify-start gap-2">
                 {preferences.userName || 'Phim Thủ'}
-                <Sparkles size={18} className="text-emerald-400" />
+                {vipTier !== 'free' && <Sparkles size={18} className="text-amber-400 animate-pulse fill-amber-400/20" />}
               </h1>
               <p className="text-xs text-zinc-500 font-medium mt-1">Lưu trữ tất cả danh mục yêu thích và lịch sử xem tiện lợi</p>
             </div>
@@ -266,7 +348,7 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
           {/* Minimal Bento Statistics Panel */}
           <div className="grid grid-cols-3 gap-2 sm:gap-4 bg-black/30 w-full lg:w-auto p-4 rounded-2xl border border-white/5 backdrop-blur-sm shadow-inner z-10">
             <div className="text-center px-2 sm:px-4">
-              <span className="text-[9px] sm:text-[10px] font-extrabold text-zinc-500 uppercase tracking-widest block">Watchlist</span>
+              <span className="text-[9px] sm:text-[10px] font-extrabold text-zinc-500 uppercase tracking-widest block">Yêu thích</span>
               <strong className="text-xl sm:text-2xl font-black text-white block mt-0.5">{watchlist.length}</strong>
             </div>
             <div className="text-center px-4 border-x border-white/5">
@@ -287,36 +369,108 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="bg-[#12121A]/30 border border-white/5 p-6 rounded-[24px] mb-8 overflow-hidden backdrop-blur-md"
+              className="bg-[#12121A]/70 border border-zinc-800 p-6 rounded-[24px] mb-8 overflow-hidden backdrop-blur-md shadow-2xl"
             >
-              <h4 className="text-xs font-black uppercase tracking-widest text-[#E63946] mb-4 flex items-center gap-1.5">
-                <Sparkles size={12} /> Chọn ảnh đại diện cao cấp của bạn
-              </h4>
-              <div className="flex flex-wrap gap-4 items-center justify-start">
-                {PREMIUM_AVATARS.map((url, i) => (
-                  <div key={i} className="relative group cursor-pointer" onClick={() => {
-                    updatePreferences({ avatarUrl: url });
-                    setShowAvatarPicker(false);
-                    triggerToast('Đã thay đổi ảnh đại diện mới.');
-                  }}>
-                    <img 
-                      src={url} 
-                      alt={`Avatar choice ${i}`} 
-                      className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover ring-2 transition-all duration-300 ${preferences.avatarUrl === url ? 'ring-[var(--color-brand)] pointer-events-none' : 'ring-transparent hover:ring-white/30 hover:scale-105'}`}
-                    />
-                    {preferences.avatarUrl === url && (
-                      <span className="absolute -bottom-1 -right-1 bg-[var(--color-brand)] p-1 rounded-full text-white shadow-lg border border-[#12121A]">
-                        <Check size={9} />
-                      </span>
-                    )}
-                  </div>
-                ))}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-900 pb-4 mb-5">
+                <div>
+                  <h4 className="text-sm font-black uppercase tracking-wider text-[#E63946] flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-amber-400" /> BỘ SƯU TẬP AVATAR ANIME CHẤT LƯỢNG CAO ({PREMIUM_AVATARS.length})
+                  </h4>
+                  <p className="text-xs text-zinc-500 mt-1">Đa dạng mẫu mã vẽ tay thiết kế độc quyền, chọn ngay để làm đẹp trang cá nhân của bạn.</p>
+                </div>
                 <button 
                   onClick={() => setShowAvatarPicker(false)}
-                  className="px-4 py-2 rounded-xl border border-white/10 hover:border-white/20 text-xs font-bold text-zinc-400 hover:text-white transition-colors"
+                  className="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-xs font-bold text-zinc-400 hover:text-white transition-colors"
                 >
-                  Đóng
+                  Đóng thư viện
                 </button>
+              </div>
+
+              {/* Upload custom picture & custom link options */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-zinc-950/40 p-4 rounded-2xl border border-zinc-900 mb-6">
+                {/* Method 1: File Upload */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Tải ảnh lên từ máy tính (.PNG, .JPG)</label>
+                  <div className="relative">
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 2 * 1024 * 1024) {
+                            triggerToast('Tập tin ảnh quá lớn! Hãy chọn ảnh dưới 2MB.');
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            updatePreferences({ avatarUrl: reader.result as string });
+                            triggerToast('Tải ảnh riêng lên thành công!');
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10" 
+                    />
+                    <div className="w-full bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 hover:border-zinc-700 p-2.5 rounded-xl text-center text-xs text-zinc-400 font-bold transition-colors">
+                      📁 Chọn ảnh từ thiết bị
+                    </div>
+                  </div>
+                </div>
+
+                {/* Method 2: Link paste */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Hoặc dán liên kết ảnh trực tiếp</label>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text"
+                      value={customAvatarInput}
+                      onChange={(e) => setCustomAvatarInput(e.target.value)}
+                      placeholder="https://example.com/avatar.jpg"
+                      className="flex-grow bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-[var(--color-brand)] font-bold"
+                    />
+                    <button
+                      onClick={() => {
+                        if (!customAvatarInput.trim()) return;
+                        updatePreferences({ avatarUrl: customAvatarInput.trim() });
+                        setCustomAvatarInput('');
+                        triggerToast('Đã áp dụng liên kết ảnh đại diện mới!');
+                      }}
+                      className="bg-[#E63946] text-white text-xs font-black px-4 rounded-xl cursor-pointer hover:bg-red-600 transition-colors shrink-0"
+                    >
+                      Áp dụng
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Scrollable grid for 60 programmatic avatars */}
+              <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-10 gap-3.5 max-h-[280px] overflow-y-auto pr-1 no-scrollbar p-1">
+                {PREMIUM_AVATARS.map((url, i) => {
+                  const isCurrent = preferences.avatarUrl === url || (!preferences.avatarUrl && i === 0);
+                  return (
+                    <div 
+                      key={i} 
+                      className="relative group cursor-pointer aspect-square" 
+                      onClick={() => {
+                        updatePreferences({ avatarUrl: url });
+                        triggerToast('Đã thay đổi ảnh đại diện mới.');
+                      }}
+                    >
+                      <img 
+                        src={url} 
+                        alt={`Avatar choice ${i}`} 
+                        className={`w-full h-full rounded-2xl object-cover ring-2 transition-all duration-300 ${isCurrent ? 'ring-[var(--color-brand)] pointer-events-none scale-95 shadow-[0_0_15px_rgba(230,57,70,0.3)]' : 'ring-transparent hover:ring-white/40 hover:scale-105'}`}
+                        referrerPolicy="no-referrer"
+                      />
+                      {isCurrent && (
+                        <span className="absolute -bottom-1 -right-1 bg-[var(--color-brand)] p-0.5 rounded-full text-white shadow-lg border border-zinc-950">
+                          <Check size={8} />
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </motion.div>
           )}
@@ -328,6 +482,22 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
           {/* LEFT INTERACTIVE SIDEBAR - STYLISH NAV */}
           <div className="lg:col-span-3 flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-3 lg:pb-0 scrollbar-none border-b lg:border-none border-white/5 scroll-smooth col-span-12">
             
+            <button
+              onClick={() => handleTabChange('overview')}
+              className={`flex items-center gap-3 px-4 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer flex-shrink-0 w-auto lg:w-full ${activeTab === 'overview' ? 'bg-[#E63946] text-white shadow-lg shadow-red-500/10 scale-[1.03]' : 'bg-transparent text-zinc-400 hover:text-white hover:bg-white/5'}`}
+            >
+              <User size={16} />
+              <span>Tổng quan</span>
+            </button>
+
+            <button
+              onClick={() => handleTabChange('vip')}
+              className={`flex items-center gap-3 px-4 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer flex-shrink-0 w-auto lg:w-full ${activeTab === 'vip' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/10 scale-[1.03]' : 'bg-transparent text-zinc-400 hover:text-white hover:bg-white/5'}`}
+            >
+              <Sparkles size={16} />
+              <span>Gói Thành Viên</span>
+            </button>
+
             <button
               onClick={() => handleTabChange('watchlist')}
               className={`flex items-center gap-3 px-4 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer flex-shrink-0 w-auto lg:w-full ${activeTab === 'watchlist' ? 'bg-[#E63946] text-white shadow-lg shadow-red-500/10 scale-[1.03]' : 'bg-transparent text-zinc-400 hover:text-white hover:bg-white/5'}`}
@@ -341,7 +511,15 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
               className={`flex items-center gap-3 px-4 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer flex-shrink-0 w-auto lg:w-full ${activeTab === 'history' ? 'bg-[#E63946] text-white shadow-lg shadow-red-500/10 scale-[1.03]' : 'bg-transparent text-zinc-400 hover:text-white hover:bg-white/5'}`}
             >
               <Clock size={16} />
-              <span>Xem gần đây ({history.length})</span>
+              <span>Lịch sử xem ({history.length})</span>
+            </button>
+
+            <button
+              onClick={() => handleTabChange('security')}
+              className={`flex items-center gap-3 px-4 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer flex-shrink-0 w-auto lg:w-full ${activeTab === 'security' ? 'bg-[#E63946] text-white shadow-lg shadow-red-500/10 scale-[1.03]' : 'bg-transparent text-zinc-400 hover:text-white hover:bg-white/5'}`}
+            >
+              <Shield size={16} />
+              <span>Bảo mật & Thiết bị</span>
             </button>
 
             <button
@@ -349,7 +527,15 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
               className={`flex items-center gap-3 px-4 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer flex-shrink-0 w-auto lg:w-full ${activeTab === 'settings' ? 'bg-[#E63946] text-white shadow-lg shadow-red-500/10 scale-[1.03]' : 'bg-transparent text-zinc-400 hover:text-white hover:bg-white/5'}`}
             >
               <Settings size={16} />
-              <span>Cài đặt hệ thống</span>
+              <span>Cài đặt</span>
+            </button>
+
+            <button
+              onClick={() => handleTabChange('scanner')}
+              className={`flex items-center gap-3 px-4 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer flex-shrink-0 w-auto lg:w-full ${activeTab === 'scanner' ? 'bg-[#E63946] text-white shadow-lg shadow-red-500/10 scale-[1.03]' : 'bg-transparent text-zinc-400 hover:text-white hover:bg-white/5'}`}
+            >
+              <RefreshCw size={16} />
+              <span>Quét thư viện</span>
             </button>
           </div>
 
@@ -379,19 +565,43 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
                     </div>
 
                     {/* Member Plan Indicator Banner */}
-                    <div className="p-6 rounded-[24px] bg-gradient-to-r from-[#C1121F]/20 to-[#0A0A0F] border border-red-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className={`p-6 rounded-[24px] border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                      vipTier === 'ultra' 
+                        ? 'bg-gradient-to-r from-amber-500/10 to-[#0A0A0F] border-amber-500/20' 
+                        : vipTier === 'premium'
+                        ? 'bg-gradient-to-r from-purple-500/10 to-[#0A0A0F] border-purple-500/20'
+                        : 'bg-gradient-to-r from-zinc-800/10 to-[#0A0A0F] border-zinc-800/40'
+                    }`}>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-                          <h3 className="text-sm font-black tracking-wide text-amber-400">GỎI PHIM ULTRA VIP (HOẠT ĐỘNG)</h3>
+                          <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${
+                            vipTier === 'ultra' ? 'bg-amber-400' : vipTier === 'premium' ? 'bg-purple-400' : 'bg-zinc-500'
+                          }`} />
+                          <h3 className={`text-sm font-black tracking-wide uppercase ${
+                            vipTier === 'ultra' ? 'text-amber-400' : vipTier === 'premium' ? 'text-purple-400' : 'text-zinc-400'
+                          }`}>
+                            {vipTier === 'ultra' ? 'SIÊU GÓI ĐỈNH CAO ULTRA 4K (VIP ACTIVE)' : vipTier === 'premium' ? 'GÓI CAO CẤP PREMIUM 1080P/2K (ACTIVE)' : 'GÓI MIỄN PHÍ TRẢI NGHIỆM (FREE MEMBER)'}
+                          </h3>
                         </div>
-                        <p className="text-xs text-zinc-400 max-w-md">Kích hoạt rạp phim ảo, hỗ trợ tối đa chất lượng Full UHD 4K, âm thanh vòm Dolby Atmos cao cấp rạp truyền phát.</p>
+                        <p className="text-xs text-zinc-400 max-w-md">
+                          {vipTier === 'ultra'
+                            ? 'Mở khóa toàn bộ đặc quyền cực đại: Phát phim Ultra 4K không nén, âm thanh vòm Dolby Cinema rạp chiếu thính.'
+                            : vipTier === 'premium'
+                            ? 'Trải nghiệm chuẩn điện ảnh cao cấp: Hỗ trợ độ nét tối đa 1080p Full HD và 2K siêu nét, không quảng cáo.'
+                            : 'Băng thông tiêu chuẩn rạp, giới hạn chất lượng phát tối đa 720p HD. Nâng cấp ngay để mở khóa chất lượng điện ảnh cao cấp.'}
+                        </p>
                       </div>
                       <button 
                         onClick={() => handleTabChange('vip')}
-                        className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-black text-xs font-black transition-colors self-start sm:self-center"
+                        className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all duration-300 self-start sm:self-center cursor-pointer ${
+                          vipTier === 'ultra'
+                            ? 'bg-amber-500 hover:bg-amber-600 text-black shadow-lg shadow-amber-500/10'
+                            : vipTier === 'premium'
+                            ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                            : 'bg-white text-black hover:bg-zinc-200'
+                        }`}
                       >
-                        Nâng Cấp Thiết Bị
+                        {vipTier === 'free' ? 'Nâng cấp Gói VIP' : 'Quản lý hội viên'}
                       </button>
                     </div>
 
@@ -737,40 +947,68 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
 
                 {/* 3E. TAB: MEMBERSHIP / PRICING (VIP) */}
                 {activeTab === 'vip' && (
-                  <div className="flex flex-col gap-6">
-                    <div className="border-b border-white/5 pb-3">
-                      <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">HỘI VIÊN RẠP PHIM VIP CHUYÊN SÂU</h2>
-                      <p className="text-xs text-zinc-500 mt-1">Phát triển độ phân giải băng thông lớn, đưa trải nghiệm xem phim rạp cao cấp ngay tại nhà.</p>
+                  <div className="flex flex-col gap-6 text-left">
+                    <div className="border-b border-zinc-900 pb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div>
+                        <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight uppercase">Cổng Hội Viên FilmFlow VIP</h2>
+                        <p className="text-xs text-zinc-500 mt-1">Nâng tầm trải nghiệm băng thông không giới hạn, đưa rạp chiếu phim chất lượng cao về nhà.</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          updateVipTier('ultra');
+                          triggerToast('⚡ Đã kích hoạt Siêu gói VIP Ultra 4K Demo thành công!');
+                        }}
+                        className="bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-600 hover:to-yellow-500 text-black font-black text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-amber-500/10 cursor-pointer transition-all duration-300 transform hover:scale-[1.02]"
+                      >
+                        👑 Kích Hoạt Demo VIP Ultra
+                      </button>
                     </div>
 
                     {/* Active Plan Card with Glassmorphism */}
-                    <div className="p-6 rounded-[24px] bg-[#12121A]/55 border border-amber-500/20 backdrop-blur-md text-left relative overflow-hidden">
+                    <div className="p-6 rounded-[24px] bg-[#12121A]/80 border border-zinc-800 backdrop-blur-md text-left relative overflow-hidden">
                       <div className="absolute top-[-10%] right-[-10%] w-60 h-60 bg-amber-500/10 rounded-full blur-[90px] pointer-events-none" />
                       
                       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-[9px] uppercase tracking-widest">Active Plan</span>
-                            <span className="text-zinc-500 text-xs">Gói hiện tại:</span>
+                            <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-[9px] uppercase tracking-widest">GÓI HIỆN TẠI</span>
                           </div>
-                          <h3 className="text-lg sm:text-xl font-black text-white mt-1.5 flex items-center gap-2">
-                            HB ULTRA SUPREME VIP PASS
-                            <Sparkles size={16} className="text-amber-400 fill-amber-400/20 animate-bounce" />
+                          <h3 className="text-lg sm:text-xl font-black text-white mt-1.5 flex items-center gap-2 uppercase tracking-wide">
+                            {vipTier === 'ultra' ? 'FilmFlow ULTRA 4K VIP Pass' : vipTier === 'premium' ? 'FilmFlow PREMIUM 2K Pass' : 'FilmFlow FREE MEMBERSHIP'}
+                            {vipTier !== 'free' && <Sparkles size={16} className="text-amber-400 fill-amber-400/20 animate-bounce" />}
                           </h3>
-                          <p className="text-xs text-zinc-400 mt-1">Ngày gia hạn kế tiếp: <strong className="text-zinc-200">22 tháng 7, 2026</strong> (Tự động gia hạn qua Ví liên kết)</p>
+                          <p className="text-xs text-zinc-400 mt-1">
+                            {vipTier === 'ultra' 
+                              ? 'Đặc quyền phát: Không quảng cáo, mở khóa toàn bộ luồng phát 4K UHD siêu nét.' 
+                              : vipTier === 'premium' 
+                              ? 'Đặc quyền phát: Phát mượt độ phân giải lên tới 1080p và 2K cao cấp.' 
+                              : 'Giới hạn độ phân giải tối đa 720p HD. Hãy nâng cấp để trải nghiệm hình ảnh tuyệt hảo.'}
+                          </p>
                         </div>
                         <div className="flex flex-row gap-2.5">
-                          <button 
-                            onClick={() => {
-                              setVipTier(vipTier === 'vip' ? 'free' : 'vip');
-                              triggerToast(vipTier === 'vip' ? 'Đã hủy dịch vụ VIP tự động gia hạn.' : 'Đã kích hoạt lại VIP tài khoản!');
-                            }}
-                            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${vipTier === 'vip' ? 'bg-transparent text-zinc-400 border-white/10 hover:border-white/20' : 'bg-amber-500 text-black border-amber-400'}`}
-                          >
-                            {vipTier === 'vip' ? 'Hủy gói cước' : 'Gia hạn gói'}
-                          </button>
+                          {vipTier !== 'free' ? (
+                            <button 
+                              onClick={() => {
+                                updateVipTier('free');
+                                triggerToast('Đã hủy gia hạn. Tài khoản trở về gói Free.');
+                              }}
+                              className="px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer border bg-transparent text-zinc-400 border-white/10 hover:border-white/20"
+                            >
+                              Hạ cấp về Free
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => {
+                                updateVipTier('premium');
+                                triggerToast('Đã kích hoạt thử nghiệm gói Premium!');
+                              }}
+                              className="px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer border bg-gradient-to-r from-purple-500 to-indigo-600 border-purple-400 text-white"
+                            >
+                              Dùng thử Premium
+                            </button>
+                          )}
                           <button
-                            onClick={() => triggerToast('Chuyển đổi thanh toán thành công!')}
+                            onClick={() => triggerToast('Trình diễn Demo: Toàn bộ hóa đơn đều được miễn phí!')}
                             className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-xs font-bold transition-all cursor-pointer"
                           >
                             Quản lý hóa đơn
@@ -780,78 +1018,81 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
                     </div>
 
                     {/* Interactive pricing levels / grid cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
-                      {/* Sub Plan 1 */}
-                      <div className="p-5 rounded-[22px] bg-[#12121A]/30 border border-white/5 hover:border-white/10 transition-all flex flex-col justify-between text-left h-76">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                      {/* Sub Plan 1: Free */}
+                      <div className={`p-5 rounded-[22px] border transition-all flex flex-col justify-between text-left min-h-80 ${vipTier === 'free' ? 'bg-zinc-950/80 border-zinc-700' : 'bg-[#12121A]/30 border-white/5 hover:border-white/10'}`}>
                         <div>
                           <h4 className="text-xs font-black text-zinc-400 uppercase tracking-widest">GÓI TRẢI NGHIỆM (FREE)</h4>
                           <span className="text-xl font-black text-white mt-1.5 block">0đ / tháng</span>
-                          <hr className="my-3 border-white/5" />
-                          <ul className="text-[11px] text-zinc-500 space-y-2 font-medium">
-                            <li className="flex items-center gap-1.5 text-zinc-400"><Check size={12} className="text-emerald-400" /> Quảng cáo tự động hiển thị mượt</li>
-                            <li className="flex items-center gap-1.5 text-zinc-400"><Check size={12} className="text-emerald-400" /> Độ phân giải tối thiểu 720p HD</li>
-                            <li className="flex items-center gap-1.5 text-zinc-650"><X size={12} className="text-zinc-600" /> Tốc độ truyền tải rạp cao cấp</li>
+                          <hr className="my-3 border-zinc-900" />
+                          <ul className="text-[11px] text-zinc-400 space-y-2.5 font-medium">
+                            <li className="flex items-center gap-1.5 text-zinc-400"><Check size={12} className="text-emerald-400" /> Phát giới hạn tối đa 720p HD</li>
+                            <li className="flex items-center gap-1.5 text-zinc-400"><Check size={12} className="text-emerald-400" /> Xem đầy đủ danh mục Anime/Phim</li>
+                            <li className="flex items-center gap-1.5 text-zinc-500 line-through"><X size={12} className="text-zinc-600" /> Khóa luồng phát 1080p, 2K & 4K</li>
                           </ul>
                         </div>
                         <button
                           onClick={() => {
-                            setVipTier('free');
-                            triggerToast('Đã hạ cấp về gói miễn phí thành công!');
+                            updateVipTier('free');
+                            triggerToast('Đã chuyển về gói Free!');
                           }}
-                          className={`w-full py-2.5 rounded-xl font-black text-xs transition-colors cursor-pointer mt-4 ${vipTier === 'free' ? 'bg-[#E63946] text-white' : 'bg-white/5 hover:bg-white/10 text-zinc-400'}`}
+                          className={`w-full py-2.5 rounded-xl font-black text-xs transition-colors cursor-pointer mt-4 ${vipTier === 'free' ? 'bg-zinc-800 text-white' : 'bg-white/5 hover:bg-white/10 text-zinc-400'}`}
                         >
-                          {vipTier === 'free' ? 'Gói Đang Bật' : 'Hạ Cấp Gói'}
+                          {vipTier === 'free' ? 'Đang kích hoạt' : 'Hạ cấp về Free'}
                         </button>
                       </div>
 
-                      {/* Sub Plan 2 (VIP Active) */}
-                      <div className="p-5 rounded-[22px] bg-gradient-to-b from-[#12121A]/50 to-black/30 border-2 border-amber-500/25 flex flex-col justify-between text-left h-76 relative">
-                        <div className="absolute top-3 right-3 bg-amber-500/10 border border-amber-500/20 text-[8px] font-black text-amber-400 px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">Phổ biến</div>
+                      {/* Sub Plan 2: Premium */}
+                      <div className={`p-5 rounded-[22px] border transition-all flex flex-col justify-between text-left min-h-80 ${vipTier === 'premium' ? 'bg-purple-950/35 border-purple-500/40 shadow-lg shadow-purple-500/5' : 'bg-[#12121A]/30 border-white/5 hover:border-white/10'}`}>
                         <div>
-                          <h4 className="text-xs font-black text-amber-400 uppercase tracking-widest flex items-center gap-1"><Sparkles size={11} /> ULTRA VIP PASS</h4>
-                          <span className="text-xl font-black text-white mt-1.5 block">59.000đ / tháng</span>
-                          <hr className="my-3 border-amber-500/10" />
-                          <ul className="text-[11px] text-zinc-400 space-y-2 font-medium">
-                            <li className="flex items-center gap-1.5 text-zinc-350"><Check size={12} className="text-emerald-400" /> 100% không quảng cáo chen ngang</li>
-                            <li className="flex items-center gap-1.5 text-zinc-350"><Check size={12} className="text-emerald-400" /> Chất lượng tối đa Full HD/4K UHD</li>
-                            <li className="flex items-center gap-1.5 text-zinc-350"><Check size={12} className="text-emerald-400" /> 04 Thiết bị xem đồng thời</li>
+                          <h4 className="text-xs font-black text-purple-400 uppercase tracking-widest">GÓI CAO CẤP (PREMIUM)</h4>
+                          <span className="text-xl font-black text-white mt-1.5 block">49.000đ / tháng</span>
+                          <hr className="my-3 border-zinc-900" />
+                          <ul className="text-[11px] text-zinc-400 space-y-2.5 font-medium">
+                            <li className="flex items-center gap-1.5 text-zinc-400"><Check size={12} className="text-emerald-400" /> Mở khóa độ nét 1080p Full HD & 2K</li>
+                            <li className="flex items-center gap-1.5 text-zinc-400"><Check size={12} className="text-emerald-400" /> Băng thông truyền tải cao ưu tiên</li>
+                            <li className="flex items-center gap-1.5 text-zinc-400"><Check size={12} className="text-emerald-400" /> Không quảng cáo chen ngang</li>
+                            <li className="flex items-center gap-1.5 text-zinc-500 line-through"><X size={12} className="text-zinc-600" /> Luồng phát chất lượng Ultra 4K</li>
                           </ul>
                         </div>
                         <button
                           onClick={() => {
-                            setVipTier('vip');
-                            triggerToast('Bạn đã kích hoạt thành công Gói VIP!');
+                            updateVipTier('premium');
+                            triggerToast('Đã nâng cấp lên gói Premium 1080p/2K!');
                           }}
-                          className={`w-full py-2.5 rounded-xl font-black text-xs transition-colors cursor-pointer mt-4 ${vipTier === 'vip' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/10' : 'bg-white/5 hover:bg-white/10 text-zinc-400'}`}
+                          className={`w-full py-2.5 rounded-xl font-black text-xs transition-colors cursor-pointer mt-4 ${vipTier === 'premium' ? 'bg-purple-600 text-white' : 'bg-white/5 hover:bg-white/10 text-zinc-400'}`}
                         >
-                          {vipTier === 'vip' ? 'Gói Đang Bật' : 'Đăng Ký Ngay'}
+                          {vipTier === 'premium' ? 'Đang kích hoạt' : 'Nâng cấp Premium'}
                         </button>
                       </div>
 
-                      {/* Sub Plan 3 */}
-                      <div className="p-5 rounded-[22px] bg-[#12121A]/30 border border-white/5 hover:border-white/10 transition-all flex flex-col justify-between text-left h-76">
+                      {/* Sub Plan 3: Ultra */}
+                      <div className={`p-5 rounded-[22px] border transition-all flex flex-col justify-between text-left min-h-80 relative ${vipTier === 'ultra' ? 'bg-amber-950/30 border-amber-500/40 shadow-lg shadow-amber-500/10' : 'bg-[#12121A]/30 border-white/5 hover:border-white/10'}`}>
+                        <div className="absolute top-3 right-3 bg-amber-500/20 border border-amber-500/30 text-[8px] font-black text-amber-400 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                          Đỉnh cao
+                        </div>
                         <div>
-                          <h4 className="text-xs font-black text-zinc-400 uppercase tracking-widest">FAMILY CINEMA ULTRA</h4>
-                          <span className="text-xl font-black text-white mt-1.5 block">119.000đ / tháng</span>
-                          <hr className="my-3 border-white/5" />
-                          <ul className="text-[11px] text-zinc-500 space-y-2 font-medium">
-                            <li className="flex items-center gap-1.5 text-zinc-400"><Check size={12} className="text-emerald-400" /> Tối đa 10 Thiết bị thành viên rạp</li>
-                            <li className="flex items-center gap-1.5 text-zinc-400"><Check size={12} className="text-emerald-400" /> Âm thanh Dolby Atmos thính rạp</li>
-                            <li className="flex items-center gap-1.5 text-zinc-405"><Check size={12} className="text-emerald-400" /> Chia sẻ tài khoản thông minh</li>
+                          <h4 className="text-xs font-black text-amber-400 uppercase tracking-widest flex items-center gap-1"><Sparkles size={11} /> ULTRA SUPREME 4K</h4>
+                          <span className="text-xl font-black text-white mt-1.5 block">89.000đ / tháng</span>
+                          <hr className="my-3 border-zinc-900" />
+                          <ul className="text-[11px] text-zinc-400 space-y-2.5 font-medium">
+                            <li className="flex items-center gap-1.5 text-zinc-400"><Check size={12} className="text-emerald-400" /> Mở khóa toàn bộ luồng phát Ultra 4K</li>
+                            <li className="flex items-center gap-1.5 text-zinc-400"><Check size={12} className="text-emerald-400" /> Ưu tiên truyền tải tải phim cực đại</li>
+                            <li className="flex items-center gap-1.5 text-zinc-400"><Check size={12} className="text-emerald-400" /> Âm thanh vòm Dolby Cinema 7.1</li>
+                            <li className="flex items-center gap-1.5 text-zinc-400"><Check size={12} className="text-emerald-400" /> Xem tối đa 5 thiết bị song song</li>
                           </ul>
                         </div>
                         <button
                           onClick={() => {
-                            setVipTier('vip');
-                            triggerToast('Đăng ký gói Family bao thành công!');
+                            updateVipTier('ultra');
+                            triggerToast('Đã nâng cấp lên gói Ultra 4K cao cấp nhất!');
                           }}
-                          className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 font-extrabold text-xs transition-colors cursor-pointer mt-4"
+                          className={`w-full py-2.5 rounded-xl font-black text-xs transition-colors cursor-pointer mt-4 ${vipTier === 'ultra' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/10' : 'bg-white/5 hover:bg-white/10 text-zinc-400'}`}
                         >
-                          Nâng cấp Gói
+                          {vipTier === 'ultra' ? 'Đang kích hoạt' : 'Nâng cấp Ultra 4K'}
                         </button>
                       </div>
                     </div>
-
                   </div>
                 )}
 
@@ -1031,6 +1272,154 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
 
                     <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 text-zinc-500 font-sans text-[11px] leading-relaxed">
                       Lưu ý: Bạn đang đăng nhập độc quyền qua Gmail được liên kết. Một số thiết lập rạp chiếu đặc thù có thể mất vài phút để đồng bộ hóa hoàn chỉnh trên các ứng dụng Smart TV liên quan.
+                    </div>
+                  </div>
+                )}
+
+                {/* 3G. TAB: SCANNER / DIAGNOSTICS */}
+                {activeTab === 'scanner' && (
+                  <div className="flex flex-col gap-6 text-left">
+                    <div className="border-b border-white/5 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">KIỂM TRA TOÀN BỘ THƯ VIỆN PHIM</h2>
+                        <p className="text-xs text-zinc-500 mt-1">Hệ thống quét tự động kiểm tra trạng thái hoạt động của các nguồn phim và luồng phát.</p>
+                      </div>
+                      <button
+                        onClick={handleScanLibrary}
+                        disabled={isScanning}
+                        className={`p-2.5 px-5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+                          isScanning 
+                            ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' 
+                            : 'bg-[#E63946] text-white hover:bg-[#D62837] shadow-lg shadow-red-500/10'
+                        }`}
+                      >
+                        <RefreshCw size={14} className={isScanning ? 'animate-spin' : ''} />
+                        <span>{isScanning ? 'Đang quét...' : 'Bắt đầu quét'}</span>
+                      </button>
+                    </div>
+
+                    {/* GATEWAYS SPEED / LATENCY BENCHMARKS */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {scanData?.latencies.map((gate) => (
+                        <div key={gate.name} className="p-4 rounded-2xl bg-[#12121A]/30 border border-white/5 text-left flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-black uppercase text-zinc-400 tracking-wider">{gate.name}</span>
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                gate.status === 'Hoạt động' 
+                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                                  : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                              }`}>
+                                {gate.status}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-zinc-500 mt-1 truncate">{gate.domain}</p>
+                          </div>
+                          <div className="mt-4 flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Độ trễ (Ping)</span>
+                            <span className={`text-sm font-mono font-black ${
+                              gate.status === 'Hoạt động' ? 'text-emerald-400' : 'text-zinc-500'
+                            }`}>
+                              {gate.latency}
+                            </span>
+                          </div>
+                        </div>
+                      )) || (
+                        [1, 2, 3].map((idx) => (
+                          <div key={idx} className="p-4 rounded-2xl bg-[#12121A]/30 border border-white/5 text-left flex flex-col justify-between animate-pulse" style={{ minHeight: '110px' }}>
+                            <div className="h-4 bg-white/5 rounded w-1/3" />
+                            <div className="h-8 bg-white/5 rounded w-1/2 mt-4" />
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* MOVIE HEALTH RESULTS TABLE */}
+                    <div className="p-5 sm:p-6 rounded-[24px] bg-[#12121A]/30 border border-white/5 text-left flex flex-col gap-4">
+                      <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
+                          <Film size={14} className="text-[#E63946]" />
+                          Kết quả chẩn đoán tiêu điểm ({scanData?.scannedMovies.length || 0} phim)
+                        </h3>
+                        {scanData?.systemHealth && (
+                          <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400 bg-emerald-500/5 px-2.5 py-0.5 rounded-full border border-emerald-500/10">
+                            {scanData.systemHealth}
+                          </span>
+                        )}
+                      </div>
+
+                      {isScanning ? (
+                        <div className="py-12 flex flex-col items-center justify-center gap-3 text-center">
+                          <RefreshCw size={24} className="text-[#E63946] animate-spin" />
+                          <p className="text-xs font-bold text-zinc-400 animate-pulse">Đang rà soát và kiểm thử luồng phát thời gian thực...</p>
+                        </div>
+                      ) : scanData && scanData.scannedMovies.length > 0 ? (
+                        <div className="flex flex-col gap-3">
+                          <div className="max-h-[360px] overflow-y-auto pr-1 flex flex-col gap-2 scrollbar-thin">
+                            {scanData.scannedMovies.map((movie) => (
+                              <div 
+                                key={movie.slug} 
+                                className="p-3 px-4 rounded-xl bg-black/40 border border-white/5 hover:border-white/10 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center text-[10px] font-black text-zinc-500">
+                                    🎬
+                                  </div>
+                                  <div>
+                                    <h4 className="text-xs sm:text-sm font-extrabold text-white line-clamp-1">{movie.name}</h4>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span className="text-[9px] font-bold text-zinc-500">Nguồn:</span>
+                                      <div className="flex items-center gap-1">
+                                        <span className={`text-[8px] font-extrabold px-1 rounded ${movie.sourcesChecked.KKPhim ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>KK</span>
+                                        <span className={`text-[8px] font-extrabold px-1 rounded ${movie.sourcesChecked.OPhim ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>OP</span>
+                                        <span className={`text-[8px] font-extrabold px-1 rounded ${movie.sourcesChecked.AnimeHub ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>AH</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${movie.hasM3u8 ? 'bg-teal-500/10 text-teal-400' : 'bg-zinc-800 text-zinc-500'}`}>
+                                      HLS
+                                    </span>
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${movie.hasEmbed ? 'bg-amber-500/10 text-amber-400' : 'bg-zinc-800 text-zinc-500'}`}>
+                                      Embed
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider ${
+                                      movie.status === 'Hoạt động' 
+                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                                        : movie.status === 'Nguồn lỗi' 
+                                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                        : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                    }`}>
+                                      {movie.status}
+                                    </span>
+                                    <button 
+                                      onClick={() => onNavigateToMoveDetail(movie.slug)}
+                                      className="p-1 px-2.5 rounded bg-white/5 hover:bg-white/10 text-[10px] font-black text-white uppercase tracking-wider transition-all cursor-pointer"
+                                    >
+                                      Xem
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="py-12 flex flex-col items-center justify-center gap-3 text-center">
+                          <Shield size={28} className="text-zinc-600 animate-pulse" />
+                          <p className="text-xs font-bold text-zinc-500">Chưa có dữ liệu chẩn đoán. Nhấn nút Bắt đầu quét ở trên để chạy kiểm tra.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10 text-zinc-500 font-sans text-[11px] leading-relaxed">
+                      Lưu ý: Hệ thống phát phim rạp bao sử dụng công nghệ Player tự động phát hiện và xử lý lỗi (HLS.js / Video.js). Khi luồng HLS (.m3u8) bị lỗi hoặc quá tải, trình phát sẽ tự động chuyển sang luồng dự phòng Iframe Embed để giữ trải nghiệm xem liên tục không bị gián đoạn.
                     </div>
                   </div>
                 )}
