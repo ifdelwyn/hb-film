@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { fetchMovieDetail, fetchMovieList } from '../lib/api/vsmov';
 import { Movie, EpisodeServer, MovieListItem } from '../types/movie';
 import { useWatchlist } from '../lib/hooks/useWatchlist';
 import MovieCard from '../components/MovieCard';
-import { Play, Plus, Check, Star, Calendar, Clock, Tv, Film, Compass, Users, Tag, Share2, Award, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, Plus, Check, Star, Calendar, Clock, Tv, Film, Compass, Users, Tag, Share2, Award, ChevronLeft, ChevronRight, ThumbsUp, MessageSquare } from 'lucide-react';
 import { getCustomSourceName } from '../config/sourceDisplayMap';
 
 interface DetailScreenProps {
@@ -73,6 +73,12 @@ function getActorImageUrl(actName: string): string {
   return portraits[index];
 }
 
+const DEFAULT_COMMENTS = [
+  { id: 1, name: 'Minh Tuấn', rating: 5, content: 'Phim cực kì hay luôn, kịch bản lôi cuốn từ đầu đến cuối. Đáng xem lắm mọi người ơi!', time: '2 ngày trước', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Tuan', likes: 24 },
+  { id: 2, name: 'Lan Anh', rating: 4, content: 'Kỹ xảo điện ảnh xuất sắc, nhịp phim nhanh nhưng hợp lý. Điểm trừ nhẹ ở phần kết thúc hơi vội.', time: '5 ngày trước', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Anh', likes: 14 },
+  { id: 3, name: 'Hoàng Nam', rating: 5, content: 'Rất lâu rồi mới xem được một bộ phim chiếu rạp ấn tượng như thế này. 10/10 không nói nhiều!', time: '1 tuần trước', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Nam', likes: 38 }
+];
+
 export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDetail }: DetailScreenProps) {
   const [movie, setMovie] = useState<Movie | null>(null);
   const [episodes, setEpisodes] = useState<EpisodeServer[]>([]);
@@ -82,6 +88,63 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
   const [activeServerIdx, setActiveServerIdx] = useState(0);
   const [shareSuccess, setShareSuccess] = useState(false);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
+
+  // Comments and rating state
+  const [comments, setComments] = useState<any[]>([]);
+  const [userRating, setUserRating] = useState(5);
+  const [commentText, setCommentText] = useState('');
+  const [hoveredStar, setHoveredStar] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (movie) {
+      const saved = localStorage.getItem(`hb_comments_${movie.slug}`);
+      if (saved) {
+        setComments(JSON.parse(saved));
+      } else {
+        localStorage.setItem(`hb_comments_${movie.slug}`, JSON.stringify(DEFAULT_COMMENTS));
+        setComments(DEFAULT_COMMENTS);
+      }
+    }
+  }, [movie, slug]);
+
+  const handleCommentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim() || !movie) return;
+
+    const storedUser = localStorage.getItem('hb_user');
+    const user = storedUser ? JSON.parse(storedUser) : null;
+
+    const newComment = {
+      id: Date.now(),
+      name: user ? user.displayName : 'Khách ẩn danh',
+      rating: userRating,
+      content: commentText,
+      time: 'Vừa xong',
+      avatar: user ? user.photoURL : `https://api.dicebear.com/7.x/avataaars/svg?seed=${Date.now()}`,
+      likes: 0
+    };
+
+    const updated = [newComment, ...comments];
+    setComments(updated);
+    localStorage.setItem(`hb_comments_${movie.slug}`, JSON.stringify(updated));
+    setCommentText('');
+    setUserRating(5);
+  };
+
+  const handleLikeComment = (commentId: number) => {
+    setComments(prev => {
+      const updated = prev.map(c => {
+        if (c.id === commentId) {
+          return { ...c, likes: c.likes + 1 };
+        }
+        return c;
+      });
+      if (movie) {
+        localStorage.setItem(`hb_comments_${movie.slug}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
 
   // Real production actor photo catalog state
   const [actorImageDict, setActorImageDict] = useState<Record<string, string>>({});
@@ -214,7 +277,7 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
       {/* 3A. CINEMATIC COVER BACKDROP HEADER */}
       <div className="absolute top-0 inset-x-0 h-[50vh] sm:h-[65vh] overflow-hidden">
         <img
-          src={movie.backdrop_url || movie.poster_url || movie.thumb_url}
+          src={movie.backdrop_url || movie.poster_url || movie.thumb_url || undefined}
           alt={movie.name}
           className="w-full h-full object-cover object-top filter blur-xl scale-110 opacity-30 pointer-events-none"
           referrerPolicy="no-referrer"
@@ -229,7 +292,7 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
           <div className="md:col-span-4 flex flex-col items-center md:items-start group select-none">
             <div className="relative w-60 sm:w-64 md:w-full max-w-[290px] aspect-[2/3] rounded-[24px] overflow-hidden shadow-[0_24px_50px_rgba(0,0,0,0.85)] border border-white/10 transition-all duration-500 hover:scale-[1.02] hover:shadow-[0_28px_60px_rgba(0,0,0,0.95)]">
               <img
-                src={movie.poster_url || movie.thumb_url}
+                src={movie.poster_url || movie.thumb_url || undefined}
                 alt={movie.name}
                 className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
                 referrerPolicy="no-referrer"
@@ -622,6 +685,156 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* RATING & COMMENTS INTEGRATION BLOCK */}
+            {movie && (
+              <div className="mt-12 border-t border-zinc-900 pt-10 text-left">
+                <div className="flex flex-col md:flex-row gap-8">
+                  {/* Left side: Aggregate Rating info */}
+                  <div className="md:w-1/3 bg-zinc-950/40 border border-zinc-900 p-6 rounded-[22px] select-none flex flex-col items-center justify-center text-center">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-4 flex items-center gap-1.5">
+                      <Star size={12} className="text-amber-400" />
+                      Đánh giá tổng quan
+                    </h3>
+                    <div className="text-5xl font-black text-white tracking-tight">
+                      {((142 * 4.8 + comments.reduce((acc, curr) => acc + (curr.rating || 5), 0)) / (142 + comments.length)).toFixed(1)}
+                    </div>
+                    <div className="flex items-center gap-1 mt-2.5">
+                      {Array.from({ length: 5 }).map((_, i) => {
+                        const starVal = i + 1;
+                        const avgNum = Number(((142 * 4.8 + comments.reduce((acc, curr) => acc + (curr.rating || 5), 0)) / (142 + comments.length)).toFixed(1));
+                        const isFull = starVal <= Math.round(avgNum);
+                        return <Star key={i} size={16} className={isFull ? "text-amber-400 fill-amber-400" : "text-zinc-700"} />;
+                      })}
+                    </div>
+                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-3">
+                      {142 + comments.length} lượt đánh giá từ thành viên
+                    </p>
+                  </div>
+
+                  {/* Right side: Comment submission form */}
+                  <div className="flex-1 bg-zinc-900/10 border border-zinc-900/60 p-6 rounded-[22px]">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-4 flex items-center gap-1.5">
+                      <MessageSquare size={13} className="text-[var(--color-brand)]" />
+                      Viết bình luận của bạn
+                    </h3>
+                    
+                    {localStorage.getItem('hb_user') ? (
+                      <form onSubmit={handleCommentSubmit} className="flex flex-col gap-4">
+                        {/* Interactive star selector */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-zinc-400 font-bold uppercase">Điểm số:</span>
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: 5 }).map((_, i) => {
+                              const starValue = i + 1;
+                              const isActive = hoveredStar !== null ? starValue <= hoveredStar : starValue <= userRating;
+                              return (
+                                <button
+                                  type="button"
+                                  key={i}
+                                  onClick={() => setUserRating(starValue)}
+                                  onMouseEnter={() => setHoveredStar(starValue)}
+                                  onMouseLeave={() => setHoveredStar(null)}
+                                  className="text-zinc-600 hover:text-amber-400 transition-colors cursor-pointer"
+                                >
+                                  <Star size={18} className={isActive ? "text-amber-400 fill-amber-400" : "text-zinc-700"} />
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <span className="text-xs text-zinc-500 font-extrabold ml-1 uppercase">
+                            {userRating === 5 ? 'Tuyệt đỉnh' : userRating === 4 ? 'Rất hay' : userRating === 3 ? 'Bình thường' : userRating === 2 ? 'Kém' : 'Quá tệ'}
+                          </span>
+                        </div>
+
+                        <div className="relative">
+                          <textarea
+                            rows={3}
+                            placeholder="Chia sẻ cảm xúc hoặc ý kiến của bạn về bộ phim này..."
+                            value={commentText}
+                            onChange={(e) => setCommentText(e.target.value)}
+                            className="w-full bg-zinc-950 border border-zinc-800/80 focus:border-[var(--color-brand)] rounded-xl p-4 text-xs sm:text-sm font-semibold outline-none text-white resize-none transition-colors"
+                            required
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="self-end px-5 py-2.5 rounded-xl bg-gradient-to-r from-[var(--color-brand)] to-[#C1121F] text-[11px] font-black uppercase tracking-wider text-white shadow-md cursor-pointer hover:opacity-95"
+                        >
+                          Gửi bình luận
+                        </button>
+                      </form>
+                    ) : (
+                      <div className="p-5 rounded-xl bg-zinc-950/40 border border-zinc-900 text-center flex flex-col items-center justify-center gap-3">
+                        <p className="text-xs text-zinc-500 font-semibold leading-relaxed">
+                          Bạn chưa đăng nhập. Vui lòng đăng nhập tài khoản thành viên bao để chia sẻ ý kiến và đánh giá phim!
+                        </p>
+                        <button
+                          onClick={() => window.location.hash = '#/auth'}
+                          className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                        >
+                          Đăng Nhập Ngay
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Comments List section */}
+                <div className="mt-10">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-6 flex items-center gap-1.5 border-b border-zinc-900 pb-3">
+                    <MessageSquare size={13} className="text-[var(--color-brand)]" />
+                    Ý kiến khán giả ({comments.length})
+                  </h4>
+
+                  <div className="flex flex-col gap-4">
+                    {comments.map((c) => (
+                      <div
+                        key={c.id}
+                        className="p-4 sm:p-5 rounded-[20px] bg-zinc-900/25 border border-zinc-900 flex gap-4 text-left"
+                      >
+                        <img
+                          src={c.avatar}
+                          alt={c.name}
+                          className="w-10 h-10 rounded-full object-cover shrink-0 border border-zinc-800 shadow-sm"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs sm:text-sm font-bold text-white truncate">{c.name}</span>
+                            <span className="text-[10px] text-zinc-500 font-semibold tracking-wide shrink-0">{c.time}</span>
+                          </div>
+                          
+                          {/* Star rating display */}
+                          <div className="flex items-center gap-0.5 mt-1 select-none">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star
+                                key={i}
+                                size={11}
+                                className={i < c.rating ? "text-amber-400 fill-amber-400" : "text-zinc-800"}
+                              />
+                            ))}
+                          </div>
+
+                          <p className="text-xs sm:text-sm text-zinc-300 mt-3 leading-relaxed font-medium">
+                            {c.content}
+                          </p>
+
+                          {/* Likes trigger */}
+                          <button
+                            onClick={() => handleLikeComment(c.id)}
+                            className="flex items-center gap-1.5 mt-4 text-[10px] font-black text-zinc-500 hover:text-[var(--color-brand)] uppercase tracking-widest transition-colors cursor-pointer select-none"
+                          >
+                            <ThumbsUp size={11} />
+                            <span>Thích ({c.likes})</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 

@@ -17,7 +17,7 @@ export function useWatchHistory() {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('filmflow_history');
+      const stored = localStorage.getItem('hb_history') || localStorage.getItem('filmflow_history');
       if (stored) {
         setHistory(JSON.parse(stored));
       }
@@ -29,7 +29,7 @@ export function useWatchHistory() {
   const saveHistory = (newItems: HistoryItem[]) => {
     setHistory(newItems);
     try {
-      localStorage.setItem('filmflow_history', JSON.stringify(newItems));
+      localStorage.setItem('hb_history', JSON.stringify(newItems));
     } catch (e) {
       console.error('Failed to save history:', e);
     }

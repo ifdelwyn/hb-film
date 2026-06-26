@@ -26,6 +26,7 @@ export default function WatchScreen({
   const [activeServerIdx, setActiveServerIdx] = useState(initialServerIdx);
   const [activeEpisode, setActiveEpisode] = useState<EpisodeData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'trailer' | 'movie'>('trailer');
 
   // Watch history hook integration
   const { updateHistory, getMovieHistory } = useWatchHistory();
@@ -64,6 +65,34 @@ export default function WatchScreen({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [slug, initialEpisodeSlug, activeServerIdx]);
 
+  // Handle active tab state on movie payload load
+  useEffect(() => {
+    if (movie) {
+      if (movie.trailer_url && movie.trailer_url.trim().length > 0) {
+        setActiveTab('trailer');
+      } else {
+        setActiveTab('movie');
+      }
+    }
+  }, [movie]);
+
+  // Sync to history as soon as movie and episode are resolved
+  useEffect(() => {
+    if (movie && activeEpisode) {
+      const existing = getMovieHistory(movie.slug);
+      updateHistory({
+        movieSlug: movie.slug,
+        movieName: movie.name,
+        posterUrl: movie.poster_url || movie.thumb_url,
+        episodeName: activeEpisode.name,
+        episodeSlug: activeEpisode.slug,
+        progress: existing?.progress || 0,
+        duration: existing?.duration || 0,
+        currentTime: existing?.currentTime || 0
+      });
+    }
+  }, [movie, activeEpisode]);
+
   // Sync progress updates to local storage
   const handleProgress = (currentTime: number, duration: number) => {
     if (!movie || !activeEpisode) return;
@@ -95,7 +124,7 @@ export default function WatchScreen({
     }
   };
 
-  if (isLoading || !movie || !activeEpisode) {
+  if (isLoading || !movie) {
     return (
       <div className="w-full min-h-screen bg-black text-white py-20 select-none flex flex-col items-center justify-center gap-6">
         <div className="relative flex items-center justify-center">
@@ -138,17 +167,68 @@ export default function WatchScreen({
           </div>
         </div>
 
-        {/* 4A-4B. CUSTOM HYBRID VIDEO PLAYER MOUNTED */}
-        <div className="mb-10 shadow-3xl">
-          <VideoPlayer
-            embedUrl={activeEpisode.link_embed}
-            m3u8Url={activeEpisode.link_m3u8}
-            title={`${movie.name} - Tập ${activeEpisode.name}`}
-            poster={movie.poster_url || movie.thumb_url}
-            onEnded={handleNextEpisode}
-            onProgress={handleProgress}
-          />
-        </div>
+        {/* 4A-4B. CUSTOM HYBRID VIDEO PLAYER OR YOUTUBE TRAILER MOUNTED */}
+        {activeTab === 'trailer' && movie.trailer_url ? (
+          <div className="mb-6 shadow-3xl bg-black rounded-2xl overflow-hidden aspect-video relative border border-zinc-900">
+            <iframe
+              key={`trailer-iframe-${movie.trailer_url}`}
+              src={movie.trailer_url.includes('autoplay') ? movie.trailer_url : `${movie.trailer_url}${movie.trailer_url.includes('?') ? '&' : '?'}autoplay=1&rel=0`}
+              allowFullScreen
+              allow="autoplay; encrypted-media"
+              className="w-full h-full border-none absolute inset-0"
+            />
+          </div>
+        ) : activeEpisode ? (
+          <div className="mb-6 shadow-3xl bg-black rounded-2xl overflow-hidden relative border border-zinc-900">
+            <VideoPlayer
+              key={`movie-player-${activeEpisode.link_embed || activeEpisode.slug || 'player'}`}
+              embedUrl={activeEpisode.link_embed}
+              m3u8Url={activeEpisode.link_m3u8}
+              title={`${movie.name} - Tập ${activeEpisode.name}`}
+              poster={movie.poster_url || movie.thumb_url}
+              onEnded={handleNextEpisode}
+              onProgress={handleProgress}
+            />
+          </div>
+        ) : (
+          <div className="mb-6 shadow-3xl bg-black rounded-2xl overflow-hidden aspect-video relative border border-zinc-900">
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950 p-6 text-center select-none">
+              <Tv size={48} className="text-zinc-600 mb-4 animate-pulse" />
+              <p className="text-sm font-bold text-zinc-300">⚠️ CHƯA CÓ NGUỒN PHÁT CHO PHIM NÀY</p>
+              <p className="text-xs text-zinc-500 mt-2 max-w-md">
+                Server hiện chưa tìm được link phát chất lượng cao cho phim này. Bạn hãy xem thử Trailer ở tab bên cạnh hoặc chọn nguồn phát dự phòng bên dưới!
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic Hybrid Tab Navigation selector for Premium UX */}
+        {movie.trailer_url && movie.trailer_url.trim().length > 0 && (
+          <div className="flex justify-center gap-4 mb-8 select-none">
+            <div className="inline-flex bg-zinc-950 border border-zinc-900 p-1.5 rounded-2xl shadow-2xl">
+              <button
+                onClick={() => setActiveTab('trailer')}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs sm:text-sm font-extrabold tracking-tight cursor-pointer transition-all duration-300 ${
+                  activeTab === 'trailer'
+                    ? 'bg-gradient-to-r from-[#E63946] to-[#C1121F] text-white shadow-lg shadow-red-600/20'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                }`}
+              >
+                🎬 Xem Trailer
+              </button>
+              <button
+                onClick={() => setActiveTab('movie')}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs sm:text-sm font-extrabold tracking-tight cursor-pointer transition-all duration-300 ${
+                  activeTab === 'movie'
+                    ? 'bg-gradient-to-r from-[#E63946] to-[#C1121F] text-white shadow-lg shadow-red-600/20'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                }`}
+              >
+                ▶️ Xem Phim Chính
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 4C. SERVER SELECTOR PORT / GATE SELECT */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
@@ -160,7 +240,7 @@ export default function WatchScreen({
                 🎬 ĐANG PHÁT TRỰC TUYẾN
               </span>
               <h2 className="text-xl sm:text-2xl font-extrabold sm:font-black tracking-tighter text-white drop-shadow">
-                {movie.name} — <span className="text-[var(--color-brand)] font-black">Tập {activeEpisode.name}</span>
+                {movie.name} {activeEpisode && (<span>— <span className="text-[var(--color-brand)] font-black">Tập {activeEpisode.name}</span></span>)}
               </h2>
               <p className="text-xs text-zinc-500 font-medium font-sans mt-1">
                 {movie.origin_name} • {movie.quality} • {movie.lang} • Lượt xem: {movie.view.toLocaleString()} views
@@ -230,7 +310,7 @@ export default function WatchScreen({
                 {/* Episodes button grid list */}
                 <div className="grid grid-cols-4 gap-2.5 max-h-[300px] overflow-y-auto pr-1 no-scrollbar">
                   {currentServerList.map((ep, idx) => {
-                    const isWatching = activeEpisode.slug === ep.slug;
+                    const isWatching = activeEpisode && activeEpisode.slug === ep.slug;
                     return (
                       <button
                         key={`${ep.slug}-${idx}`}

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Play, Plus, Check, Star } from 'lucide-react';
+import { Play, Plus, Check, Star, Heart } from 'lucide-react';
 import { MovieListItem, Movie } from '../types/movie';
 import { useWatchlist } from '../lib/hooks/useWatchlist';
+import { useFavorites } from '../lib/hooks/useFavorites';
 import { motion } from 'motion/react';
 
 interface MovieCardProps {
@@ -21,11 +22,36 @@ export default function MovieCard({
   onClick 
 }: MovieCardProps) {
   const { isInWatchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
+  const { isFavorite, addToFavorites, removeFromFavorites } = useFavorites();
   const [imageError, setImageError] = useState(false);
   const isAdded = isInWatchlist(movie.slug);
+  const isFav = isFavorite(movie.slug);
 
   const fallbackImage = 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=500&auto=format&fit=crop&q=80';
-  const displayImage = imageError ? fallbackImage : (movie.poster_url || movie.thumb_url);
+
+  const getPoster = (movieItem: any) => {
+    if (imageError) return fallbackImage;
+
+    // TMDB poster path or formatted path if stored
+    if (movieItem.poster_path) {
+      return `https://image.tmdb.org/t/p/w500${movieItem.poster_path}`;
+    }
+
+    // Fallback KKPhim / general poster_url (usually full URL)
+    if (movieItem.poster_url && typeof movieItem.poster_url === 'string' && movieItem.poster_url.startsWith('http')) {
+      return movieItem.poster_url;
+    }
+
+    // Fallback thumb_url
+    if (movieItem.thumb_url && typeof movieItem.thumb_url === 'string' && movieItem.thumb_url.startsWith('http')) {
+      return movieItem.thumb_url;
+    }
+
+    // Standard fallback string path check
+    return movieItem.poster_url || movieItem.thumb_url || fallbackImage;
+  };
+
+  const displayImage = getPoster(movie);
 
   const handleWatchlistClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -33,6 +59,26 @@ export default function MovieCard({
       removeFromWatchlist(movie.slug);
     } else {
       addToWatchlist({
+        name: movie.name,
+        slug: movie.slug,
+        origin_name: movie.origin_name,
+        thumb_url: movie.thumb_url || movie.poster_url,
+        poster_url: movie.poster_url || movie.thumb_url,
+        year: movie.year,
+        type: movie.type,
+        episode_current: movie.episode_current,
+        quality: movie.quality,
+        lang: movie.lang
+      });
+    }
+  };
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isFav) {
+      removeFromFavorites(movie.slug);
+    } else {
+      addToFavorites({
         name: movie.name,
         slug: movie.slug,
         origin_name: movie.origin_name,
@@ -113,11 +159,18 @@ export default function MovieCard({
         </div>
 
         {/* Floating actions */}
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-1 group-hover:translate-y-0">
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-1 group-hover:translate-y-0 flex gap-2">
+          <button 
+            id={`btn-fav-land-${movie.slug}`}
+            onClick={handleFavoriteClick}
+            className="p-1.5 rounded-full bg-black/60 hover:bg-zinc-900 text-white backdrop-blur-sm transition-all shadow-md border border-white/5"
+          >
+            <Heart size={14} className={isFav ? "text-[#e50914] fill-[#e50914]" : "text-white"} />
+          </button>
           <button 
             id={`btn-add-watchlist-land-${movie.slug}`}
             onClick={handleWatchlistClick}
-            className="p-1.5 rounded-full bg-black/60 hover:bg-[var(--color-brand)] text-white backdrop-blur-sm transition-all shadow-md"
+            className="p-1.5 rounded-full bg-black/60 hover:bg-[var(--color-brand)] text-white backdrop-blur-sm transition-all shadow-md border border-white/5"
           >
             {isAdded ? <Check size={14} /> : <Plus size={14} />}
           </button>
@@ -175,6 +228,13 @@ export default function MovieCard({
       </div>
 
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-1 group-hover:translate-y-0 flex flex-col gap-2">
+        <button 
+          id={`btn-fav-post-${movie.slug}`}
+          onClick={handleFavoriteClick}
+          className="p-2 rounded-full bg-black/70 hover:bg-zinc-900 text-white backdrop-blur-sm transition-all shadow-md border border-white/10"
+        >
+          <Heart size={16} className={isFav ? "text-[#e50914] fill-[#e50914]" : "text-white"} />
+        </button>
         <button 
           id={`btn-add-watchlist-post-${movie.slug}`}
           onClick={handleWatchlistClick}

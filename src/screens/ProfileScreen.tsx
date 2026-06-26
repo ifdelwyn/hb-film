@@ -15,6 +15,7 @@ interface ProfileScreenProps {
   onNavigateToMoveDetail: (slug: string) => void;
   onNavigateToWatch: (slug: string, episodeSlug?: string) => void;
   onLogout?: () => void;
+  initialTab?: 'overview' | 'security' | 'history' | 'watchlist' | 'vip' | 'settings';
 }
 
 // Predefined premium cinematic avatars
@@ -33,54 +34,22 @@ const PREMIUM_AVATARS = [
   ...Array.from({ length: 25 }, (_, i) => `https://api.dicebear.com/7.x/lorelei/svg?seed=AnimeGirl${i + 1}&backgroundColor=ffdfbf,ffd5dc,d1d4f9`)
 ];
 
-export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatch, onLogout }: ProfileScreenProps) {
+export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatch, onLogout, initialTab }: ProfileScreenProps) {
   const { watchlist, clearWatchlist } = useWatchlist();
   const { history, removeFromHistory, clearHistory } = useWatchHistory();
   const { preferences, updatePreferences } = useUserPreferences();
   
   // High-fidelity tab management
-  const [activeTab, setActiveTab] = useState<'overview' | 'security' | 'history' | 'watchlist' | 'vip' | 'settings' | 'scanner'>('overview');
-  const [isTabLoading, setIsTabLoading] = useState(false);
-
-  // Scanner state variables for movie library diagnostics
-  const [scanData, setScanData] = useState<{
-    latencies: Array<{ name: string; domain: string; status: string; latency: string }>;
-    scannedMovies: Array<{
-      slug: string;
-      name: string;
-      status: string;
-      sourcesChecked: { KKPhim: boolean; OPhim: boolean; AnimeHub: boolean };
-      hasM3u8: boolean;
-      hasEmbed: boolean;
-      lastChecked: string;
-    }>;
-    systemHealth: string;
-  } | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
-
-  const handleScanLibrary = async () => {
-    setIsScanning(true);
-    try {
-      const response = await fetch('/api/admin/scan');
-      if (response.ok) {
-        const data = await response.json();
-        setScanData(data);
-        triggerToast('Quét & kiểm tra thư viện phim hoàn tất!');
-      } else {
-        triggerToast('Kiểm tra thư viện thất bại do lỗi máy chủ.');
-      }
-    } catch (err) {
-      triggerToast('Lỗi kết nối khi quét thư viện.');
-    } finally {
-      setIsScanning(false);
-    }
-  };
+  const [activeTab, setActiveTab] = useState<'overview' | 'security' | 'history' | 'watchlist' | 'vip' | 'settings'>(
+    initialTab || 'overview'
+  );
 
   useEffect(() => {
-    if (activeTab === 'scanner' && !scanData && !isScanning) {
-      handleScanLibrary();
+    if (initialTab) {
+      setActiveTab(initialTab);
     }
-  }, [activeTab]);
+  }, [initialTab]);
+  const [isTabLoading, setIsTabLoading] = useState(false);
   
   // Custom toast notification states
   const [showToast, setShowToast] = useState(false);
@@ -138,6 +107,15 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
   const handleTabChange = (tab: typeof activeTab) => {
     setIsTabLoading(true);
     setActiveTab(tab);
+    
+    // Synchronize browser location hash with current tab
+    if (tab === 'overview') window.location.hash = '#/tai-khoan';
+    else if (tab === 'watchlist') window.location.hash = '#/favorites';
+    else if (tab === 'history') window.location.hash = '#/history';
+    else if (tab === 'vip') window.location.hash = '#/membership';
+    else if (tab === 'security') window.location.hash = '#/security';
+    else if (tab === 'settings') window.location.hash = '#/settings';
+
     const timer = setTimeout(() => {
       setIsTabLoading(false);
     }, 400);
@@ -499,6 +477,14 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
             </button>
 
             <button
+              onClick={() => window.location.hash = '#/tv'}
+              className="flex items-center gap-3 px-4 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer flex-shrink-0 w-auto lg:w-full bg-transparent text-zinc-400 hover:text-white hover:bg-white/5"
+            >
+              <Tv size={16} className="text-[#E63946]" />
+              <span>Kênh TV Live (IPTV)</span>
+            </button>
+
+            <button
               onClick={() => handleTabChange('watchlist')}
               className={`flex items-center gap-3 px-4 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer flex-shrink-0 w-auto lg:w-full ${activeTab === 'watchlist' ? 'bg-[#E63946] text-white shadow-lg shadow-red-500/10 scale-[1.03]' : 'bg-transparent text-zinc-400 hover:text-white hover:bg-white/5'}`}
             >
@@ -528,14 +514,6 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
             >
               <Settings size={16} />
               <span>Cài đặt</span>
-            </button>
-
-            <button
-              onClick={() => handleTabChange('scanner')}
-              className={`flex items-center gap-3 px-4 py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer flex-shrink-0 w-auto lg:w-full ${activeTab === 'scanner' ? 'bg-[#E63946] text-white shadow-lg shadow-red-500/10 scale-[1.03]' : 'bg-transparent text-zinc-400 hover:text-white hover:bg-white/5'}`}
-            >
-              <RefreshCw size={16} />
-              <span>Quét thư viện</span>
             </button>
           </div>
 
@@ -1276,153 +1254,7 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
                   </div>
                 )}
 
-                {/* 3G. TAB: SCANNER / DIAGNOSTICS */}
-                {activeTab === 'scanner' && (
-                  <div className="flex flex-col gap-6 text-left">
-                    <div className="border-b border-white/5 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div>
-                        <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">KIỂM TRA TOÀN BỘ THƯ VIỆN PHIM</h2>
-                        <p className="text-xs text-zinc-500 mt-1">Hệ thống quét tự động kiểm tra trạng thái hoạt động của các nguồn phim và luồng phát.</p>
-                      </div>
-                      <button
-                        onClick={handleScanLibrary}
-                        disabled={isScanning}
-                        className={`p-2.5 px-5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
-                          isScanning 
-                            ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' 
-                            : 'bg-[#E63946] text-white hover:bg-[#D62837] shadow-lg shadow-red-500/10'
-                        }`}
-                      >
-                        <RefreshCw size={14} className={isScanning ? 'animate-spin' : ''} />
-                        <span>{isScanning ? 'Đang quét...' : 'Bắt đầu quét'}</span>
-                      </button>
-                    </div>
 
-                    {/* GATEWAYS SPEED / LATENCY BENCHMARKS */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {scanData?.latencies.map((gate) => (
-                        <div key={gate.name} className="p-4 rounded-2xl bg-[#12121A]/30 border border-white/5 text-left flex flex-col justify-between">
-                          <div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-black uppercase text-zinc-400 tracking-wider">{gate.name}</span>
-                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                                gate.status === 'Hoạt động' 
-                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                                  : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                              }`}>
-                                {gate.status}
-                              </span>
-                            </div>
-                            <p className="text-[10px] text-zinc-500 mt-1 truncate">{gate.domain}</p>
-                          </div>
-                          <div className="mt-4 flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Độ trễ (Ping)</span>
-                            <span className={`text-sm font-mono font-black ${
-                              gate.status === 'Hoạt động' ? 'text-emerald-400' : 'text-zinc-500'
-                            }`}>
-                              {gate.latency}
-                            </span>
-                          </div>
-                        </div>
-                      )) || (
-                        [1, 2, 3].map((idx) => (
-                          <div key={idx} className="p-4 rounded-2xl bg-[#12121A]/30 border border-white/5 text-left flex flex-col justify-between animate-pulse" style={{ minHeight: '110px' }}>
-                            <div className="h-4 bg-white/5 rounded w-1/3" />
-                            <div className="h-8 bg-white/5 rounded w-1/2 mt-4" />
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    {/* MOVIE HEALTH RESULTS TABLE */}
-                    <div className="p-5 sm:p-6 rounded-[24px] bg-[#12121A]/30 border border-white/5 text-left flex flex-col gap-4">
-                      <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                        <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                          <Film size={14} className="text-[#E63946]" />
-                          Kết quả chẩn đoán tiêu điểm ({scanData?.scannedMovies.length || 0} phim)
-                        </h3>
-                        {scanData?.systemHealth && (
-                          <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400 bg-emerald-500/5 px-2.5 py-0.5 rounded-full border border-emerald-500/10">
-                            {scanData.systemHealth}
-                          </span>
-                        )}
-                      </div>
-
-                      {isScanning ? (
-                        <div className="py-12 flex flex-col items-center justify-center gap-3 text-center">
-                          <RefreshCw size={24} className="text-[#E63946] animate-spin" />
-                          <p className="text-xs font-bold text-zinc-400 animate-pulse">Đang rà soát và kiểm thử luồng phát thời gian thực...</p>
-                        </div>
-                      ) : scanData && scanData.scannedMovies.length > 0 ? (
-                        <div className="flex flex-col gap-3">
-                          <div className="max-h-[360px] overflow-y-auto pr-1 flex flex-col gap-2 scrollbar-thin">
-                            {scanData.scannedMovies.map((movie) => (
-                              <div 
-                                key={movie.slug} 
-                                className="p-3 px-4 rounded-xl bg-black/40 border border-white/5 hover:border-white/10 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center text-[10px] font-black text-zinc-500">
-                                    🎬
-                                  </div>
-                                  <div>
-                                    <h4 className="text-xs sm:text-sm font-extrabold text-white line-clamp-1">{movie.name}</h4>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-[9px] font-bold text-zinc-500">Nguồn:</span>
-                                      <div className="flex items-center gap-1">
-                                        <span className={`text-[8px] font-extrabold px-1 rounded ${movie.sourcesChecked.KKPhim ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>KK</span>
-                                        <span className={`text-[8px] font-extrabold px-1 rounded ${movie.sourcesChecked.OPhim ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>OP</span>
-                                        <span className={`text-[8px] font-extrabold px-1 rounded ${movie.sourcesChecked.AnimeHub ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>AH</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${movie.hasM3u8 ? 'bg-teal-500/10 text-teal-400' : 'bg-zinc-800 text-zinc-500'}`}>
-                                      HLS
-                                    </span>
-                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${movie.hasEmbed ? 'bg-amber-500/10 text-amber-400' : 'bg-zinc-800 text-zinc-500'}`}>
-                                      Embed
-                                    </span>
-                                  </div>
-
-                                  <div className="flex items-center gap-2">
-                                    <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider ${
-                                      movie.status === 'Hoạt động' 
-                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                                        : movie.status === 'Nguồn lỗi' 
-                                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                        : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                    }`}>
-                                      {movie.status}
-                                    </span>
-                                    <button 
-                                      onClick={() => onNavigateToMoveDetail(movie.slug)}
-                                      className="p-1 px-2.5 rounded bg-white/5 hover:bg-white/10 text-[10px] font-black text-white uppercase tracking-wider transition-all cursor-pointer"
-                                    >
-                                      Xem
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="py-12 flex flex-col items-center justify-center gap-3 text-center">
-                          <Shield size={28} className="text-zinc-600 animate-pulse" />
-                          <p className="text-xs font-bold text-zinc-500">Chưa có dữ liệu chẩn đoán. Nhấn nút Bắt đầu quét ở trên để chạy kiểm tra.</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10 text-zinc-500 font-sans text-[11px] leading-relaxed">
-                      Lưu ý: Hệ thống phát phim rạp bao sử dụng công nghệ Player tự động phát hiện và xử lý lỗi (HLS.js / Video.js). Khi luồng HLS (.m3u8) bị lỗi hoặc quá tải, trình phát sẽ tự động chuyển sang luồng dự phòng Iframe Embed để giữ trải nghiệm xem liên tục không bị gián đoạn.
-                    </div>
-                  </div>
-                )}
 
               </div>
             )}

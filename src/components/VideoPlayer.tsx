@@ -4,12 +4,14 @@ import Hls from 'hls.js';
 import QualitySelector, { QualityLevel } from './QualitySelector';
 
 interface VideoPlayerProps {
+  key?: string;
   embedUrl?: string;
   m3u8Url?: string;
   title: string;
   poster?: string;
   onEnded?: () => void;
   onProgress?: (currentTime: number, duration: number) => void;
+  fullWidth?: boolean;
 }
 
 export default function VideoPlayer({ 
@@ -18,7 +20,8 @@ export default function VideoPlayer({
   title, 
   poster,
   onEnded, 
-  onProgress 
+  onProgress,
+  fullWidth
 }: VideoPlayerProps) {
   const [playerType, setPlayerType] = useState<'embed' | 'native'>('embed');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -503,17 +506,19 @@ export default function VideoPlayer({
   };
 
   return (
-    <div className={`w-full flex flex-col ${isTheaterMode ? 'max-w-none' : 'max-w-5xl mx-auto'} bg-black rounded-xl overflow-hidden shadow-2xl border border-zinc-900`}>
+    <div className={`w-full flex flex-col ${(isTheaterMode || fullWidth) ? 'max-w-none' : 'max-w-5xl mx-auto'} bg-black rounded-xl overflow-hidden shadow-2xl ${fullWidth ? 'border-none shadow-none rounded-none' : 'border border-zinc-900'}`}>
       
       {/* Thin, elegant player stream description banner */}
-      <div className="flex justify-between items-center bg-zinc-950 border-b border-zinc-900 p-2.5 px-4 select-none">
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand)] animate-pulse" />
-          <h3 className="text-xs font-bold text-zinc-400 truncate max-w-full">
-            Đang phát: <span className="text-zinc-200 font-semibold">{title}</span>
-          </h3>
+      {!fullWidth && (
+        <div className="flex justify-between items-center bg-zinc-950 border-b border-zinc-900 p-2.5 px-4 select-none">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand)] animate-pulse" />
+            <h3 className="text-xs font-bold text-zinc-400 truncate max-w-full">
+              Đang phát: <span className="text-zinc-200 font-semibold">{title}</span>
+            </h3>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Video View Stage */}
       <div 
@@ -626,12 +631,14 @@ export default function VideoPlayer({
         {/* 1. EMBED IFRAME STAGE */}
         {playerType === 'embed' && embedUrl && (
           <iframe
+            key={`embed-iframe-${embedUrl}`}
             src={embedUrl}
             title={title}
             onLoad={handleIframeLoad}
             className="w-full h-full border-none z-10"
             allowFullScreen
-            allow="autoplay; encrypted-media"
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+            sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
             referrerPolicy="no-referrer"
           />
         )}
@@ -641,8 +648,8 @@ export default function VideoPlayer({
           <>
             <video
               ref={videoRef}
-              src={m3u8Url}
-              poster={poster}
+              src={m3u8Url || undefined}
+              poster={poster || undefined}
               onClick={togglePlay}
               onTimeUpdate={handleTimeUpdate}
               onLoadedMetadata={handleLoadedMetadata}

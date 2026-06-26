@@ -10,10 +10,13 @@ import CategoryScreen from './screens/CategoryScreen';
 import SearchScreen from './screens/SearchScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import LoginScreen from './screens/LoginScreen';
+import MembershipScreen from './screens/MembershipScreen';
+import TvScreen from './screens/TvScreen';
 
 // Core types & hooks
 import { Search, X, Film, Flame, ShieldAlert, Sparkles, RefreshCw, Play, Clock, ChevronRight } from 'lucide-react';
 import { searchMovies } from './lib/api/vsmov';
+import { searchMovies as searchTmdbMovies } from './services/tmdbService';
 import { MovieListItem } from './types/movie';
 import { useUserPreferences } from './lib/hooks/useUserPreferences';
 
@@ -89,8 +92,40 @@ export default function App() {
     const epSlug = urlParams.get('tap') || undefined;
     const svrIdx = parseInt(urlParams.get('server') || '0');
 
+    const storedUser = localStorage.getItem('hb_user');
+    const isLogged = !!storedUser;
+
+    if (['favorites', 'history', 'settings'].includes(path) && !isLogged) {
+      setRoute('auth');
+      setRouteParams({ redirect: path });
+      window.location.hash = `#/auth?redirect=${path}`;
+      return;
+    }
+
     if (!path || path === 'home') {
       setRoute('home');
+      setRouteParams({});
+    } else if (path === 'auth') {
+      setRoute('auth');
+      const redirect = urlParams.get('redirect') || '';
+      setRouteParams({ redirect });
+    } else if (path === 'favorites') {
+      setRoute('favorites');
+      setRouteParams({});
+    } else if (path === 'history') {
+      setRoute('history');
+      setRouteParams({});
+    } else if (path === 'membership') {
+      setRoute('membership');
+      setRouteParams({});
+    } else if (path === 'tv') {
+      setRoute('tv');
+      setRouteParams({});
+    } else if (path === 'security') {
+      setRoute('security');
+      setRouteParams({});
+    } else if (path === 'settings') {
+      setRoute('settings');
       setRouteParams({});
     } else if (path === 'tim-kiem') {
       setRoute('tim-kiem');
@@ -178,8 +213,25 @@ export default function App() {
       }
       setIsOverlaySearching(true);
       try {
-        const res = await searchMovies(overlayQuery);
-        setOverlayResults((res.items || []).slice(0, 5));
+        const [localRes, tmdbRes] = await Promise.all([
+          searchMovies(overlayQuery).catch(() => ({ items: [] })),
+          searchTmdbMovies(overlayQuery).catch(() => [])
+        ]);
+
+        const localItems = localRes.items || [];
+        const merged = [...tmdbRes, ...localItems];
+
+        // Deduplicate merged results by movie slug
+        const seen = new Set<string>();
+        const deduped: MovieListItem[] = [];
+        for (const item of merged) {
+          if (item && item.slug && !seen.has(item.slug)) {
+            seen.add(item.slug);
+            deduped.push(item);
+          }
+        }
+
+        setOverlayResults(deduped.slice(0, 10));
       } catch (e) {
         console.error(e);
       } finally {
@@ -187,7 +239,7 @@ export default function App() {
       }
     };
 
-    const delayDebounce = setTimeout(fetchAutocomplete, 300);
+    const delayDebounce = setTimeout(fetchAutocomplete, 400);
     return () => clearTimeout(delayDebounce);
   }, [overlayQuery]);
 
@@ -310,9 +362,103 @@ export default function App() {
             onLogout={() => {
               localStorage.setItem('bao_is_logged_in', 'false');
               setIsLoggedIn(false);
+              window.dispatchEvent(new Event('hb_user_updated'));
               navigateTo('home');
             }}
           />
+        )}
+
+        {route === 'auth' && (
+          <LoginScreen
+            onAuthSuccess={() => {
+              window.dispatchEvent(new Event('hb_user_updated'));
+              const target = routeParams.redirect || 'home';
+              navigateTo(target);
+            }}
+            redirectRoute={routeParams.redirect}
+          />
+        )}
+
+        {route === 'favorites' && (
+          <ProfileScreen 
+            initialTab="watchlist"
+            onNavigateToMoveDetail={(slug) => navigateTo(`phim/${slug}`)}
+            onNavigateToWatch={(slug, epSlug) => {
+              const params: Record<string, string | number> = {};
+              if (epSlug) params.tap = epSlug;
+              navigateTo(`xem/${slug}`, params);
+            }}
+            onLogout={() => {
+              localStorage.setItem('bao_is_logged_in', 'false');
+              setIsLoggedIn(false);
+              window.dispatchEvent(new Event('hb_user_updated'));
+              navigateTo('home');
+            }}
+          />
+        )}
+
+        {route === 'history' && (
+          <ProfileScreen 
+            initialTab="history"
+            onNavigateToMoveDetail={(slug) => navigateTo(`phim/${slug}`)}
+            onNavigateToWatch={(slug, epSlug) => {
+              const params: Record<string, string | number> = {};
+              if (epSlug) params.tap = epSlug;
+              navigateTo(`xem/${slug}`, params);
+            }}
+            onLogout={() => {
+              localStorage.setItem('bao_is_logged_in', 'false');
+              setIsLoggedIn(false);
+              window.dispatchEvent(new Event('hb_user_updated'));
+              navigateTo('home');
+            }}
+          />
+        )}
+
+        {route === 'settings' && (
+          <ProfileScreen 
+            initialTab="settings"
+            onNavigateToMoveDetail={(slug) => navigateTo(`phim/${slug}`)}
+            onNavigateToWatch={(slug, epSlug) => {
+              const params: Record<string, string | number> = {};
+              if (epSlug) params.tap = epSlug;
+              navigateTo(`xem/${slug}`, params);
+            }}
+            onLogout={() => {
+              localStorage.setItem('bao_is_logged_in', 'false');
+              setIsLoggedIn(false);
+              window.dispatchEvent(new Event('hb_user_updated'));
+              navigateTo('home');
+            }}
+          />
+        )}
+
+        {route === 'security' && (
+          <ProfileScreen 
+            initialTab="security"
+            onNavigateToMoveDetail={(slug) => navigateTo(`phim/${slug}`)}
+            onNavigateToWatch={(slug, epSlug) => {
+              const params: Record<string, string | number> = {};
+              if (epSlug) params.tap = epSlug;
+              navigateTo(`xem/${slug}`, params);
+            }}
+            onLogout={() => {
+              localStorage.setItem('bao_is_logged_in', 'false');
+              setIsLoggedIn(false);
+              window.dispatchEvent(new Event('hb_user_updated'));
+              navigateTo('home');
+            }}
+          />
+        )}
+
+        {route === 'membership' && (
+          <MembershipScreen 
+            onNavigate={navigateTo}
+          />
+        )}
+
+        {route === 'tv' && (
+          <TvScreen />
         )}
       </div>
 
@@ -394,6 +540,9 @@ export default function App() {
                             <img 
                               src={movieItem.poster_url || movieItem.thumb_url} 
                               alt={movieItem.name} 
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/assets/no-poster.jpg';
+                              }}
                               className="w-16 h-24 object-cover rounded-xl shadow-md border border-white/5 shrink-0 group-hover:scale-[1.03] transition-transform duration-300"
                               referrerPolicy="no-referrer"
                             />

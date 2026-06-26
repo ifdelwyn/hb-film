@@ -3,6 +3,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { MOCK_MOVIES, MOCK_CATEGORIES, MOCK_COUNTRIES } from './src/data/mockMovies';
 import dotenv from 'dotenv';
+import { Readable } from 'stream';
 
 // Load environment variables (.env files)
 dotenv.config();
@@ -292,8 +293,15 @@ function getAbsoluteImageUrl(url: string, pathImage: string, fallbackBase: strin
   } else if (url.startsWith('//')) {
     absUrl = `https:${url}`;
   }
-  // Wrap with the requested movie image proxy: https://phimapi.com/image.php?url={image_url}
-  return `https://phimapi.com/image.php?url=${encodeURIComponent(absUrl)}`;
+
+  // Only wrap OPhim and KKPhim images that have hotlinking blocks (e.g. phimimg.com or ophimimg.com)
+  const isOphimOrKkphim = absUrl.includes('phimimg.com') || absUrl.includes('ophimimg.com') || absUrl.includes('ophim');
+  const isAlreadyProxied = absUrl.includes('image.php?url=');
+
+  if (isOphimOrKkphim && !isAlreadyProxied) {
+    return `https://phimapi.com/image.php?url=${encodeURIComponent(absUrl)}`;
+  }
+  return absUrl;
 }
 
 function normalizeItem(item: any, pathImage: string, fallbackBase: string) {
@@ -341,6 +349,11 @@ async function fetchWithFallback<T>(
       clearTimeout(id);
 
       if (response.ok) {
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          console.warn(`[Proxy Fail] Gateway ${source.name} returned non-JSON content type for list: ${contentType}`);
+          continue;
+        }
         const rawJson = await response.json();
         if (rawJson && (rawJson.status === true || rawJson.status === 'success' || rawJson.items || rawJson.data || rawJson.movie)) {
           const result = transform(rawJson, source);
@@ -370,11 +383,241 @@ function getEmbedTrailerUrl(url: string): string {
   return url;
 }
 
+// Fetch trailer from TMDB on the fly using movie name and year search
+async function fetchTrailerFromTmdb(movieName: string, year?: number): Promise<string | null> {
+  try {
+    const TMDB_KEY = process.env.TMDB_API_KEY || '258b3339f75a903dd4ee5de4e9542bc2';
+    const query = encodeURIComponent(movieName);
+    const yearParam = year ? `&year=${year}` : '';
+    const searchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${query}${yearParam}&language=vi-VN`;
+
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 4000);
+    const searchRes = await fetch(searchUrl, { signal: controller.signal });
+    clearTimeout(id);
+
+    if (searchRes.ok) {
+      const searchData = await searchRes.json();
+      const results = searchData.results || [];
+      if (results.length > 0) {
+        const movieId = results[0].id;
+
+        // Fetch videos/trailers
+        const videosUrl = `https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_KEY}`;
+        const vController = new AbortController();
+        const vId = setTimeout(() => vController.abort(), 4000);
+        const videosRes = await fetch(videosUrl, { signal: vController.signal });
+        clearTimeout(vId);
+
+        if (videosRes.ok) {
+          const videosData = await videosRes.json();
+          const vids = videosData.results || [];
+
+          // Priority: Official Trailer > Trailer > Teaser
+          const trailer =
+            vids.find((v: any) => v.type === 'Trailer' && v.official && v.site === 'YouTube') ||
+            vids.find((v: any) => v.type === 'Trailer' && v.site === 'YouTube') ||
+            vids.find((v: any) => v.site === 'YouTube');
+
+          if (trailer) {
+            return `https://www.youtube.com/embed/${trailer.key}`;
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error(`[fetchTrailerFromTmdb] Error searching for ${movieName}:`, err.message || err);
+  }
+  return null;
+}
+
+async function findStreamSlug(movieName: string): Promise<{ source: 'KKPhim' | 'OPhim', slug: string } | null> {
+  // First, try KKPhim
+  try {
+    const query = encodeURIComponent(movieName);
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 4000);
+    const response = await fetch(`https://phimapi.com/v1/api/tim-kiem?keyword=${query}&limit=5`, { signal: controller.signal });
+    clearTimeout(id);
+    if (response.ok) {
+      const data = await response.json();
+      const items = data.data?.items || [];
+      if (items.length > 0) {
+        // Find best match or default to first
+        const match = items.find((item: any) =>
+          (item.name && item.name.toLowerCase().includes(movieName.toLowerCase())) ||
+          (item.origin_name && item.origin_name.toLowerCase().includes(movieName.toLowerCase()))
+        ) || items[0];
+        if (match && match.slug) {
+          return { source: 'KKPhim', slug: match.slug };
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error(`[findStreamSlug] KKPhim search failed:`, err.message || err);
+  }
+
+  // Fallback to OPhim
+  try {
+    const query = encodeURIComponent(movieName);
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 4000);
+    const response = await fetch(`https://ophim1.com/v1/api/tim-kiem?keyword=${query}&limit=5`, { signal: controller.signal });
+    clearTimeout(id);
+    if (response.ok) {
+      const data = await response.json();
+      const items = data.data?.items || [];
+      if (items.length > 0) {
+        const match = items.find((item: any) =>
+          (item.name && item.name.toLowerCase().includes(movieName.toLowerCase())) ||
+          (item.origin_name && item.origin_name.toLowerCase().includes(movieName.toLowerCase()))
+        ) || items[0];
+        if (match && match.slug) {
+          return { source: 'OPhim', slug: match.slug };
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error(`[findStreamSlug] OPhim search failed:`, err.message || err);
+  }
+
+  return null;
+}
+
+async function fetchEpisodesFromSlug(sourceName: 'KKPhim' | 'OPhim', streamSlug: string) {
+  try {
+    const domain = sourceName === 'KKPhim' ? 'https://phimapi.com' : 'https://ophim1.com';
+    const url = `${domain}/phim/${streamSlug}`;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 5000);
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(id);
+
+    if (response.ok) {
+      const rawData = await response.json();
+      const rawEpisodes = rawData.episodes || rawData.data?.episodes || [];
+      const normalizedEpisodes = rawEpisodes.map((server: any) => {
+        const rawDataList = server.server_data || server.items || [];
+        const server_data = rawDataList.map((ep: any) => ({
+          name: ep.name || "",
+          slug: ep.slug || "",
+          filename: ep.filename || "",
+          link_embed: ep.link_embed || ep.embed || "",
+          link_m3u8: ep.link_m3u8 || ep.m3u8 || ""
+        }));
+
+        const originalServerName = server.server_name || "Vietsub";
+        const cleanServerName = `${sourceName} - ${originalServerName}`;
+
+        return {
+          server_name: cleanServerName,
+          server_data: server_data
+        };
+      });
+      return normalizedEpisodes;
+    }
+  } catch (err: any) {
+    console.error(`[fetchEpisodesFromSlug] Failed for ${sourceName} ${streamSlug}:`, err.message || err);
+  }
+  return null;
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   app.use(express.json());
+
+  // IPTV Stream Proxy to bypass CORS restrictions
+  app.get('/api/tv/proxy', async (req, res) => {
+    try {
+      const urlStr = req.query.url as string;
+      if (!urlStr) {
+        return res.status(400).send('Missing url parameter');
+      }
+
+      const decodedUrl = decodeURIComponent(urlStr);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 seconds timeout
+
+      const response = await fetch(decodedUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      // Forward response status & headers
+      res.status(response.status);
+
+      const contentType = response.headers.get('content-type');
+      if (contentType) {
+        res.setHeader('Content-Type', contentType);
+      }
+      const contentLength = response.headers.get('content-length');
+      if (contentLength) {
+        res.setHeader('Content-Length', contentLength);
+      }
+
+      // Allow CORS
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', '*');
+
+      if (response.body) {
+        Readable.fromWeb(response.body as any).pipe(res);
+      } else {
+        res.end();
+      }
+    } catch (err: any) {
+      console.error('IPTV stream proxy error:', err.message || err);
+      if (!res.headersSent) {
+        res.status(500).send(err.message || 'IPTV Proxy Error');
+      }
+    }
+  });
+
+  // TMDB API Proxy to bypass browser/client CORS issues, sandbox iframe limits, and keep the API key safe.
+  app.get('/api/tmdb-proxy', async (req, res) => {
+    try {
+      const endpoint = req.query.endpoint as string;
+      if (!endpoint) {
+        return res.status(400).json({ error: 'Endpoint is required' });
+      }
+
+      const TMDB_KEY = process.env.TMDB_API_KEY || '258b3339f75a903dd4ee5de4e9542bc2';
+      
+      const queryParams = new URLSearchParams();
+      queryParams.set('api_key', TMDB_KEY);
+      
+      for (const [key, value] of Object.entries(req.query)) {
+        if (key !== 'endpoint') {
+          queryParams.set(key, value as string);
+        }
+      }
+
+      const tmdbUrl = `https://api.themoviedb.org/3${endpoint}?${queryParams.toString()}`;
+      
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 8000);
+
+      const response = await fetch(tmdbUrl, { signal: controller.signal });
+      clearTimeout(id);
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: `TMDB returned status ${response.status}` });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (err: any) {
+      console.error('Error in tmdb-proxy:', err.message || err);
+      res.status(500).json({ error: err.message || 'Server error' });
+    }
+  });
 
   // Background worker rank trigger
   fetchTopAnimeFromJikan();
@@ -656,6 +899,129 @@ async function startServer() {
   app.get('/api/phim/:slug', async (req, res) => {
     const slug = req.params.slug;
 
+    if (slug.startsWith('tmdb-')) {
+      const tmdbId = slug.replace('tmdb-', '');
+      try {
+        const TMDB_KEY = process.env.TMDB_API_KEY || '258b3339f75a903dd4ee5de4e9542bc2';
+        const tmdbUrl = `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_KEY}&language=vi-VN&append_to_response=videos`;
+        
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 6000);
+        const response = await fetch(tmdbUrl, { signal: controller.signal });
+        clearTimeout(id);
+
+        if (response.ok) {
+          const item = await response.json();
+          
+          const title = item.title || item.original_title || 'Phim TMDB';
+          const original_title = item.original_title || '';
+          
+          const poster_path = item.poster_path;
+          const backdrop_path = item.backdrop_path;
+          const poster_url = poster_path ? `https://image.tmdb.org/t/p/w500${poster_path}` : '/assets/no-poster.jpg';
+          const backdrop_url = backdrop_path ? `https://image.tmdb.org/t/p/original${backdrop_path}` : poster_url;
+          
+          const release_date = item.release_date || '';
+          const release_year = release_date ? new Date(release_date).getFullYear() : 2024;
+          const rating = item.vote_average ? Math.round(item.vote_average * 10) / 10 : 7.0;
+
+          const genres = item.genres ? item.genres.map((g: any) => ({ id: g.name, name: g.name, slug: slugify(g.name) })) : [];
+          
+          let trailerUrl = '';
+          if (item.videos && item.videos.results && Array.isArray(item.videos.results)) {
+            const trailer = item.videos.results.find((v: any) => v.type === 'Trailer' && v.site === 'YouTube');
+            if (trailer) {
+              trailerUrl = `https://www.youtube.com/embed/${trailer.key}`;
+            }
+          }
+
+          const normalizedMovie = {
+            name: title,
+            slug: slug,
+            origin_name: original_title,
+            content: item.overview || 'Mô tả phim đang được cập nhật.',
+            type: 'single',
+            status: 'completed',
+            thumb_url: backdrop_url,
+            poster_url: poster_url,
+            backdrop_url: backdrop_url,
+            trailer_url: trailerUrl,
+            year: release_year,
+            view: 18500,
+            actor: [],
+            director: [],
+            category: genres,
+            country: [{ id: 'au-my', name: 'Âu Mỹ', slug: 'au-my' }],
+            time: item.runtime ? `${item.runtime} phút` : '100 phút',
+            episode_current: 'Full',
+            episode_total: '1 tập',
+            lang: 'Vietsub',
+            quality: 'FHD',
+            imdb: {
+              star: rating.toString(),
+              vote: item.vote_count ? item.vote_count.toLocaleString() : '1,200'
+            }
+          };
+
+          // Try to search for a stream slug on KKPhim / OPhim
+          let streamEpisodes: any[] = [];
+          try {
+            const streamInfo = await findStreamSlug(title) || (original_title ? await findStreamSlug(original_title) : null);
+            if (streamInfo) {
+              console.log(`[TMDB Stream Finder] Found stream source: ${streamInfo.source} with slug ${streamInfo.slug} for TMDB movie ${title}`);
+              const fetchedEp = await fetchEpisodesFromSlug(streamInfo.source, streamInfo.slug);
+              if (fetchedEp && fetchedEp.length > 0) {
+                streamEpisodes = fetchedEp;
+              }
+            }
+          } catch (e: any) {
+            console.error('[TMDB Stream Finder Error]:', e.message || e);
+          }
+
+          let episodes: any[] = [];
+          if (streamEpisodes.length > 0) {
+            episodes = [...streamEpisodes];
+          }
+
+          // Always add standard fallback embeds at the end
+          episodes.push({
+            server_name: "Dự phòng TMDB (Trailer/Vidsrc)",
+            server_data: [
+              {
+                name: "Trailer",
+                slug: "trailer",
+                filename: title,
+                link_embed: trailerUrl || "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                link_m3u8: ""
+              },
+              {
+                name: "Vidsrc Player (FHD)",
+                slug: "embed-stream",
+                filename: title,
+                link_embed: `https://vidsrc.to/embed/movie/${tmdbId}`,
+                link_m3u8: ""
+              },
+              {
+                name: "EmbedSu Player (FHD)",
+                slug: "embed-stream-2",
+                filename: title,
+                link_embed: `https://embed.su/embed/movie/${tmdbId}`,
+                link_m3u8: ""
+              }
+            ]
+          });
+
+          return res.json({
+            status: true,
+            movie: normalizedMovie,
+            episodes: episodes
+          });
+        }
+      } catch (err: any) {
+        console.error(`[TMDB Detail Catch] Failed to fetch tmdb id ${tmdbId}:`, err.message || err);
+      }
+    }
+
     // Fast-path interceptor for custom Jikan anime or pre-seeded mocks
     const foundCustom = getMergedMovies().find(item => item.movie.slug === slug);
     if (foundCustom) {
@@ -785,6 +1151,11 @@ async function startServer() {
         clearTimeout(id);
 
         if (response.ok) {
+          const contentType = response.headers.get('content-type') || '';
+          if (!contentType.includes('application/json')) {
+            console.warn(`[Proxy Detail] Source ${source.name} returned non-JSON content type: ${contentType}`);
+            return null;
+          }
           const rawJson = await response.json();
           if (rawJson && (rawJson.status === true || rawJson.status === 'success' || rawJson.items || rawJson.data || rawJson.movie)) {
             const result = transform(rawJson, source);
@@ -817,6 +1188,18 @@ async function startServer() {
         movie: primaryResult.movie,
         episodes: combinedEpisodes
       };
+
+      // Automatically fetch YouTube trailer via TMDB search if not already present
+      if (data.movie && (!data.movie.trailer_url || data.movie.trailer_url.trim() === "")) {
+        try {
+          const fetchedTrailer = await fetchTrailerFromTmdb(data.movie.name, data.movie.year);
+          if (fetchedTrailer) {
+            data.movie.trailer_url = fetchedTrailer;
+          }
+        } catch (e) {
+          console.error("Failed to automatically fetch TMDB trailer:", e);
+        }
+      }
 
       // 1. Filter Hanoi servers completely ("nguồn phát hãy xóa Hà Nội đi")
       if (Array.isArray(data.episodes)) {

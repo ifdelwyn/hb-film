@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { searchMovies, fetchGenres, fetchCountries, fetchMovieList } from '../lib/api/vsmov';
+import { searchMovies as searchTmdbMovies } from '../services/tmdbService';
 import { MovieListItem, Category, Country } from '../types/movie';
 import MovieCard from '../components/MovieCard';
 import { MOCK_MOVIES } from '../data/mockMovies';
@@ -64,8 +65,23 @@ export default function SearchScreen({ onNavigateToMoveDetail }: SearchScreenPro
       let items: MovieListItem[] = [];
       
       if (currentQuery.trim()) {
-        const res = await searchMovies(currentQuery.trim());
-        items = res.items || [];
+        const [localRes, tmdbRes] = await Promise.all([
+          searchMovies(currentQuery.trim()).catch(() => ({ items: [] })),
+          searchTmdbMovies(currentQuery.trim()).catch(() => [])
+        ]);
+        const localItems = localRes.items || [];
+        const merged = [...tmdbRes, ...localItems];
+
+        // Deduplicate merged results by movie slug
+        const seen = new Set<string>();
+        const deduped: MovieListItem[] = [];
+        for (const item of merged) {
+          if (item && item.slug && !seen.has(item.slug)) {
+            seen.add(item.slug);
+            deduped.push(item);
+          }
+        }
+        items = deduped;
       } else {
         const res = await fetchMovieList({
           category: selectedGenre,
