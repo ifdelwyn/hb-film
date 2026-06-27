@@ -6,9 +6,10 @@ interface VideoPlayerProps {
   streamUrl: string;
   channelName?: string;
   channelLogo?: string;
+  userAgent?: string;
 }
 
-export default function VideoPlayer({ streamUrl, channelName, channelLogo }: VideoPlayerProps) {
+export default function VideoPlayer({ streamUrl, channelName, channelLogo, userAgent }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -21,9 +22,13 @@ export default function VideoPlayer({ streamUrl, channelName, channelLogo }: Vid
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Helper to wrap the URL with the proxy
-  const getProxiedUrl = (url: string) => {
+  const getProxiedUrl = (url: string, ua?: string) => {
     if (!url) return '';
-    return `/api/tv/proxy?url=${encodeURIComponent(url)}`;
+    let proxyUrl = `/api/tv/proxy?url=${encodeURIComponent(url)}`;
+    if (ua) {
+      proxyUrl += `&userAgent=${encodeURIComponent(ua)}`;
+    }
+    return proxyUrl;
   };
 
   useEffect(() => {
@@ -35,7 +40,7 @@ export default function VideoPlayer({ streamUrl, channelName, channelLogo }: Vid
     setError(null);
     setIsPlaying(true);
 
-    const proxiedUrl = getProxiedUrl(streamUrl);
+    const proxiedUrl = getProxiedUrl(streamUrl, userAgent);
 
     // Destroy existing HLS instance
     if (hlsRef.current) {

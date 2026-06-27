@@ -4,6 +4,7 @@ export interface Channel {
   group: string;
   streamUrl: string; // URL gốc, chưa proxy
   logo?: string;
+  userAgent?: string;
 }
 
 function slugify(text: string): string {
@@ -27,6 +28,7 @@ export function parseM3u(content: string): Channel[] {
     tvgLogo?: string;
     groupTitle?: string;
     displayName?: string;
+    userAgent?: string;
   } | null = null;
 
   for (let i = 0; i < lines.length; i++) {
@@ -56,6 +58,12 @@ export function parseM3u(content: string): Channel[] {
         groupTitle: groupTitleMatch ? groupTitleMatch[1] : undefined,
         displayName: displayName,
       };
+    } else if (line.toLowerCase().includes('extvlcopt:http-user-agent=')) {
+      // Extract user agent
+      const uaMatch = line.match(/http-user-agent=([^\r\n]*)/i);
+      if (uaMatch && currentInfo) {
+        currentInfo.userAgent = uaMatch[1].trim();
+      }
     } else if (line.startsWith('http://') || line.startsWith('https://')) {
       // This is the stream URL
       if (currentInfo) {
@@ -69,6 +77,7 @@ export function parseM3u(content: string): Channel[] {
           group,
           streamUrl: line,
           logo: currentInfo.tvgLogo || undefined,
+          userAgent: currentInfo.userAgent,
         });
         currentInfo = null;
       }

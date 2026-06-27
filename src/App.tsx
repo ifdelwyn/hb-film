@@ -12,6 +12,9 @@ import ProfileScreen from './screens/ProfileScreen';
 import LoginScreen from './screens/LoginScreen';
 import MembershipScreen from './screens/MembershipScreen';
 import TvScreen from './screens/TvScreen';
+import DownloadScreen from './screens/DownloadScreen';
+import BetaIOSScreen from './screens/BetaIOSScreen';
+import BetaAndroidScreen from './screens/BetaAndroidScreen';
 
 // Core types & hooks
 import { Search, X, Film, Flame, ShieldAlert, Sparkles, RefreshCw, Play, Clock, ChevronRight } from 'lucide-react';
@@ -142,6 +145,15 @@ export default function App() {
     } else if (path === 'phim-moi') {
       setRoute('phim-moi');
       setRouteParams({});
+    } else if (path === 'download') {
+      setRoute('download');
+      setRouteParams({});
+    } else if (path === 'download/beta/ios') {
+      setRoute('download/beta/ios');
+      setRouteParams({});
+    } else if (path === 'download/beta/android') {
+      setRoute('download/beta/android');
+      setRouteParams({});
     } else if (path.startsWith('phim/')) {
       const slug = path.replace('phim/', '');
       setRoute('phim');
@@ -203,6 +215,11 @@ export default function App() {
     }
     window.location.hash = hashUrl;
   };
+
+  // Automatically scroll to the top of the page on any navigation/click routing activity
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [route, routeParams, activeEpisodeSlug, activeServerIdx]);
 
   // Autocomplete search handler inside Command Palette
   useEffect(() => {
@@ -459,6 +476,18 @@ export default function App() {
 
         {route === 'tv' && (
           <TvScreen />
+        )}
+
+        {route === 'download' && (
+          <DownloadScreen onNavigate={navigateTo} />
+        )}
+
+        {route === 'download/beta/ios' && (
+          <BetaIOSScreen onNavigate={navigateTo} />
+        )}
+
+        {route === 'download/beta/android' && (
+          <BetaAndroidScreen onNavigate={navigateTo} />
         )}
       </div>
 

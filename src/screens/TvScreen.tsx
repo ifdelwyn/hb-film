@@ -4,22 +4,183 @@ import { parseM3u, Channel } from '../lib/parseM3u';
 import ChannelList from '../components/tv/ChannelList';
 import VideoPlayer from '../components/tv/VideoPlayer';
 
-const FALLBACK_CHANNELS: Channel[] = [
+const CACHE_KEY = 'hb_tv_channels_v4';
+const CACHE_TIME_KEY = 'hb_tv_channels_time_v4';
+const CACHE_DURATION_MS = 3 * 60 * 60 * 1000; // 3 hours
+
+const HARDCODED_CHANNELS: Channel[] = [
   {
-    id: 'vtv1-hd-fallback',
-    name: 'VTV1 HD (Dự Phòng)',
+    id: 'vtv1-hd',
+    name: 'VTV1 HD',
     group: 'VTV',
-    streamUrl: 'https://live.phatgiao.org.vn/live/vtv1/playlist.m3u8',
+    streamUrl: 'https://vips-livecdn.fptplay.net/live/media/vtv1/live247-hls-avc/index.m3u8',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/e/e0/Logo_VTV1_2013.svg'
   },
   {
-    id: 'vtv3-hd-fallback',
-    name: 'VTV3 HD (Dự Phòng)',
+    id: 'vtv2-hd',
+    name: 'VTV2 HD',
     group: 'VTV',
-    streamUrl: 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8', // generic hls fallback for premium video player demo if live tv is blocked
+    streamUrl: 'https://vips-livecdn.fptplay.net/live/media/vtv2/live247-hls-avc/index.m3u8',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/2/25/Logo_VTV2_2013.svg'
+  },
+  {
+    id: 'vtv3-hd',
+    name: 'VTV3 HD',
+    group: 'VTV',
+    streamUrl: 'https://vips-livecdn.fptplay.net/live/media/vtv3/live247-hls-avc/index.m3u8',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/2/25/Logo_VTV3_2013.svg'
+  },
+  {
+    id: 'vtv5-hd',
+    name: 'VTV5 HD',
+    group: 'VTV',
+    streamUrl: 'https://vips-livecdn.fptplay.net/live/media/vtv5/live247-hls-avc/index.m3u8',
+    logo: 'https://i.imgur.com/7qPKNFU.png'
+  },
+  {
+    id: 'vtv8-hd',
+    name: 'VTV8 HD',
+    group: 'VTV',
+    streamUrl: 'https://vips-livecdn.fptplay.net/live/media/vtv8/live247-hls-avc/index.m3u8',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/d/df/VTV8_logo_2016.png'
+  },
+  {
+    id: 'vtv9-hd',
+    name: 'VTV9 HD',
+    group: 'VTV',
+    streamUrl: 'https://vips-livecdn.fptplay.net/live/media/vtv9/live247-hls-avc/index.m3u8',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/3/30/VTV9_logo_2016.png'
+  },
+  {
+    id: 'htv2-hd',
+    name: 'HTV2 HD',
+    group: 'HTV & VTC',
+    streamUrl: 'https://e2.endpoint.cdn.sctvonline.vn/hls/htv2/index.m3u8',
+    userAgent: 'ReactNativeVideo/3.4.4 (Linux;Android 9) ExoPlayerLib/2.13.3',
+    logo: 'https://i.imgur.com/Yc3cmAi.png'
+  },
+  {
+    id: 'htv7-hd',
+    name: 'HTV7 HD',
+    group: 'HTV & VTC',
+    streamUrl: 'https://e2.endpoint.cdn.sctvonline.vn/hls/htv7/index.m3u8',
+    userAgent: 'ReactNativeVideo/3.4.4 (Linux;Android 9) ExoPlayerLib/2.13.3',
+    logo: 'https://i.imgur.com/PPFu7pv.png'
+  },
+  {
+    id: 'htv9-hd',
+    name: 'HTV9 HD',
+    group: 'HTV & VTC',
+    streamUrl: 'https://e2.endpoint.cdn.sctvonline.vn/hls/htv9/index.m3u8',
+    userAgent: 'ReactNativeVideo/3.4.4 (Linux;Android 9) ExoPlayerLib/2.13.3',
+    logo: 'https://i.imgur.com/1SgC1yo.png'
+  },
+  {
+    id: 'vtc1-hd',
+    name: 'VTC1 HD',
+    group: 'HTV & VTC',
+    streamUrl: 'https://1117141481.vnns.net/VTC1/playlist.m3u8',
+    logo: 'https://i.imgur.com/7HD60aD.png'
+  },
+  {
+    id: 'vtc3-hd',
+    name: 'VTC3 HD',
+    group: 'HTV & VTC',
+    streamUrl: 'https://1117141481.vnns.net/VTC3/playlist.m3u8',
+    logo: 'https://i.imgur.com/hS4bgHe.png'
+  },
+  {
+    id: 'vtc14-hd',
+    name: 'VTC14 HD',
+    group: 'HTV & VTC',
+    streamUrl: 'https://1117141481.vnns.net/VTC14/playlist.m3u8',
+    logo: 'https://i.imgur.com/phXvB0t.png'
+  },
+  {
+    id: 'nhk-world',
+    name: 'NHK World Japan',
+    group: 'Tin Tức Quốc Tế',
+    streamUrl: 'https://nhkwlive-ojsp.akamaized.net/hls/live/2003459/nhkwlive-ojsp-bj/index.m3u8',
+    logo: 'https://i.imgur.com/Et3vExm.png'
+  },
+  {
+    id: 'dw-news',
+    name: 'DW News English',
+    group: 'Tin Tức Quốc Tế',
+    streamUrl: 'https://dwstream72-lh.akamaihd.net/i/dwstream72_1@119309/index_1000_av-p.m3u8',
+    logo: 'https://i.imgur.com/A1xzjOI.png'
+  },
+  {
+    id: 'france-24',
+    name: 'France 24 English',
+    group: 'Tin Tức Quốc Tế',
+    streamUrl: 'https://static.france24.com/live/F24_EN_LO_HLS/live_web.m3u8',
+    logo: 'https://i.imgur.com/CMgoCrh.png'
+  },
+  {
+    id: 'bloomberg-tv',
+    name: 'Bloomberg Television',
+    group: 'Tin Tức Quốc Tế',
+    streamUrl: 'https://live-bloomberg-tv.akamaized.net/hls/live/2034407/bloomberg/master.m3u8',
+    logo: 'https://i.imgur.com/idRFfhY.png'
+  },
+  {
+    id: 'cna-news',
+    name: 'CNA News Asia',
+    group: 'Tin Tức Quốc Tế',
+    streamUrl: 'https://mediacorp-cna-live.akamaized.net/hls/live/2034404/cna/master.m3u8',
+    logo: 'https://i.imgur.com/awIDugE.png'
+  },
+  {
+    id: 'redbull-tv',
+    name: 'Red Bull TV',
+    group: 'Thể Thao',
+    streamUrl: 'https://rbmn-live.akamaized.net/hls/live/590971/sports/master.m3u8',
+    logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/f/f5/Red_Bull_Energy_Drink_logo.svg/1200px-Red_Bull_Energy_Drink_logo.svg.png'
+  },
+  {
+    id: 'nasa-tv',
+    name: 'NASA Science TV',
+    group: 'Khoa Học & Khám Phá',
+    streamUrl: 'https://ntv1.akamaized.net/hls/live/2014027/NASA-NTV1-HLS/master.m3u8',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/NASA_logo.svg'
+  },
+  {
+    id: 'fashion-tv',
+    name: 'Fashion TV UHD',
+    group: 'Giải Trí',
+    streamUrl: 'https://fashiontv-fashiontv-1-us.samsung.wurl.com/manifest/playlist.m3u8',
+    logo: 'https://i.imgur.com/vQuyyWO.png'
   }
 ];
+
+const cleanGroup = (group: string, prefix: string): string => {
+  if (!group || group === 'Khác') return 'Truyền Hình';
+  
+  let cleaned = group.replace(/🇻🇳\s*\|?\s*/g, '')
+                     .replace(/🌏\s*\|?\s*/g, '')
+                     .replace(/📰\s*\|?\s*/g, '')
+                     .replace(/⚽\s*\|?\s*/g, '')
+                     .replace(/🌈\s*\|?\s*/g, '')
+                     .replace(/🎧\s*\|?\s*/g, '')
+                     .replace(/🎬\s*\|?\s*/g, '')
+                     .replace(/🌿\s*\|?\s*/g, '')
+                     .replace(/🌐\s*\|?\s*/g, '')
+                     .trim();
+
+  const groupLower = cleaned.toLowerCase();
+  if (groupLower.includes('vtv')) return 'VTV';
+  if (groupLower.includes('htv') || groupLower.includes('vtc') || groupLower.includes('sctv')) return 'HTV & VTC';
+  if (groupLower.includes('địa phương') || groupLower.includes('tỉnh')) return 'Truyền Hình Tỉnh';
+  if (groupLower.includes('tin tức') || groupLower.includes('news')) return 'Tin Tức Quốc Tế';
+  if (groupLower.includes('thể thao') || groupLower.includes('sport')) return 'Thể Thao';
+  if (groupLower.includes('ca nhạc') || groupLower.includes('music') || groupLower.includes('âm nhạc')) return 'Ca Nhạc';
+  if (groupLower.includes('hoạt hình') || groupLower.includes('kids') || groupLower.includes('thiếu nhi')) return 'Thiếu Nhi';
+  if (groupLower.includes('phim') || groupLower.includes('movie')) return 'Phim Truyện';
+  if (groupLower.includes('khám phá') || groupLower.includes('discovery')) return 'Khoa Học & Khám Phá';
+
+  return prefix + cleaned;
+};
 
 export default function TvScreen() {
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -34,32 +195,114 @@ export default function TvScreen() {
         setIsLoadingPlaylist(true);
         setErrorPlaylist(null);
 
-        // Fetch playlist from iptv-org via our server proxy
-        const playlistTargetUrl = 'https://iptv-org.github.io/iptv/countries/vn.m3u';
-        const proxyUrl = `/api/tv/proxy?url=${encodeURIComponent(playlistTargetUrl)}`;
-        
-        const response = await fetch(proxyUrl);
-        if (!response.ok) {
-          throw new Error('Máy chủ proxy IPTV không phản hồi thành công.');
+        // 1. Check local Cache first
+        const cachedData = localStorage.getItem(CACHE_KEY);
+        const cachedTime = localStorage.getItem(CACHE_TIME_KEY);
+        const now = Date.now();
+
+        if (cachedData && cachedTime && (now - parseInt(cachedTime)) < CACHE_DURATION_MS) {
+          try {
+            const parsed = JSON.parse(cachedData);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setChannels(parsed);
+              setSelectedChannel(parsed[0]);
+              setIsLoadingPlaylist(false);
+              return;
+            }
+          } catch (e) {
+            console.error('Failed parsing cached channels:', e);
+          }
         }
 
-        const m3uText = await response.text();
-        const parsedChannels = parseM3u(m3uText);
+        // 2. Load from parallel M3U playlist sources
+        const sources = [
+          { url: 'https://raw.githubusercontent.com/dangdvd/dangdvd.github.io/main/iptv', groupPrefix: '' },
+          { url: 'https://iptv-org.github.io/iptv/categories/news.m3u', groupPrefix: 'Tin Tức ' },
+          { url: 'https://iptv-org.github.io/iptv/categories/music.m3u', groupPrefix: 'Ca Nhạc ' },
+          { url: 'https://iptv-org.github.io/iptv/categories/kids.m3u', groupPrefix: 'Thiếu Nhi ' },
+          { url: 'https://iptv-org.github.io/iptv/categories/sports.m3u', groupPrefix: 'Thể Thao ' },
+          { url: 'https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8', groupPrefix: 'Free TV ' }
+        ];
 
-        if (parsedChannels.length === 0) {
-          throw new Error('Danh sách kênh IPTV trống hoặc không đúng định dạng.');
+        let allParsedChannels: Channel[] = [];
+
+        const fetchPromises = sources.map(async (src) => {
+          try {
+            const proxyUrl = `/api/tv/proxy?url=${encodeURIComponent(src.url)}`;
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), 8000); // 8s timeout
+
+            const response = await fetch(proxyUrl, { signal: controller.signal });
+            clearTimeout(id);
+
+            if (response.ok) {
+              const text = await response.text();
+              const parsed = parseM3u(text);
+              return parsed.map(c => ({
+                ...c,
+                group: cleanGroup(c.group, src.groupPrefix)
+              }));
+            }
+          } catch (err) {
+            console.warn(`Failed loading: ${src.url}`, err);
+          }
+          return [];
+        });
+
+        const results = await Promise.all(fetchPromises);
+        allParsedChannels = results.flat();
+
+        // 3. Deduplicate and merge with HARDCODED fallback
+        const seenUrls = new Set<string>();
+        const seenNames = new Set<string>();
+        let uniqueChannels: Channel[] = [];
+
+        // Seed with priority hardcoded channels
+        for (const channel of HARDCODED_CHANNELS) {
+          seenUrls.add(channel.streamUrl);
+          seenNames.add(channel.name.toLowerCase());
+          uniqueChannels.push(channel);
         }
 
-        // Clean up names if needed or filter out empty entries
-        const validChannels = parsedChannels.filter(c => c.name && c.streamUrl);
-        
-        setChannels(validChannels);
-        // Select the first channel as default
-        setSelectedChannel(validChannels[0] || null);
-      } catch (err: any) {
-        console.warn('IPTV M3U load failed, booting fallback playlist:', err.message || err);
-        setChannels(FALLBACK_CHANNELS);
-        setSelectedChannel(FALLBACK_CHANNELS[0]);
+        // Append parsed channels safely
+        for (const channel of allParsedChannels) {
+          if (!channel.name || !channel.streamUrl) continue;
+          
+          const cleanName = channel.name.replace(/[\s\-_]+/g, ' ').trim();
+          const normalizedNameKey = cleanName.toLowerCase();
+
+          if (!seenUrls.has(channel.streamUrl) && !seenNames.has(normalizedNameKey)) {
+            seenUrls.add(channel.streamUrl);
+            seenNames.add(normalizedNameKey);
+            uniqueChannels.push({
+              ...channel,
+              name: cleanName
+            });
+          }
+        }
+
+        // Clean out radio streams
+        uniqueChannels = uniqueChannels.filter(c => {
+          const lg = c.group.toLowerCase();
+          const ln = c.name.toLowerCase();
+          return !lg.includes('radio') && !lg.includes('📻') && !ln.includes('radio');
+        });
+
+        if (uniqueChannels.length === 0) {
+          throw new Error('All playlists returned empty data.');
+        }
+
+        setChannels(uniqueChannels);
+        setSelectedChannel(uniqueChannels[0]);
+
+        // Save to cache
+        localStorage.setItem(CACHE_KEY, JSON.stringify(uniqueChannels));
+        localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
+
+      } catch (err) {
+        console.warn('IPTV M3U compilation failed, falling back to HARDCODED list:', err);
+        setChannels(HARDCODED_CHANNELS);
+        setSelectedChannel(HARDCODED_CHANNELS[0]);
       } finally {
         setIsLoadingPlaylist(false);
       }
@@ -186,6 +429,7 @@ export default function TvScreen() {
                     streamUrl={selectedChannel.streamUrl}
                     channelName={selectedChannel.name}
                     channelLogo={selectedChannel.logo}
+                    userAgent={selectedChannel.userAgent}
                   />
 
                   {/* Channel information widget */}

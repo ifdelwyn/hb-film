@@ -20,18 +20,26 @@ interface ProfileScreenProps {
 
 // Predefined premium cinematic avatars
 const PREMIUM_AVATARS = [
-  'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=150&h=150&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=150&h=150&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1563089145-599997674d42?w=150&h=150&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1580477667995-2b94f01c9516?w=150&h=150&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1618336753974-aae8e04506aa?w=150&h=150&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=150&h=150&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=150&h=150&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1509248961158-e54f6934749c?w=150&h=150&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=150&h=150&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=150&h=150&fit=crop&q=80',
-  ...Array.from({ length: 25 }, (_, i) => `https://api.dicebear.com/7.x/adventurer/svg?seed=AnimeBoy${i + 1}&backgroundColor=b6e3f4,c0aede,d1d4f9`),
-  ...Array.from({ length: 25 }, (_, i) => `https://api.dicebear.com/7.x/lorelei/svg?seed=AnimeGirl${i + 1}&backgroundColor=ffdfbf,ffd5dc,d1d4f9`)
+  'https://i.pinimg.com/564x/2d/c4/62/2dc4625b1ca1b61b0c950a7c413e61c5.jpg',
+  'https://i.pinimg.com/564x/41/50/66/415066e4a64fc9cc804c7c10b77b789a.jpg',
+  'https://i.pinimg.com/564x/78/34/00/7834005cf65c36399992d9b62efb6d34.jpg',
+  'https://i.pinimg.com/564x/8a/83/7d/8a837d57fdf8b39a31a982cb99b80261.jpg',
+  'https://i.pinimg.com/564x/ef/69/27/ef6927bf7c43c68dfb7e7195f1f0da74.jpg',
+  'https://i.pinimg.com/564x/4b/32/79/4b327918a09f8c6eb53e0ecf79df0721.jpg',
+  'https://i.pinimg.com/564x/f3/04/b5/f304b57422f5f6e80b29ff643c5b8b92.jpg',
+  'https://i.pinimg.com/564x/0f/22/e7/0f22e70df4442df157e1df230235a9d8.jpg',
+  'https://i.pinimg.com/564x/93/29/4a/93294adc7f34c2084c8a514d8095d2c0.jpg',
+  'https://i.pinimg.com/564x/b8/b5/fa/b8b5fa4bcf08bfa0de5b8e967a3a99cc.jpg',
+  'https://i.pinimg.com/564x/12/38/a3/1238a39626359f1f0e21a48c4cf318df.jpg',
+  'https://i.pinimg.com/564x/bc/65/c5/bc65c5c00a9fa9cd4e1da74d32e92c28.jpg',
+  'https://i.pinimg.com/564x/a4/09/b3/a409b307eb236058079df9d8b7b251fc.jpg',
+  'https://i.pinimg.com/564x/dd/8e/bc/dd8ebc46a67f1bf249d95f8c6cd79eb3.jpg',
+  'https://i.pinimg.com/564x/37/8b/44/378b44ec065b210e75a6c374668b1ee3.jpg',
+  'https://i.pinimg.com/564x/be/94/cb/be94cbbf8dd76bc7e4c70d473ff7a187.jpg',
+  'https://i.pinimg.com/564x/87/40/f3/8740f326a0b22a611be2b4be7fa838ff.jpg',
+  'https://i.pinimg.com/564x/f7/55/aa/f755aa8f0470ff456e7f1d431057df7a.jpg',
+  'https://i.pinimg.com/564x/92/7d/51/927d519d08e068f000b95543c51ffcf1.jpg',
+  'https://i.pinimg.com/564x/6c/fb/9f/6cfb9f61b0ef6e3fc920a02ef2fa2a02.jpg'
 ];
 
 export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatch, onLogout, initialTab }: ProfileScreenProps) {
@@ -57,7 +65,6 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
   
   // Avatar Picker states
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
-  const [customAvatarInput, setCustomAvatarInput] = useState('');
   
   // Security Form inputs
   const [oldPassword, setOldPassword] = useState('');
@@ -364,63 +371,7 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
                 </button>
               </div>
 
-              {/* Upload custom picture & custom link options */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-zinc-950/40 p-4 rounded-2xl border border-zinc-900 mb-6">
-                {/* Method 1: File Upload */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Tải ảnh lên từ máy tính (.PNG, .JPG)</label>
-                  <div className="relative">
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (file.size > 2 * 1024 * 1024) {
-                            triggerToast('Tập tin ảnh quá lớn! Hãy chọn ảnh dưới 2MB.');
-                            return;
-                          }
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            updatePreferences({ avatarUrl: reader.result as string });
-                            triggerToast('Tải ảnh riêng lên thành công!');
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10" 
-                    />
-                    <div className="w-full bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 hover:border-zinc-700 p-2.5 rounded-xl text-center text-xs text-zinc-400 font-bold transition-colors">
-                      📁 Chọn ảnh từ thiết bị
-                    </div>
-                  </div>
-                </div>
 
-                {/* Method 2: Link paste */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Hoặc dán liên kết ảnh trực tiếp</label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text"
-                      value={customAvatarInput}
-                      onChange={(e) => setCustomAvatarInput(e.target.value)}
-                      placeholder="https://example.com/avatar.jpg"
-                      className="flex-grow bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-[var(--color-brand)] font-bold"
-                    />
-                    <button
-                      onClick={() => {
-                        if (!customAvatarInput.trim()) return;
-                        updatePreferences({ avatarUrl: customAvatarInput.trim() });
-                        setCustomAvatarInput('');
-                        triggerToast('Đã áp dụng liên kết ảnh đại diện mới!');
-                      }}
-                      className="bg-[#E63946] text-white text-xs font-black px-4 rounded-xl cursor-pointer hover:bg-red-600 transition-colors shrink-0"
-                    >
-                      Áp dụng
-                    </button>
-                  </div>
-                </div>
-              </div>
 
               {/* Scrollable grid for 60 programmatic avatars */}
               <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-10 gap-3.5 max-h-[280px] overflow-y-auto pr-1 no-scrollbar p-1">

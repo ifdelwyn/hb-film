@@ -15,7 +15,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   defaultQuality: 'auto',
   autoplay: true,
   userName: 'Bao Le Huy',
-  avatarUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=120&h=120&fit=crop&q=80'
+  avatarUrl: 'https://i.pinimg.com/564x/2d/c4/62/2dc4625b1ca1b61b0c950a7c413e61c5.jpg'
 };
 
 export function useUserPreferences() {

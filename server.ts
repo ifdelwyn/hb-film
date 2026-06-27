@@ -1,9 +1,21 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { MOCK_MOVIES, MOCK_CATEGORIES, MOCK_COUNTRIES } from './src/data/mockMovies';
 import dotenv from 'dotenv';
 import { Readable } from 'stream';
+import dns from 'dns';
+
+// Fix DNS resolution prioritizing IPv4 first (highly recommended for Docker/container environments like Cloud Run)
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch (e) {
+  console.warn('Could not set DNS result order:', e);
+}
+
+// Allow unauthorized (e.g. self-signed or expired) SSL/TLS certificates for community IPTV links
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 // Load environment variables (.env files)
 dotenv.config();
@@ -528,7 +540,7 @@ async function startServer() {
 
   app.use(express.json());
 
-  // IPTV Stream Proxy to bypass CORS restrictions
+  // IPTV Stream Proxy to bypass CORS restrictions and support headers/absolute path rewriting
   app.get('/api/tv/proxy', async (req, res) => {
     try {
       const urlStr = req.query.url as string;
@@ -541,19 +553,74 @@ async function startServer() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 seconds timeout
 
+      const userAgent = req.query.userAgent as string || req.query.user_agent as string;
+      const referer = req.query.referer as string || req.query.referrer as string;
+
+      const requestHeaders: Record<string, string> = {
+        'User-Agent': userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+      };
+
+      if (referer) {
+        requestHeaders['Referer'] = referer;
+      }
+
       const response = await fetch(decodedUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
-        },
+        headers: requestHeaders,
         signal: controller.signal
       });
 
       clearTimeout(timeoutId);
 
-      // Forward response status & headers
-      res.status(response.status);
+      // Allow CORS
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', '*');
 
-      const contentType = response.headers.get('content-type');
+      const contentType = response.headers.get('content-type') || '';
+      
+      // If it is an HLS playlist (.m3u8 or contains #EXTM3U), parse and rewrite relative URLs
+      const isPlaylist = decodedUrl.toLowerCase().includes('.m3u8') || 
+                        decodedUrl.toLowerCase().includes('.m3u') || 
+                        contentType.includes('mpegurl') || 
+                        contentType.includes('mpegURL') ||
+                        contentType.includes('application/x-mpegurl') ||
+                        contentType.includes('text/plain');
+
+      if (isPlaylist) {
+        let text = await response.text();
+        if (text.includes('#EXTM3U')) {
+          const lines = text.split('\n');
+          const rewrittenLines = lines.map(line => {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) {
+              return line;
+            }
+            try {
+              // Convert relative URL to absolute relative to original .m3u8 URL
+              const absUrl = new URL(trimmed, decodedUrl).href;
+              
+              // Wrap the absolute URL back into our proxy to ensure child playlists and segments also bypass CORS and get the headers!
+              let proxiedUrl = `/api/tv/proxy?url=${encodeURIComponent(absUrl)}`;
+              if (userAgent) {
+                proxiedUrl += `&userAgent=${encodeURIComponent(userAgent)}`;
+              }
+              if (referer) {
+                proxiedUrl += `&referer=${encodeURIComponent(referer)}`;
+              }
+              return proxiedUrl;
+            } catch (err) {
+              return line;
+            }
+          });
+          
+          res.status(response.status);
+          res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+          return res.send(rewrittenLines.join('\n'));
+        }
+      }
+
+      // Fallback: Send raw binary file (e.g. video chunks/segments)
+      res.status(response.status);
       if (contentType) {
         res.setHeader('Content-Type', contentType);
       }
@@ -562,11 +629,6 @@ async function startServer() {
         res.setHeader('Content-Length', contentLength);
       }
 
-      // Allow CORS
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', '*');
-
       if (response.body) {
         Readable.fromWeb(response.body as any).pipe(res);
       } else {
@@ -574,6 +636,9 @@ async function startServer() {
       }
     } catch (err: any) {
       console.error('IPTV stream proxy error:', err.message || err);
+      if (err.cause) {
+        console.error('IPTV stream proxy error cause:', err.cause.message || err.cause);
+      }
       if (!res.headersSent) {
         res.status(500).send(err.message || 'IPTV Proxy Error');
       }

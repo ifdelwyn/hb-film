@@ -337,6 +337,13 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
             >
               Kênh TV Live
             </span>
+
+            <span 
+              onClick={() => navigateTo('download')} 
+              className={getLinkClass('download')}
+            >
+              📱 Tải App
+            </span>
           </nav>
 
           {/* Right Layout Info Actions Row */}
@@ -531,6 +538,12 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
               className={`text-lg font-bold p-2 rounded-lg ${currentRoute === 'tv' ? 'text-[var(--color-brand)] bg-zinc-900/40' : 'text-zinc-300'}`}
             >
               Kênh TV Live
+            </span>
+            <span
+              onClick={() => navigateTo('download')}
+              className={`text-lg font-bold p-2 rounded-lg ${currentRoute === 'download' ? 'text-[var(--color-brand)] bg-zinc-900/40' : 'text-zinc-300'}`}
+            >
+              📱 Tải App
             </span>
             <span
               onClick={() => navigateTo('tai-khoan')}

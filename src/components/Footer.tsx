@@ -8,9 +8,9 @@ export default function Footer({ onNavigate }: FooterProps) {
   return (
     <footer id="app-global-footer" className="bg-[#0A0A0F] border-t border-zinc-900 pt-16 pb-8 select-none">
       <div className="max-w-7xl mx-auto px-4 md:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pb-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 pb-12">
           {/* Brand Presentation Column */}
-          <div className="flex flex-col gap-4">
+          <div className="col-span-2 md:col-span-1 flex flex-col gap-4">
             <div 
               onClick={() => onNavigate('home')}
               className="flex flex-col items-start select-none cursor-pointer group pb-1 w-fit"
@@ -48,6 +48,18 @@ export default function Footer({ onNavigate }: FooterProps) {
               <span className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Hợp tác bản quyền</span>
               <span className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Chính sách bảo mật</span>
               <span className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Báo cáo vi phạm (DMCA)</span>
+            </div>
+          </div>
+
+          {/* Application Column */}
+          <div>
+            <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase mb-4 flex items-center gap-1">
+              📱 Ứng Dụng
+            </h4>
+            <div className="flex flex-col gap-2">
+              <span onClick={() => onNavigate('download')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Tải ứng dụng</span>
+              <span onClick={() => onNavigate('download/beta/ios')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Beta iOS</span>
+              <span onClick={() => onNavigate('download/beta/android')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Beta Android</span>
             </div>
           </div>
         </div>
