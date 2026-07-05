@@ -26,10 +26,147 @@ export default function WatchScreen({
   const [activeServerIdx, setActiveServerIdx] = useState(initialServerIdx);
   const [activeEpisode, setActiveEpisode] = useState<EpisodeData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'trailer' | 'movie'>('trailer');
+  const [activeTab, setActiveTab] = useState<'trailer' | 'movie'>('movie');
 
   // Watch history hook integration
   const { updateHistory, getMovieHistory } = useWatchHistory();
+
+  // Watch Party Real-Time Synced states
+  const [roomId, setRoomId] = useState<string | null>(() => {
+    const hash = window.location.hash;
+    const queryStr = hash.split('?')[1] || '';
+    const urlParams = new URLSearchParams(queryStr);
+    return urlParams.get('room');
+  });
+  const [ws, setWs] = useState<WebSocket | null>(null);
+  const [roomState, setRoomState] = useState<any>(null);
+  const [partyUsername, setPartyUsername] = useState<string>(() => {
+    return localStorage.getItem('watch_party_username') || `Người xem ${Math.floor(Math.random() * 900) + 100}`;
+  });
+  const [isJoiningRoom, setIsJoiningRoom] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [lastExternalEvent, setLastExternalEvent] = useState<{ isPlaying: boolean; currentTime: number; lastUpdated: number } | null>(null);
+
+  const [userId] = useState(() => {
+    let id = localStorage.getItem('watch_party_user_id');
+    if (!id) {
+      id = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      localStorage.setItem('watch_party_user_id', id);
+    }
+    return id;
+  });
+
+  const [userAvatar] = useState(() => {
+    const colors = ['#E63946', '#4EA8DE', '#70E000', '#FFB703', '#9D4EDD', '#F72585'];
+    const idx = Math.floor(Math.random() * colors.length);
+    return colors[idx];
+  });
+
+  // Keep chat scrolled down to latest message
+  useEffect(() => {
+    if (roomState?.messages) {
+      setTimeout(() => {
+        const elem = document.getElementById('watch-party-messages');
+        if (elem) {
+          elem.scrollTop = elem.scrollHeight;
+        }
+      }, 100);
+    }
+  }, [roomState?.messages?.length]);
+
+  // Sync active episode with room's active episode
+  useEffect(() => {
+    if (roomState && activeEpisode && roomState.episodeSlug !== activeEpisode.slug) {
+      const dataList = episodes[activeServerIdx]?.server_data || [];
+      const matched = dataList.find(ep => ep.slug === roomState.episodeSlug);
+      if (matched) {
+        setActiveEpisode(matched);
+      }
+    }
+  }, [roomState?.episodeSlug, episodes, activeServerIdx]);
+
+  // Handle room parameter change in URL hash externally (e.g. going back/forward)
+  useEffect(() => {
+    const handleHashRoomChange = () => {
+      const hash = window.location.hash;
+      const queryStr = hash.split('?')[1] || '';
+      const urlParams = new URLSearchParams(queryStr);
+      const room = urlParams.get('room');
+      setRoomId(room);
+    };
+    window.addEventListener('hashchange', handleHashRoomChange);
+    return () => window.removeEventListener('hashchange', handleHashRoomChange);
+  }, []);
+
+  // WebSocket Live Sync Connector effect
+  useEffect(() => {
+    if (!roomId || !movie) {
+      if (ws) {
+        ws.close();
+        setWs(null);
+      }
+      setRoomState(null);
+      return;
+    }
+
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.location.host;
+    const socket = new WebSocket(`${wsProtocol}//${wsHost}`);
+
+    socket.onopen = () => {
+      console.log('Connected to Watch Party WebSocket Server');
+      socket.send(JSON.stringify({
+        type: 'join',
+        roomId,
+        userId,
+        username: partyUsername,
+        avatar: userAvatar,
+        movieSlug: movie.slug,
+        movieName: movie.name,
+        movieThumb: movie.thumb_url || movie.poster_url,
+        episodeSlug: activeEpisode?.slug || ''
+      }));
+      setWs(socket);
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.type === 'room_state') {
+          setRoomState(payload.room);
+        } else if (payload.type === 'chat_message') {
+          setRoomState(prev => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              messages: [...prev.messages, payload.message]
+            };
+          });
+        } else if (payload.type === 'playback_sync') {
+          setLastExternalEvent({
+            isPlaying: payload.playback.isPlaying,
+            currentTime: payload.playback.currentTime,
+            lastUpdated: payload.playback.lastUpdated
+          });
+        }
+      } catch (err) {
+        console.error('Error parsing WebSocket message:', err);
+      }
+    };
+
+    socket.onclose = () => {
+      console.log('Watch Party WebSocket Connection Closed');
+      setWs(null);
+    };
+
+    socket.onerror = (err) => {
+      console.error('Watch Party WebSocket Error:', err);
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, [roomId, activeEpisode?.slug, movie?.slug]);
 
   useEffect(() => {
     const loadDetail = async () => {
@@ -65,15 +202,9 @@ export default function WatchScreen({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [slug, initialEpisodeSlug, activeServerIdx]);
 
-  // Handle active tab state on movie payload load
+  // Handle active tab state on movie payload load - always default to movie player
   useEffect(() => {
-    if (movie) {
-      if (movie.trailer_url && movie.trailer_url.trim().length > 0) {
-        setActiveTab('trailer');
-      } else {
-        setActiveTab('movie');
-      }
-    }
+    setActiveTab('movie');
   }, [movie]);
 
   // Sync to history as soon as movie and episode are resolved
@@ -148,87 +279,234 @@ export default function WatchScreen({
       <div className="max-w-7xl mx-auto px-4 md:px-8">
         
         {/* Navigation Breadcrumb Back trigger */}
-        <div className="flex items-center gap-3 mb-6 select-none border-b border-zinc-900 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 select-none border-b border-zinc-900/80 pb-4">
           <button 
             onClick={onBack}
-            className="flex items-center justify-center p-2 rounded-lg bg-zinc-950 border border-zinc-900 hover:border-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer"
+            className="group flex items-center gap-2.5 px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-900 border border-zinc-900 hover:border-[var(--color-brand)]/45 text-zinc-400 hover:text-white transition-all duration-300 cursor-pointer shadow-[0_4px_12px_rgba(0,0,0,0.5)] active:scale-95"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={16} className="text-zinc-500 group-hover:text-[var(--color-brand)] transition-all group-hover:-translate-x-1 duration-300" />
+            <span className="text-xs font-extrabold uppercase tracking-widest">Quay Lại</span>
           </button>
           
           <div className="flex items-center gap-2 text-xs font-semibold text-zinc-400">
-            <span className="hover:text-white cursor-pointer" onClick={onBack}>Trang Trước</span>
-            <ChevronRight size={12} />
-            <span className="hover:text-white cursor-pointer" onClick={() => onNavigateToDetail(movie.slug)}>
+            <span className="hover:text-white transition-colors cursor-pointer" onClick={onBack}>Trang Trước</span>
+            <ChevronRight size={12} className="text-zinc-600" />
+            <span className="hover:text-white transition-colors cursor-pointer" onClick={() => onNavigateToDetail(movie.slug)}>
               {movie.name}
             </span>
-            <ChevronRight size={12} />
-            <span className="text-white font-bold">Xem phim</span>
+            <ChevronRight size={12} className="text-zinc-600" />
+            <span className="text-[var(--color-brand)] font-bold bg-[var(--color-brand)]/10 py-1 px-2.5 rounded-md border border-[var(--color-brand)]/15">Đang Xem</span>
           </div>
         </div>
 
-        {/* 4A-4B. CUSTOM HYBRID VIDEO PLAYER OR YOUTUBE TRAILER MOUNTED */}
-        {activeTab === 'trailer' && movie.trailer_url ? (
-          <div className="mb-6 shadow-3xl bg-black rounded-2xl overflow-hidden aspect-video relative border border-zinc-900">
-            <iframe
-              key={`trailer-iframe-${movie.trailer_url}`}
-              src={movie.trailer_url.includes('autoplay') ? movie.trailer_url : `${movie.trailer_url}${movie.trailer_url.includes('?') ? '&' : '?'}autoplay=1&rel=0`}
-              allowFullScreen
-              allow="autoplay; encrypted-media"
-              className="w-full h-full border-none absolute inset-0"
-            />
-          </div>
-        ) : activeEpisode ? (
-          <div className="mb-6 shadow-3xl bg-black rounded-2xl overflow-hidden relative border border-zinc-900">
-            <VideoPlayer
-              key={`movie-player-${activeEpisode.link_embed || activeEpisode.slug || 'player'}`}
-              embedUrl={activeEpisode.link_embed}
-              m3u8Url={activeEpisode.link_m3u8}
-              title={`${movie.name} - Tập ${activeEpisode.name}`}
-              poster={movie.poster_url || movie.thumb_url}
-              onEnded={handleNextEpisode}
-              onProgress={handleProgress}
-            />
-          </div>
-        ) : (
-          <div className="mb-6 shadow-3xl bg-black rounded-2xl overflow-hidden aspect-video relative border border-zinc-900">
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950 p-6 text-center select-none">
-              <Tv size={48} className="text-zinc-600 mb-4 animate-pulse" />
-              <p className="text-sm font-bold text-zinc-300">⚠️ CHƯA CÓ NGUỒN PHÁT CHO PHIM NÀY</p>
-              <p className="text-xs text-zinc-500 mt-2 max-w-md">
-                Server hiện chưa tìm được link phát chất lượng cao cho phim này. Bạn hãy xem thử Trailer ở tab bên cạnh hoặc chọn nguồn phát dự phòng bên dưới!
-              </p>
-            </div>
-          </div>
-        )}
+        {/* 4A-4B. CUSTOM HYBRID VIDEO PLAYER MOUNTED */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-start">
+          <div className={`${roomId ? 'lg:col-span-8 xl:col-span-9' : 'lg:col-span-12'} flex flex-col gap-4`}>
+            {activeEpisode ? (
+              <div className="shadow-3xl bg-black rounded-2xl overflow-hidden relative border border-zinc-900">
+                <VideoPlayer
+                  key={`movie-player-${activeEpisode.link_embed || activeEpisode.slug || 'player'}`}
+                  embedUrl={activeEpisode.link_embed}
+                  m3u8Url={activeEpisode.link_m3u8}
+                  title={`${movie.name} - Tập ${activeEpisode.name}`}
+                  poster={movie.poster_url || movie.thumb_url}
+                  onEnded={handleNextEpisode}
+                  onProgress={handleProgress}
+                  onLocalPlay={(time) => {
+                    if (ws && roomId && ws.readyState === WebSocket.OPEN) {
+                      ws.send(JSON.stringify({
+                        type: 'playback',
+                        roomId,
+                        userId,
+                        username: partyUsername,
+                        data: { isPlaying: true, currentTime: time }
+                      }));
+                    }
+                  }}
+                  onLocalPause={(time) => {
+                    if (ws && roomId && ws.readyState === WebSocket.OPEN) {
+                      ws.send(JSON.stringify({
+                        type: 'playback',
+                        roomId,
+                        userId,
+                        username: partyUsername,
+                        data: { isPlaying: false, currentTime: time }
+                      }));
+                    }
+                  }}
+                  onLocalSeek={(time) => {
+                    if (ws && roomId && ws.readyState === WebSocket.OPEN) {
+                      ws.send(JSON.stringify({
+                        type: 'playback',
+                        roomId,
+                        userId,
+                        username: partyUsername,
+                        data: { isPlaying: true, currentTime: time }
+                      }));
+                    }
+                  }}
+                  externalPlayState={lastExternalEvent}
+                />
+              </div>
+            ) : (
+              <div className="shadow-3xl bg-black rounded-2xl overflow-hidden aspect-video relative border border-zinc-900">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950 p-6 text-center select-none">
+                  <Tv size={48} className="text-zinc-600 mb-4 animate-pulse" />
+                  <p className="text-sm font-bold text-zinc-300">⚠️ CHƯA CÓ NGUỒN PHÁT CHO PHIM NÀY</p>
+                  <p className="text-xs text-zinc-500 mt-2 max-w-md">
+                    Server hiện chưa tìm được link phát chất lượng cao cho phim này. Bạn hãy xem thử Trailer ở tab bên cạnh hoặc chọn nguồn phát dự phòng bên dưới!
+                  </p>
+                </div>
+              </div>
+            )}
 
-        {/* Dynamic Hybrid Tab Navigation selector for Premium UX */}
-        {movie.trailer_url && movie.trailer_url.trim().length > 0 && (
-          <div className="flex justify-center gap-4 mb-8 select-none">
-            <div className="inline-flex bg-zinc-950 border border-zinc-900 p-1.5 rounded-2xl shadow-2xl">
-              <button
-                onClick={() => setActiveTab('trailer')}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs sm:text-sm font-extrabold tracking-tight cursor-pointer transition-all duration-300 ${
-                  activeTab === 'trailer'
-                    ? 'bg-gradient-to-r from-[#E63946] to-[#C1121F] text-white shadow-lg shadow-red-600/20'
-                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-                }`}
-              >
-                🎬 Xem Trailer
-              </button>
-              <button
-                onClick={() => setActiveTab('movie')}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs sm:text-sm font-extrabold tracking-tight cursor-pointer transition-all duration-300 ${
-                  activeTab === 'movie'
-                    ? 'bg-gradient-to-r from-[#E63946] to-[#C1121F] text-white shadow-lg shadow-red-600/20'
-                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-                }`}
-              >
-                ▶️ Xem Phim Chính
-              </button>
-            </div>
+            {/* Watch Party Room Controls & Info */}
+            {roomId && roomState && (
+              <div className="bg-[#12121A]/85 border border-zinc-900 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl backdrop-blur-md">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="relative">
+                    <span className="flex h-3 w-3 absolute -top-1 -right-1">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-teal-500"></span>
+                    </span>
+                    <div className="bg-zinc-900 border border-zinc-850 p-2.5 rounded-xl text-teal-400 font-mono text-xs font-black">
+                      ROOM
+                    </div>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-black text-zinc-300 uppercase tracking-widest">PHÒNG XEM CHUNG</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">Mã phòng: <span className="text-white font-black font-mono select-all bg-zinc-900 px-1.5 py-0.5 rounded">{roomId}</span></p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                  <button
+                    onClick={() => {
+                      const shareUrl = `${window.location.origin}/#/xem/${movie?.slug}?tap=${activeEpisode?.slug || ''}&server=${activeServerIdx}&room=${roomId}`;
+                      navigator.clipboard.writeText(shareUrl);
+                      alert('Đã sao chép liên kết mời tham gia phòng xem chung!');
+                    }}
+                    className="px-4 py-2 bg-zinc-900 hover:bg-zinc-850 text-zinc-300 text-xs font-bold rounded-xl border border-zinc-800 cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+                  >
+                    🔗 Copy Link Mời
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRoomId(null);
+                      window.location.hash = `#/xem/${movie?.slug}?tap=${activeEpisode?.slug || ''}&server=${activeServerIdx}`;
+                    }}
+                    className="px-4 py-2 bg-red-900/40 hover:bg-red-900/60 text-red-200 text-xs font-bold rounded-xl border border-red-900/50 cursor-pointer transition-all active:scale-95"
+                  >
+                    🚪 Rời Phòng
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Chat Sidebar Panel */}
+          {roomId && (
+            <div className="lg:col-span-4 xl:col-span-3 flex flex-col bg-zinc-950 border border-zinc-900 rounded-2xl overflow-hidden shadow-2xl h-[400px] lg:h-[450px] xl:h-[480px]">
+              {/* Header */}
+              <div className="px-4 py-3 bg-zinc-900/60 border-b border-zinc-900 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+                  <h4 className="text-[11px] font-extrabold text-zinc-300 uppercase tracking-widest">Trò Chuyện</h4>
+                </div>
+                <span className="text-[10px] font-bold font-mono text-zinc-500 bg-zinc-950 px-2 py-0.5 rounded-full">
+                  {roomState?.users?.length || 1} Đang xem
+                </span>
+              </div>
+
+              {/* Members preview list */}
+              {roomState?.users && (
+                <div className="px-3 py-1.5 bg-zinc-900/20 border-b border-zinc-900/50 flex flex-wrap gap-1.5 items-center">
+                  <span className="text-[9px] text-zinc-500 font-bold uppercase mr-1">Thành viên:</span>
+                  {roomState.users.map((u: any, idx: number) => (
+                    <div key={idx} className="flex items-center gap-1 text-[9px] font-bold bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-850">
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: u.avatar || '#E63946' }} />
+                      <span className="text-zinc-300">{u.username}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Message List */}
+              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 scrollbar-thin" id="watch-party-messages">
+                {roomState?.messages?.map((msg: any, idx: number) => {
+                  const isSystem = msg.senderId === 'system';
+                  const isSelf = msg.senderId === userId;
+                  if (isSystem) {
+                    return (
+                      <div key={idx} className="text-center py-1">
+                        <span className="text-[10px] text-zinc-500 font-semibold bg-zinc-900 px-2.5 py-1 rounded-md border border-zinc-850 leading-relaxed block max-w-[90%] mx-auto">
+                          {msg.text}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={idx} className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'} max-w-[90%] ${isSelf ? 'self-end' : 'self-start'}`}>
+                      {!isSelf && (
+                        <span className="text-[9px] font-black text-zinc-500 mb-1 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ backgroundColor: msg.senderAvatar || '#E63946' }} />
+                          {msg.senderName}
+                        </span>
+                      )}
+                      <div className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${
+                        isSelf 
+                          ? 'bg-gradient-to-r from-[#E63946] to-[#C1121F] text-white rounded-tr-none shadow-md' 
+                          : 'bg-zinc-900 text-zinc-300 rounded-tl-none border border-zinc-850'
+                      }`}>
+                        {msg.text}
+                      </div>
+                      <span className="text-[8px] font-mono text-zinc-600 mt-1">
+                        {new Date(msg.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Chat Input */}
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!chatInput.trim() || !ws || !roomId || ws.readyState !== WebSocket.OPEN) return;
+                  ws.send(JSON.stringify({
+                    type: 'chat',
+                    roomId,
+                    userId,
+                    username: partyUsername,
+                    avatar: userAvatar,
+                    data: { text: chatInput.trim() }
+                  }));
+                  setChatInput('');
+                  setTimeout(() => {
+                    const elem = document.getElementById('watch-party-messages');
+                    if (elem) elem.scrollTop = elem.scrollHeight;
+                  }, 50);
+                }}
+                className="p-3 bg-zinc-900/40 border-t border-zinc-900 flex gap-2"
+              >
+                <input
+                  type="text"
+                  placeholder="Nhập tin nhắn..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  className="flex-1 bg-zinc-950 border border-zinc-850 focus:border-zinc-800 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-600 outline-none transition-all"
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim()}
+                  className="px-3 py-2 bg-[#E63946] hover:bg-red-600 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all active:scale-95 shrink-0"
+                >
+                  Gửi
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
 
         {/* 4C. SERVER SELECTOR PORT / GATE SELECT */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
@@ -280,6 +558,89 @@ export default function WatchScreen({
                 })}
               </div>
             </div>
+
+            {/* Watch Party Launcher Section */}
+            {!roomId && (
+              <div className="p-5 rounded-2xl bg-[#12121A]/85 border border-zinc-900 shadow-xl backdrop-blur-md flex flex-col md:flex-row items-center justify-between gap-6 transition-all hover:border-zinc-800/60">
+                <div className="text-left flex-1">
+                  <div className="flex items-center gap-1.5 text-[var(--color-brand)] font-black text-[10px] tracking-widest uppercase mb-1">
+                    <span className="flex h-2 w-2 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                    TÍNH NĂNG XEM CHUNG MỚI
+                  </div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-tight">CÙNG XEM CHUNG VỚI BẠN BÈ</h3>
+                  <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                    Bắt đầu một buổi xem chung thời gian thực! Đồng bộ hoàn toàn Play, Pause, Tua thời gian và trò chuyện trực tiếp cùng mọi người.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 w-full md:w-auto">
+                  <div className="flex flex-col gap-1 w-full sm:w-[150px]">
+                    <span className="text-[9px] font-extrabold text-zinc-500 uppercase tracking-widest block ml-1">Biệt danh của bạn</span>
+                    <input
+                      type="text"
+                      placeholder="Biệt danh..."
+                      value={partyUsername}
+                      onChange={(e) => {
+                        setPartyUsername(e.target.value);
+                        localStorage.setItem('watch_party_username', e.target.value);
+                      }}
+                      className="bg-zinc-950 border border-zinc-850 hover:border-zinc-800 text-xs px-3 py-2 rounded-xl text-white outline-none font-bold"
+                    />
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2.5 items-stretch h-full mt-auto">
+                    <button
+                      onClick={() => {
+                        const randomCode = 'WP-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+                        setRoomId(randomCode);
+                        window.location.hash = `#/xem/${movie?.slug}?tap=${activeEpisode?.slug || ''}&server=${activeServerIdx}&room=${randomCode}`;
+                      }}
+                      className="px-5 py-2.5 bg-gradient-to-r from-[#E63946] to-[#C1121F] text-white hover:brightness-110 text-xs font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-red-650/20 cursor-pointer text-center"
+                    >
+                      🎉 Tạo Phòng Mới
+                    </button>
+
+                    <div className="flex items-center gap-1.5 border border-zinc-800 rounded-xl bg-zinc-950 p-1">
+                      <input
+                        type="text"
+                        placeholder="Mã phòng..."
+                        id="watch-party-join-code-input"
+                        className="bg-transparent border-none text-xs px-2 py-1.5 text-white outline-none w-[90px] uppercase font-bold font-mono"
+                      />
+                      <button
+                        onClick={async () => {
+                          const input = document.getElementById('watch-party-join-code-input') as HTMLInputElement;
+                          const code = input?.value?.trim()?.toUpperCase();
+                          if (!code) return;
+
+                          setIsJoiningRoom(true);
+                          try {
+                            const res = await fetch(`/api/watch-party/room/${code}`).then(r => r.json());
+                            if (res.status && res.room) {
+                              setRoomId(code);
+                              window.location.hash = `#/xem/${res.room.movieSlug}?tap=${res.room.episodeSlug}&server=${activeServerIdx}&room=${code}`;
+                            } else {
+                              alert('Không tìm thấy phòng xem chung hoặc phòng đã hết hạn!');
+                            }
+                          } catch (err) {
+                            alert('Lỗi khi tham gia phòng xem chung. Vui lòng thử lại!');
+                          } finally {
+                            setIsJoiningRoom(false);
+                          }
+                        }}
+                        disabled={isJoiningRoom}
+                        className="px-3.5 py-1.5 bg-zinc-900 hover:bg-zinc-850 text-white text-xs font-black rounded-lg cursor-pointer transition-all active:scale-95 border border-zinc-850"
+                      >
+                        {isJoiningRoom ? 'Đang vào...' : 'Vào'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* General Description content dropdown list */}
             <div className="flex flex-col gap-2 font-sans text-xs sm:text-sm">

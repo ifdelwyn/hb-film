@@ -21,7 +21,7 @@ import {
 async function fetchConanEpisodes() {
   // Check cache first
   try {
-    const cached = localStorage.getItem('conan_eps_v3');
+    const cached = localStorage.getItem('conan_eps_v4');
     if (cached) {
       const { data, time } = JSON.parse(cached);
       if (Date.now() - time < 1000 * 60 * 60 * 6) { // 6 hours
@@ -33,7 +33,7 @@ async function fetchConanEpisodes() {
   }
 
   try {
-    const res = await fetch('https://phimapi.com/phim/tham-tu-lung-danh-conan');
+    const res = await fetch('/api/phim/tham-tu-lung-danh-conan');
     const data = await res.json();
 
     const bestServer = data.episodes?.sort(
@@ -54,7 +54,7 @@ async function fetchConanEpisodes() {
     .sort((a: any, b: any) => a.number - b.number);
 
     try {
-      localStorage.setItem('conan_eps_v3', JSON.stringify({
+      localStorage.setItem('conan_eps_v4', JSON.stringify({
         data: episodes,
         time: Date.now(),
         poster: data.movie?.poster_url || data.movie?.thumb_url,
@@ -101,11 +101,13 @@ export default function HomeScreen({
   // Conan Episodic Series States
   const [conanTab, setConanTab] = useState<'movie' | 'series'>('movie');
   const [conanEpisodes, setConanEpisodes] = useState<any[]>([]);
-  const [conanDisplayCount, setConanDisplayCount] = useState(50);
   const [conanSearch, setConanSearch] = useState('');
   const [isLoadingConanEps, setIsLoadingConanEps] = useState(false);
   const [playingConanEp, setPlayingConanEp] = useState<any | null>(null);
   const [activePlayIdx, setActivePlayIdx] = useState<number>(0);
+  const [selectedGroupIdx, setSelectedGroupIdx] = useState<number>(0);
+  const [landingSelectedGroupIdx, setLandingSelectedGroupIdx] = useState<number>(0);
+  const GROUP_SIZE = 50;
   
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -174,6 +176,16 @@ export default function HomeScreen({
       setIsLoadingConanEps(false);
     });
   }, [conanTab, conanEpisodes.length]);
+
+  // Auto-align selectedGroupIdx with playing episode index
+  useEffect(() => {
+    if (playingConanEp) {
+      const idx = conanEpisodes.findIndex(e => e.name === playingConanEp.name);
+      if (idx !== -1) {
+        setSelectedGroupIdx(Math.floor(idx / GROUP_SIZE));
+      }
+    }
+  }, [playingConanEp, conanEpisodes]);
 
   const renderSkeletonRow = () => (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
@@ -422,9 +434,9 @@ export default function HomeScreen({
 
             {/* TAB 2: SERIES (EPISODIC) */}
             {conanTab === 'series' && (
-              <div className="flex flex-col gap-4 animate-fade-in">
+              <div className="flex flex-col gap-5 animate-fade-in">
                 {/* Search & Statistics Panel */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-900/25 p-4 sm:p-5 rounded-2xl border border-zinc-900/60">
                   <div className="relative flex-1 max-w-md">
                     <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-zinc-500">
                       <Search size={16} />
@@ -435,9 +447,8 @@ export default function HomeScreen({
                       value={conanSearch}
                       onChange={(e) => {
                         setConanSearch(e.target.value);
-                        setConanDisplayCount(50); // reset display limit on search
                       }}
-                      className="w-full pl-10 pr-4 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#E63946] focus:ring-1 focus:ring-[#E63946] transition-all duration-300"
+                      className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#E63946] focus:ring-1 focus:ring-[#E63946] transition-all duration-300"
                     />
                     {conanSearch && (
                       <button
@@ -453,6 +464,33 @@ export default function HomeScreen({
                     Tìm thấy: <strong className="text-white font-black">{filteredConanEpisodes.length}</strong> / {conanEpisodes.length} tập chính thức
                   </div>
                 </div>
+
+                {/* Horizontal Paging Group Selector on Landing Page */}
+                {conanSearch.trim() === '' && conanEpisodes.length > GROUP_SIZE && (
+                  <div className="flex flex-col gap-2 bg-zinc-900/10 p-3 rounded-2xl border border-zinc-900/30">
+                    <span className="text-[10px] font-black tracking-widest uppercase text-zinc-500 font-mono">Chọn nhóm tập:</span>
+                    <div className="flex gap-1.5 overflow-x-auto pb-2 pt-0.5 custom-scrollbar-horizontal scroll-smooth">
+                      {Array.from({ length: Math.ceil(conanEpisodes.length / GROUP_SIZE) }).map((_, gIdx) => {
+                        const startEp = gIdx * GROUP_SIZE + 1;
+                        const endEp = Math.min((gIdx + 1) * GROUP_SIZE, conanEpisodes.length);
+                        const isCurrentGroup = landingSelectedGroupIdx === gIdx;
+                        return (
+                          <button
+                            key={`landing-group-tab-${gIdx}`}
+                            onClick={() => setLandingSelectedGroupIdx(gIdx)}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-300 border cursor-pointer ${
+                              isCurrentGroup 
+                                ? 'bg-[#E63946] border-[#E63946] text-white font-black shadow-md shadow-[#E63946]/20' 
+                                : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-850'
+                            }`}
+                          >
+                            Tập {startEp} - {endEp}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Loading State */}
                 {isLoadingConanEps && (
@@ -470,8 +508,11 @@ export default function HomeScreen({
                         <p className="text-zinc-500 text-sm">Không tìm thấy tập nào khớp với từ khóa của bạn.</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
-                        {filteredConanEpisodes.slice(0, conanDisplayCount).map((ep, idx) => {
+                      <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-12 gap-2 sm:gap-3">
+                        {(conanSearch.trim() !== '' 
+                          ? filteredConanEpisodes 
+                          : conanEpisodes.slice(landingSelectedGroupIdx * GROUP_SIZE, (landingSelectedGroupIdx + 1) * GROUP_SIZE)
+                        ).map((ep, idx) => {
                           const originalIdx = conanEpisodes.findIndex(e => e.name === ep.name);
                           return (
                             <button
@@ -480,25 +521,13 @@ export default function HomeScreen({
                                 setPlayingConanEp(ep);
                                 setActivePlayIdx(originalIdx !== -1 ? originalIdx : 0);
                               }}
-                              className="group relative overflow-hidden bg-zinc-900/60 hover:bg-[#E63946] border border-zinc-800 hover:border-[#E63946] text-zinc-300 hover:text-white px-3 py-3 rounded-xl text-xs font-bold text-center transition-all duration-300 hover:scale-105 active:scale-95 flex flex-col items-center justify-center gap-1.5 shadow-md hover:shadow-[0_0_12px_rgba(230,57,70,0.3)] cursor-pointer"
+                              className="group relative overflow-hidden bg-zinc-900/60 hover:bg-[#E63946] border border-zinc-800 hover:border-[#E63946] text-zinc-300 hover:text-white px-2 py-3 rounded-xl text-xs font-bold text-center transition-all duration-300 hover:scale-105 active:scale-95 flex flex-col items-center justify-center gap-1.5 shadow-md hover:shadow-[0_0_12px_rgba(230,57,70,0.3)] cursor-pointer"
                             >
-                              <Play size={10} className="text-[#E63946] group-hover:text-white transition-colors duration-300" />
+                              <Play size={9} className="text-[#E63946] group-hover:text-white transition-colors duration-300" />
                               <span className="truncate w-full font-mono">{ep.name}</span>
                             </button>
                           );
                         })}
-                      </div>
-                    )}
-
-                    {/* Load More Button */}
-                    {conanDisplayCount < filteredConanEpisodes.length && (
-                      <div className="flex justify-center mt-4">
-                        <button
-                          onClick={() => setConanDisplayCount(prev => prev + 100)}
-                          className="px-6 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-300"
-                        >
-                          Xem thêm {filteredConanEpisodes.length - conanDisplayCount} tập tiếp theo &darr;
-                        </button>
                       </div>
                     )}
                   </>
@@ -545,7 +574,7 @@ export default function HomeScreen({
               <div className="flex items-center gap-3">
                 <div className="w-1.5 h-6 bg-[#FFB703] rounded-full shadow-[0_0_12px_rgba(255,183,3,0.5)]"></div>
                 <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold md:font-black tracking-tighter text-[#F0F0F5] uppercase flex items-center gap-2">
-                  <Sparkles size={20} className="text-[#FFB703]" /> Hoạt Hình Hay Nhất (TMDB)
+                  <Sparkles size={20} className="text-[#FFB703]" /> Hoạt Hình Hay Nhất
                 </h2>
               </div>
               <span className="text-xs text-zinc-500 font-bold uppercase tracking-widest font-mono">
@@ -587,7 +616,7 @@ export default function HomeScreen({
               <div className="flex items-center gap-3">
                 <div className="w-1.5 h-6 bg-[#F15BB5] rounded-full shadow-[0_0_12px_rgba(241,91,181,0.5)]"></div>
                 <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold md:font-black tracking-tighter text-[#F0F0F5] uppercase flex items-center gap-2">
-                  <TrendingUp size={20} className="text-[#F15BB5]" /> Đang Thịnh Hành (TMDB)
+                  <TrendingUp size={20} className="text-[#F15BB5]" /> Đang Thịnh Hành
                 </h2>
               </div>
             </div>
@@ -613,7 +642,7 @@ export default function HomeScreen({
               <div className="flex items-center gap-3">
                 <div className="w-1.5 h-6 bg-[#3A86C8] rounded-full shadow-[0_0_12px_rgba(58,134,200,0.5)]"></div>
                 <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold md:font-black tracking-tighter text-[#F0F0F5] uppercase flex items-center gap-2">
-                  <Clapperboard size={20} className="text-[#3A86C8]" /> Đang Chiếu Rạp (TMDB)
+                  <Clapperboard size={20} className="text-[#3A86C8]" /> Đang Chiếu Rạp
                 </h2>
               </div>
             </div>
@@ -639,7 +668,7 @@ export default function HomeScreen({
               <div className="flex items-center gap-3">
                 <div className="w-1.5 h-6 bg-[#9B5DE5] rounded-full shadow-[0_0_12px_rgba(155,93,229,0.5)]"></div>
                 <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold md:font-black tracking-tighter text-[#F0F0F5] uppercase flex items-center gap-2">
-                  <Calendar size={20} className="text-[#9B5DE5]" /> Phim Sắp Ra Mắt (TMDB)
+                  <Calendar size={20} className="text-[#9B5DE5]" /> Phim Sắp Ra Mắt
                 </h2>
               </div>
             </div>
@@ -661,8 +690,8 @@ export default function HomeScreen({
       </div>
 
       {playingConanEp && (
-        <div className="fixed inset-0 z-[99999] bg-black/95 backdrop-blur-xl flex items-center justify-center p-3 sm:p-6 md:p-8 select-none animate-fade-in">
-          <div className="w-full max-w-[95vw] lg:max-w-7xl lg:h-[88vh] bg-zinc-950 border border-zinc-900 rounded-2xl md:rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(230,57,70,0.25)] flex flex-col max-h-[95vh] lg:max-h-none">
+        <div className="fixed inset-0 z-[99999] bg-black sm:bg-black/95 sm:backdrop-blur-xl flex items-center justify-center p-0 sm:p-4 md:p-6 select-none animate-fade-in">
+          <div className="w-full h-full sm:h-auto sm:max-w-[95vw] lg:max-w-7xl lg:h-[88vh] bg-zinc-950 sm:border border-zinc-900 rounded-none sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(230,57,70,0.25)] flex flex-col">
             
             {/* Header */}
             <div className="flex items-center justify-between p-4 sm:p-5 border-b border-zinc-900 bg-zinc-950/90 backdrop-blur-md">
@@ -689,7 +718,7 @@ export default function HomeScreen({
             <div className="flex-1 lg:grid lg:grid-cols-12 flex flex-col overflow-hidden min-h-0 bg-zinc-950">
               
               {/* Left Area - Video Player */}
-              <div className="lg:col-span-9 flex flex-col justify-between bg-black relative p-4 sm:p-6 border-b lg:border-b-0 lg:border-r border-zinc-900 overflow-y-auto min-h-0">
+              <div className="lg:col-span-9 flex flex-col justify-between bg-black relative p-2.5 sm:p-5 md:p-6 border-b lg:border-b-0 lg:border-r border-zinc-900 overflow-y-auto min-h-0">
                 <div className="w-full bg-black rounded-xl overflow-hidden border border-zinc-900 relative group shadow-2xl">
                   <VideoPlayer
                     key={`conan-player-${playingConanEp.name}`}
@@ -741,8 +770,8 @@ export default function HomeScreen({
  
               {/* Right Area - Episode List Sidebar */}
               <div className="lg:col-span-3 flex flex-col bg-zinc-950 flex-1 overflow-hidden h-[35vh] lg:h-full">
-                <div className="p-4 border-b border-zinc-900 bg-zinc-950 sticky top-0 z-10">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1.5 mb-2.5">
+                <div className="p-4 border-b border-zinc-900 bg-zinc-950 sticky top-0 z-10 space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
                     <Tv size={14} className="text-[#E63946]" /> Danh sách tập Conan
                   </p>
                   <div className="relative">
@@ -757,11 +786,35 @@ export default function HomeScreen({
                       className="w-full pl-8 pr-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#E63946] transition-all"
                     />
                   </div>
+
+                  {/* Horizontal Scrollable Group Tabs */}
+                  {conanSearch.trim() === '' && conanEpisodes.length > GROUP_SIZE && (
+                    <div className="flex gap-1 overflow-x-auto pb-1.5 pt-0.5 custom-scrollbar-horizontal scroll-smooth">
+                      {Array.from({ length: Math.ceil(conanEpisodes.length / GROUP_SIZE) }).map((_, gIdx) => {
+                        const startEp = gIdx * GROUP_SIZE + 1;
+                        const endEp = Math.min((gIdx + 1) * GROUP_SIZE, conanEpisodes.length);
+                        const isCurrentGroup = selectedGroupIdx === gIdx;
+                        return (
+                          <button
+                            key={`group-tab-${gIdx}`}
+                            onClick={() => setSelectedGroupIdx(gIdx)}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                              isCurrentGroup 
+                                ? 'bg-[#E63946] text-white font-black shadow-md' 
+                                : 'bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800'
+                            }`}
+                          >
+                            Tập {startEp}-{endEp}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {/* Scrollable grid list */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-1.5 custom-scrollbar min-h-0 bg-zinc-950">
-                  {filteredConanEpisodes.map((ep, idx) => {
+                  {(conanSearch.trim() !== '' ? filteredConanEpisodes : conanEpisodes.slice(selectedGroupIdx * GROUP_SIZE, (selectedGroupIdx + 1) * GROUP_SIZE)).map((ep, idx) => {
                     const originalIdx = conanEpisodes.findIndex(e => e.name === ep.name);
                     const isCurrent = ep.name === playingConanEp.name;
                     return (

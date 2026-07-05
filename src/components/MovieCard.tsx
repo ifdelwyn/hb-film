@@ -34,7 +34,7 @@ export default function MovieCard({
 
     // TMDB poster path or formatted path if stored
     if (movieItem.poster_path) {
-      return `https://image.tmdb.org/t/p/w500${movieItem.poster_path}`;
+      return `https://image.tmdb.org/t/p/w342${movieItem.poster_path}`;
     }
 
     // Fallback KKPhim / general poster_url (usually full URL)
@@ -107,6 +107,7 @@ export default function MovieCard({
             onError={() => setImageError(true)}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             referrerPolicy="no-referrer"
+            loading="lazy"
           />
         </div>
         <div className="flex flex-col justify-center min-w-0">

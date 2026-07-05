@@ -235,18 +235,18 @@ export default function SearchScreen({ onNavigateToMoveDetail }: SearchScreenPro
 
         {/* 2. PREMIUM DECK GLOW SEARCH CAPSULE */}
         <div className="max-w-3xl mx-auto mb-10">
-          <div className="relative bg-[#12121A]/85 p-2 rounded-[24px] border border-white/5 backdrop-blur-2xl shadow-[0_25px_60px_rgba(0,0,0,0.85)] focus-within:border-[var(--color-brand)]/50 focus-within:ring-4 focus-within:ring-[var(--color-brand)]/10 transition-all duration-300">
-            <div className="relative flex items-center">
-              <Search size={22} className="absolute left-4 text-zinc-500 group-focus-within:text-[var(--color-brand)]" />
+          <div className="relative bg-[#12121A]/85 p-2 rounded-[28px] border border-white/5 backdrop-blur-2xl shadow-[0_25px_60px_rgba(0,0,0,0.85)] focus-within:border-[var(--color-brand)]/50 focus-within:ring-4 focus-within:ring-[var(--color-brand)]/15 focus-within:shadow-[0_0_50px_rgba(230,57,70,0.15)] transition-all duration-300">
+            <div className="relative flex items-center group">
+              <Search size={22} className="absolute left-4 text-zinc-500 group-focus-within:text-[var(--color-brand)] transition-colors duration-300" />
               <input
                 type="text"
-                className="w-full h-14 pl-12 pr-32 bg-transparent outline-none text-sm placeholder-zinc-500 font-medium text-white"
-                placeholder="Nhập tên anime, tựa phim, đạo diễn hoặc tên diễn viên..."
+                className="w-full h-14 pl-12 pr-36 bg-transparent outline-none text-sm placeholder-zinc-500 font-semibold text-white tracking-wide"
+                placeholder="Tìm anime, tựa phim, đạo diễn, diễn viên..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
               
-              <div className="absolute right-2 flex items-center gap-2">
+              <div className="absolute right-2 flex items-center gap-1.5">
                 {query && (
                   <button 
                     onClick={() => setQuery('')}

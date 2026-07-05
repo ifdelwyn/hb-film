@@ -15,6 +15,7 @@ import TvScreen from './screens/TvScreen';
 import DownloadScreen from './screens/DownloadScreen';
 import BetaIOSScreen from './screens/BetaIOSScreen';
 import BetaAndroidScreen from './screens/BetaAndroidScreen';
+import MusicScreen from './screens/MusicScreen';
 
 // Core types & hooks
 import { Search, X, Film, Flame, ShieldAlert, Sparkles, RefreshCw, Play, Clock, ChevronRight } from 'lucide-react';
@@ -154,6 +155,9 @@ export default function App() {
     } else if (path === 'download/beta/android') {
       setRoute('download/beta/android');
       setRouteParams({});
+    } else if (path === 'music') {
+      setRoute('music');
+      setRouteParams({});
     } else if (path.startsWith('phim/')) {
       const slug = path.replace('phim/', '');
       setRoute('phim');
@@ -262,7 +266,15 @@ export default function App() {
 
   // Navigate back helper
   const handleNavBack = () => {
-    window.history.back();
+    if (route === 'xem' && routeParams.slug) {
+      navigateTo(`phim/${routeParams.slug}`);
+    } else if (route === 'phim') {
+      navigateTo('');
+    } else if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      navigateTo('');
+    }
   };
 
   const handleAutocompleteItemClick = (slug: string) => {
@@ -476,6 +488,10 @@ export default function App() {
 
         {route === 'tv' && (
           <TvScreen />
+        )}
+
+        {route === 'music' && (
+          <MusicScreen />
         )}
 
         {route === 'download' && (

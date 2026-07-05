@@ -38,15 +38,8 @@ export async function fetchPhimMoi(page = 1, limit = 24): Promise<MovieListRespo
   return fetchFromApi<MovieListResponse>('/api/danh-sach/phim-moi-cap-nhat', { page, limit });
 }
 
-const movieDetailCache = new Map<string, MovieDetailResponse>();
-
 export async function fetchMovieDetail(slug: string): Promise<MovieDetailResponse> {
-  if (movieDetailCache.has(slug)) {
-    return movieDetailCache.get(slug)!;
-  }
-  const result = await fetchFromApi<MovieDetailResponse>(`/api/phim/${slug}`);
-  movieDetailCache.set(slug, result);
-  return result;
+  return fetchFromApi<MovieDetailResponse>(`/api/phim/${slug}`);
 }
 
 export async function searchMovies(keyword: string, page = 1, limit = 24): Promise<MovieListResponse> {

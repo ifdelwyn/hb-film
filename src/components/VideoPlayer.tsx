@@ -9,7 +9,8 @@ import {
   RotateCcw, 
   RotateCw, 
   Monitor, 
-  ShieldAlert 
+  ShieldAlert,
+  SkipForward
 } from 'lucide-react';
 import Hls from 'hls.js';
 
@@ -22,6 +23,10 @@ interface VideoPlayerProps {
   onEnded?: () => void;
   onProgress?: (currentTime: number, duration: number) => void;
   fullWidth?: boolean;
+  onLocalPlay?: (currentTime: number) => void;
+  onLocalPause?: (currentTime: number) => void;
+  onLocalSeek?: (currentTime: number) => void;
+  externalPlayState?: { isPlaying: boolean; currentTime: number; lastUpdated: number } | null;
 }
 
 export default function VideoPlayer({ 
@@ -31,7 +36,11 @@ export default function VideoPlayer({
   poster,
   onEnded, 
   onProgress,
-  fullWidth
+  fullWidth,
+  onLocalPlay,
+  onLocalPause,
+  onLocalSeek,
+  externalPlayState
 }: VideoPlayerProps) {
   const [playerType, setPlayerType] = useState<'embed' | 'native'>('embed');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -46,8 +55,17 @@ export default function VideoPlayer({
   const [isLoading, setIsLoading] = useState(true);
   const [loadTimeoutError, setLoadTimeoutError] = useState(false);
   
+  // Custom states for zoom/fit and double-tap gestures
+  const [videoFit, setVideoFit] = useState<'contain' | 'cover' | 'fill'>('contain');
+  const [doubleTapFeedback, setDoubleTapFeedback] = useState<{ visible: boolean; type: 'forward' | 'backward' } | null>(null);
+  const lastTapRef = useRef<{ time: number; x: number } | null>(null);
+
   // Custom indicator state for volume changes
   const [volumeIndicator, setVolumeIndicator] = useState<{ visible: boolean; value: number } | null>(null);
+
+  // Hover seeking state for desktop progress bar
+  const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const [hoverX, setHoverX] = useState<number>(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -199,12 +217,97 @@ export default function VideoPlayer({
     if (isPlaying) {
       videoRef.current.pause();
       setIsPlaying(false);
+      onLocalPause?.(videoRef.current.currentTime);
     } else {
+      const time = videoRef.current.currentTime;
       videoRef.current.play()
-        .then(() => setIsPlaying(true))
+        .then(() => {
+          setIsPlaying(true);
+          onLocalPlay?.(time);
+        })
         .catch(err => console.error('Playback failed:', err));
     }
     resetControlsTimer();
+  };
+
+  const seekRelative = (seconds: number) => {
+    if (!videoRef.current) return;
+    const nextTime = Math.max(0, Math.min(duration, videoRef.current.currentTime + seconds));
+    videoRef.current.currentTime = nextTime;
+    setCurrentTime(nextTime);
+    onLocalSeek?.(nextTime);
+    resetControlsTimer();
+  };
+
+  const toggleVideoFit = () => {
+    setVideoFit(prev => {
+      if (prev === 'contain') return 'cover';
+      if (prev === 'cover') return 'fill';
+      return 'contain';
+    });
+    resetControlsTimer();
+  };
+
+  const triggerDoubleTapFeedback = (type: 'forward' | 'backward') => {
+    setDoubleTapFeedback({ visible: true, type });
+    setTimeout(() => {
+      setDoubleTapFeedback(null);
+    }, 500);
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleFullscreen();
+  };
+
+  const handleVideoAreaClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const width = rect.width;
+    
+    // Desktop native double click handler to toggle fullscreen
+    if (e.detail === 2) {
+      toggleFullscreen();
+      if (lastTapRef.current) {
+        lastTapRef.current = null;
+      }
+      return;
+    }
+    
+    const now = Date.now();
+    if (lastTapRef.current && (now - lastTapRef.current.time < 320)) {
+      e.stopPropagation();
+      if (clickX < width * 0.4) {
+        seekRelative(-10);
+        triggerDoubleTapFeedback('backward');
+      } else if (clickX > width * 0.6) {
+        seekRelative(10);
+        triggerDoubleTapFeedback('forward');
+      } else {
+        toggleFullscreen();
+      }
+      lastTapRef.current = null;
+    } else {
+      lastTapRef.current = { time: now, x: clickX };
+      setTimeout(() => {
+        if (lastTapRef.current && lastTapRef.current.time === now) {
+          togglePlay();
+          lastTapRef.current = null;
+        }
+      }, 250);
+    }
+  };
+
+  const handleSeekMouseMove = (e: React.MouseEvent<HTMLInputElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, x / rect.width));
+    setHoverTime(pct * duration);
+    setHoverX(x);
+  };
+
+  const handleSeekMouseLeave = () => {
+    setHoverTime(null);
   };
 
   const handleTimeUpdate = () => {
@@ -229,6 +332,7 @@ export default function VideoPlayer({
     const val = parseFloat(e.target.value);
     videoRef.current.currentTime = val;
     setCurrentTime(val);
+    onLocalSeek?.(val);
     resetControlsTimer();
   };
 
@@ -326,13 +430,19 @@ export default function VideoPlayer({
         case 'arrowleft':
           if (videoRef.current) {
             e.preventDefault();
-            videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
+            const nextTime = Math.max(0, videoRef.current.currentTime - 10);
+            videoRef.current.currentTime = nextTime;
+            setCurrentTime(nextTime);
+            onLocalSeek?.(nextTime);
           }
           break;
         case 'arrowright':
           if (videoRef.current) {
             e.preventDefault();
-            videoRef.current.currentTime = Math.min(duration, videoRef.current.currentTime + 10);
+            const nextTime = Math.min(duration, videoRef.current.currentTime + 10);
+            videoRef.current.currentTime = nextTime;
+            setCurrentTime(nextTime);
+            onLocalSeek?.(nextTime);
           }
           break;
         case 'arrowup':
@@ -361,7 +471,30 @@ export default function VideoPlayer({
       window.removeEventListener('keydown', handleHotkeys);
       if (indicatorTimeoutRef.current) window.clearTimeout(indicatorTimeoutRef.current);
     };
-  }, [playerType, isPlaying, duration, isMuted]);
+  }, [playerType, isPlaying, duration, isMuted, onLocalSeek]);
+
+  // Align with remote playback events in Watch Party
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !externalPlayState) return;
+
+    const { isPlaying: extIsPlaying, currentTime: extTime } = externalPlayState;
+    const diff = Math.abs(video.currentTime - extTime);
+
+    if (diff > 2) {
+      video.currentTime = extTime;
+      setCurrentTime(extTime);
+    }
+
+    if (extIsPlaying && video.paused) {
+      video.play()
+        .then(() => setIsPlaying(true))
+        .catch(err => console.warn('Playback failed during real-time sync alignment:', err));
+    } else if (!extIsPlaying && !video.paused) {
+      video.pause();
+      setIsPlaying(false);
+    }
+  }, [externalPlayState]);
 
   const formatTime = (time: number) => {
     if (isNaN(time)) return '00:00';
@@ -435,6 +568,7 @@ export default function VideoPlayer({
             className="border-none z-10"
             allowFullScreen
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock"
             referrerPolicy="no-referrer"
           />
         )}
@@ -467,16 +601,49 @@ export default function VideoPlayer({
                 inset: 0, 
                 width: '100%', 
                 height: '100%', 
-                objectFit: 'contain', 
+                objectFit: videoFit, 
                 background: '#000',
                 pointerEvents: 'none' // REQUIRED BY USER
               }}
               playsInline
             />
 
-            {/* UPPER BIG AREA CLICK TO PLAY/PAUSE */}
+            {/* DOUBLE TAP FEEDBACK HUDS */}
+            {doubleTapFeedback && (
+              <div className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center gap-16">
+                <div className={`flex flex-col items-center justify-center w-16 h-16 rounded-full bg-black/60 text-white transition-all duration-300 ${
+                  doubleTapFeedback.type === 'backward' ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
+                }`}>
+                  <span className="text-xs font-black font-mono">-10s</span>
+                  <RotateCcw className="animate-pulse" size={16} />
+                </div>
+                <div className={`flex flex-col items-center justify-center w-16 h-16 rounded-full bg-black/60 text-white transition-all duration-300 ${
+                  doubleTapFeedback.type === 'forward' ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
+                }`}>
+                  <span className="text-xs font-black font-mono">+10s</span>
+                  <RotateCw className="animate-pulse" size={16} />
+                </div>
+              </div>
+            )}
+
+            {/* SKIP INTRO (85s) BUTTON FOR SHORT EPISODES */}
+            {isPlaying && currentTime < 150 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  seekRelative(85);
+                }}
+                className="absolute right-4 bottom-20 z-30 px-3.5 py-2 bg-black/85 hover:bg-[#E63946] border border-zinc-800 hover:border-transparent text-white text-[11px] font-black uppercase rounded-xl tracking-wider transition-all shadow-2xl flex items-center gap-1.5 cursor-pointer"
+              >
+                <SkipForward size={12} />
+                <span>Bỏ qua Intro (85s)</span>
+              </button>
+            )}
+
+            {/* UPPER BIG AREA CLICK TO PLAY/PAUSE AND GESTURES */}
             <div 
-              onClick={togglePlay}
+              onClick={handleVideoAreaClick}
+              onDoubleClick={handleDoubleClick}
               className="absolute inset-x-0 top-0 bottom-16 z-15 cursor-pointer flex items-center justify-center bg-black/0 hover:bg-black/10 transition-colors"
             >
               {!isPlaying && !isLoading && (
@@ -500,7 +667,7 @@ export default function VideoPlayer({
                 {/* [ Play/Pause ] */}
                 <button 
                   onClick={togglePlay} 
-                  className="text-white hover:text-[#E63946] transition-colors cursor-pointer shrink-0"
+                  className="text-white hover:text-[#E63946] transition-colors cursor-pointer shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
                 >
                   {isPlaying ? (
                     <Pause size={isFullscreen ? 22 : 18} fill="currentColor" />
@@ -516,7 +683,7 @@ export default function VideoPlayer({
                       videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
                     }
                   }} 
-                  className="text-zinc-350 hover:text-white transition-colors cursor-pointer shrink-0"
+                  className="text-zinc-350 hover:text-white transition-colors cursor-pointer shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
                   title="Tua lùi 10s"
                 >
                   <RotateCcw size={isFullscreen ? 20 : 16} />
@@ -529,7 +696,7 @@ export default function VideoPlayer({
                       videoRef.current.currentTime = Math.min(duration, videoRef.current.currentTime + 10);
                     }
                   }} 
-                  className="text-zinc-350 hover:text-white transition-colors cursor-pointer shrink-0"
+                  className="text-zinc-350 hover:text-white transition-colors cursor-pointer shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
                   title="Tua tiến 10s"
                 >
                   <RotateCw size={isFullscreen ? 20 : 16} />
@@ -557,6 +724,16 @@ export default function VideoPlayer({
                     style={{ left: `${(currentTime / (duration || 1)) * 100}%` }}
                   />
 
+                  {/* Hover timestamp tooltip */}
+                  {hoverTime !== null && (
+                    <div 
+                      className="absolute bottom-6 bg-zinc-950 border border-zinc-800 text-white font-mono text-[10px] font-bold px-2 py-1 rounded-lg pointer-events-none -translate-x-1/2 z-50 shadow-2xl whitespace-nowrap"
+                      style={{ left: `${hoverX}px` }}
+                    >
+                      {formatTime(hoverTime)}
+                    </div>
+                  )}
+
                   {/* Hidden input range for easy sliding dragging */}
                   <input
                     type="range"
@@ -564,15 +741,17 @@ export default function VideoPlayer({
                     max={duration || 1}
                     value={currentTime}
                     onChange={handleSeekChange}
+                    onMouseMove={handleSeekMouseMove}
+                    onMouseLeave={handleSeekMouseLeave}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
                 </div>
 
                 {/* [ Volume Icon + Slider ] */}
-                <div className="flex items-center gap-2 group/volume shrink-0 relative">
+                <div className="flex items-center gap-1.5 group/volume shrink-0 relative">
                   <button 
                     onClick={toggleMute} 
-                    className="text-zinc-200 hover:text-white transition-colors cursor-pointer"
+                    className="text-zinc-200 hover:text-white transition-colors cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center"
                   >
                     {isMuted || volume === 0 ? (
                       <VolumeX size={isFullscreen ? 21 : 17} />
@@ -580,8 +759,8 @@ export default function VideoPlayer({
                       <Volume2 size={isFullscreen ? 21 : 17} />
                     )}
                   </button>
-                  {/* Slide in volume width horizontal slider */}
-                  <div className="w-0 overflow-hidden group-hover/volume:w-20 transition-all duration-300 flex items-center">
+                  {/* Slide in volume width horizontal slider - always slightly visible on mobile */}
+                  <div className="w-12 sm:w-0 overflow-hidden sm:group-hover/volume:w-20 transition-all duration-300 flex items-center">
                     <input
                       type="range"
                       min="0"
@@ -589,16 +768,26 @@ export default function VideoPlayer({
                       step="0.05"
                       value={isMuted ? 0 : volume}
                       onChange={handleVolumeChange}
-                      className="w-18 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#E63946] outline-none"
+                      className="w-12 sm:w-18 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#E63946] outline-none"
                     />
                   </div>
                 </div>
+
+                {/* [ Zoom Aspect Ratio Toggle ] */}
+                <button 
+                  onClick={toggleVideoFit} 
+                  className="text-zinc-350 hover:text-white transition-colors cursor-pointer shrink-0 flex items-center justify-center gap-1 bg-zinc-900 border border-zinc-800 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider min-h-[44px]"
+                  title="Phóng to màn hình / Tỷ lệ"
+                >
+                  <Maximize2 size={12} className="text-[#E63946]" />
+                  <span>{videoFit === 'contain' ? 'Gốc' : videoFit === 'cover' ? 'Phóng To' : 'Giãn Đầy'}</span>
+                </button>
 
                 {/* [ Playback Speed Selection ] */}
                 <div className="relative shrink-0">
                   <button 
                     onClick={() => setShowSpeedDropdown(!showSpeedDropdown)} 
-                    className="text-[10px] font-black tracking-wider uppercase px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-350 hover:text-white transition-all flex items-center gap-1 cursor-pointer"
+                    className="text-[10px] font-black tracking-wider uppercase px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-350 hover:text-white transition-all flex items-center justify-center gap-1 cursor-pointer min-h-[44px]"
                   >
                     <span>{playbackSpeed === 1 ? 'Tốc độ (1.0x)' : `Tốc độ (${playbackSpeed}x)`}</span>
                   </button>
@@ -628,7 +817,7 @@ export default function VideoPlayer({
                 {/* [ PiP (Picture-in-Picture) ] */}
                 <button 
                   onClick={togglePiP} 
-                  className="text-zinc-350 hover:text-white transition-colors cursor-pointer shrink-0"
+                  className="text-zinc-350 hover:text-white transition-colors cursor-pointer shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
                   title="Picture-in-Picture"
                 >
                   <Monitor size={isFullscreen ? 20 : 16} />
@@ -637,7 +826,7 @@ export default function VideoPlayer({
                 {/* [ Fullscreen ] */}
                 <button 
                   onClick={toggleFullscreen} 
-                  className="text-zinc-200 hover:text-white transition-colors cursor-pointer shrink-0"
+                  className="text-zinc-200 hover:text-white transition-colors cursor-pointer shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
                   title="Toàn màn hình"
                 >
                   {isFullscreen ? (

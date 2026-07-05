@@ -105,7 +105,10 @@ export function normalizeTmdbMovie(item: any): any {
     genres.push(...item.genres.map((g: any) => g.name));
   }
 
-  const title = item.title || item.original_title || 'Phim TMDB';
+  let title = item.title || item.original_title || 'Phim TMDB';
+  if (item.id === 1144807) {
+    title = "Thám Tử Lừng Danh Conan Movie 29: Ngôi Sao Năm Cánh 1 Triệu Đô";
+  }
   const original_title = item.original_title || '';
   const id = `tmdb_${item.id}`;
   const slug = `tmdb-${item.id}`; // custom unique slug identifier
@@ -114,6 +117,19 @@ export function normalizeTmdbMovie(item: any): any {
   const backdrop_path = item.backdrop_path;
   const poster_url = poster_path ? `${IMG_URL}${poster_path}` : '/assets/no-poster.jpg';
   const backdrop_url = backdrop_path ? `https://image.tmdb.org/t/p/original${backdrop_path}` : poster_url;
+
+  const isJapanAnime = 
+    item.id === 1144807 ||
+    title.toLowerCase().includes('conan') || 
+    title.toLowerCase().includes('doraemon') || 
+    original_title.toLowerCase().includes('conan') || 
+    original_title.toLowerCase().includes('doraemon') ||
+    slug.includes('conan') ||
+    slug.includes('doraemon');
+
+  const movieCountry = isJapanAnime 
+    ? [{ id: 'nhat-ban', name: 'Nhật Bản', slug: 'nhat-ban' }]
+    : [{ id: 'au-my', name: 'Âu Mỹ', slug: 'au-my' }];
 
   return {
     id,
@@ -139,7 +155,7 @@ export function normalizeTmdbMovie(item: any): any {
     },
     genres,
     category: genres.map((g: string) => ({ id: g, name: g, slug: g })), // Support components that expect movie.category
-    country: [{ id: 'au-my', name: 'Âu Mỹ', slug: 'au-my' }], // default or placeholder country
+    country: movieCountry,
     runtime: item.runtime || 100,
     time: item.runtime ? `${item.runtime} phút` : '100 phút', // Support components that expect movie.time
     type: 'single', // 'series' or 'single'

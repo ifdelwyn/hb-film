@@ -31,9 +31,21 @@ export const SOURCE_DISPLAY_MAP: Record<string, string> = {
  * @param index The index of the server in the episodes list
  */
 export function getCustomSourceName(rawName: string, index: number): string {
-  if (!rawName) return `FilmFlow Vietsub #${index + 1}`;
+  if (!rawName) return `Nguồn Vietsub VIP #${index + 1}`;
   
   const trimmed = rawName.trim();
+  const lower = trimmed.toLowerCase();
+  
+  // Heuristics for Sub / Dub (Lồng Tiếng / Thuyết Minh)
+  const isLongTieng = lower.includes("lồng tiếng") || lower.includes("long tieng") || lower.includes("longtieng") || lower.includes("thuyết minh") || lower.includes("thuyet minh") || lower.includes("dub");
+  const isVietsub = lower.includes("vietsub") || lower.includes("sub") || lower.includes("phụ đề");
+  
+  if (isLongTieng) {
+    return `Nguồn Lồng Tiếng VIP #${index + 1}`;
+  }
+  if (isVietsub) {
+    return `Nguồn Vietsub VIP #${index + 1}`;
+  }
   
   // 1. Try exact match in the mapping
   if (SOURCE_DISPLAY_MAP[trimmed]) {

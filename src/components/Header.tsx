@@ -17,6 +17,7 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [genreOpen, setGenreOpen] = useState(false);
   const [countryOpen, setCountryOpen] = useState(false);
+  const [entertainmentOpen, setEntertainmentOpen] = useState(false);
   
   const [currentUser, setCurrentUser] = useState<any | null>(() => {
     const stored = localStorage.getItem('hb_user');
@@ -40,12 +41,14 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
   // Timeouts for mouse debouncing/delay
   const genreTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const countryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const entertainmentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Clean up any active timers on component unmount
   useEffect(() => {
     return () => {
       if (genreTimeoutRef.current) clearTimeout(genreTimeoutRef.current);
       if (countryTimeoutRef.current) clearTimeout(countryTimeoutRef.current);
+      if (entertainmentTimeoutRef.current) clearTimeout(entertainmentTimeoutRef.current);
     };
   }, []);
 
@@ -87,6 +90,30 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
     }, 250); // 250ms close buffer delay to avoid flickering
   };
 
+  const handleEntertainmentMouseEnter = () => {
+    if (entertainmentTimeoutRef.current) {
+      clearTimeout(entertainmentTimeoutRef.current);
+      entertainmentTimeoutRef.current = null;
+    }
+    setEntertainmentOpen(true);
+    setGenreOpen(false);
+    setCountryOpen(false);
+    if (genreTimeoutRef.current) {
+      clearTimeout(genreTimeoutRef.current);
+      genreTimeoutRef.current = null;
+    }
+    if (countryTimeoutRef.current) {
+      clearTimeout(countryTimeoutRef.current);
+      countryTimeoutRef.current = null;
+    }
+  };
+
+  const handleEntertainmentMouseLeave = () => {
+    entertainmentTimeoutRef.current = setTimeout(() => {
+      setEntertainmentOpen(false);
+    }, 250);
+  };
+
   const handleGenreClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (genreOpen) {
@@ -94,6 +121,7 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
     } else {
       setGenreOpen(true);
       setCountryOpen(false);
+      setEntertainmentOpen(false);
     }
   };
 
@@ -104,6 +132,18 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
     } else {
       setCountryOpen(true);
       setGenreOpen(false);
+      setEntertainmentOpen(false);
+    }
+  };
+
+  const handleEntertainmentClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (entertainmentOpen) {
+      setEntertainmentOpen(false);
+    } else {
+      setEntertainmentOpen(true);
+      setGenreOpen(false);
+      setCountryOpen(false);
     }
   };
 
@@ -145,15 +185,16 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
     setMobileMenuOpen(false);
     setGenreOpen(false);
     setCountryOpen(false);
+    setEntertainmentOpen(false);
     setProfileDropdownOpen(false);
   };
 
   const getLinkClass = (pattern: string) => {
     const isActive = currentRoute === pattern || currentRoute.startsWith(pattern + '/');
-    return `relative font-medium py-2 transition-all duration-200 cursor-pointer ${
+    return `relative text-[13px] font-bold py-1.5 px-3.5 rounded-full transition-all duration-300 cursor-pointer flex items-center gap-1.5 select-none ${
       isActive 
-        ? 'text-[var(--color-brand)] font-semibold' 
-        : 'text-zinc-300 hover:text-white'
+        ? 'text-white bg-[#E63946] shadow-md shadow-[#E63946]/20' 
+        : 'text-zinc-300 hover:text-white hover:bg-zinc-800/40'
     }`;
   };
 
@@ -180,16 +221,13 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
             <div className="w-8 h-[2px] bg-[var(--color-brand)] mt-1.5 group-hover:bg-zinc-100 transition-colors" />
           </div>
 
-          {/* Desktop Navigation Links Menu */}
-          <nav className="hidden md:flex items-center gap-8 select-none">
+          {/* Desktop Navigation Links Menu - Redesigned to be highly neat, aligned, and beautiful capsule style */}
+          <nav className="hidden md:flex items-center bg-zinc-900/40 border border-zinc-800/50 backdrop-blur-md rounded-full p-1.5 gap-2.5 select-none shadow-[0_4px_24px_-10px_rgba(0,0,0,0.8)]">
             <span 
               onClick={() => navigateTo('home')} 
               className={getLinkClass('home')}
             >
               Trang Chủ
-              {currentRoute === 'home' && (
-                <span className="absolute bottom-[-4px] left-0 right-0 h-[2.5px] bg-[var(--color-brand)] rounded-full" />
-              )}
             </span>
 
             {/* Thể loại dropdown tag */}
@@ -201,10 +239,14 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
               <button
                 id="navbar-genre-dropdown-btn"
                 onClick={handleGenreClick}
-                className="flex items-center gap-1 text-zinc-300 hover:text-white py-2 font-medium cursor-pointer transition-colors"
+                className={`text-[13px] font-bold py-1.5 px-3.5 rounded-full transition-all duration-300 cursor-pointer flex items-center gap-1.5 select-none ${
+                  currentRoute.startsWith('the-loai/') || genreOpen
+                    ? 'text-white bg-zinc-800/80 shadow-inner'
+                    : 'text-zinc-300 hover:text-white hover:bg-zinc-800/40'
+                }`}
               >
                 <span>Thể Loại</span>
-                <ChevronDown size={14} className={`transform transition-transform ${genreOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown size={12} className={`transform transition-transform duration-300 ${genreOpen ? 'rotate-180' : ''}`} />
               </button>
 
               <AnimatePresence>
@@ -214,7 +256,7 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.96 }}
                     transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                    className="absolute top-full left-[-120px] md:left-[-180px] mt-2.5 w-[420px] md:w-[480px] bg-zinc-950/95 backdrop-blur-xl border border-zinc-900 rounded-[20px] p-6 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.9)] z-50 flex flex-col gap-4 text-left border-zinc-800/80"
+                    className="absolute top-full left-[-120px] md:left-[-150px] mt-2.5 w-[420px] md:w-[480px] bg-zinc-950/95 backdrop-blur-xl border border-zinc-900 rounded-[20px] p-6 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.9)] z-50 flex flex-col gap-4 text-left border-zinc-800/80"
                   >
                     {/* Category main grid: 3 columns */}
                     <div className="grid grid-cols-3 gap-x-5 gap-y-3 pb-4 border-b border-zinc-900/80">
@@ -249,7 +291,7 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
                               onClick={() => navigateTo(`the-loai/${slug}`)}
                               className="text-[10px] px-2.5 py-1 rounded-full bg-zinc-900/60 hover:bg-[#E63946]/10 text-zinc-400 hover:text-[#E63946] border border-zinc-850 hover:border-[#E63946]/30 cursor-pointer transition-all duration-300 select-none font-bold"
                             >
-                              🔥 {popularName}
+                              {popularName}
                             </span>
                           );
                         })}
@@ -282,10 +324,14 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
               <button
                 id="navbar-country-dropdown-btn"
                 onClick={handleCountryClick}
-                className="flex items-center gap-1 text-zinc-300 hover:text-white py-2 font-medium cursor-pointer transition-colors"
+                className={`text-[13px] font-bold py-1.5 px-3.5 rounded-full transition-all duration-300 cursor-pointer flex items-center gap-1.5 select-none ${
+                  currentRoute.startsWith('quoc-gia/') || countryOpen
+                    ? 'text-white bg-zinc-800/80 shadow-inner'
+                    : 'text-zinc-300 hover:text-white hover:bg-zinc-800/40'
+                }`}
               >
                 <span>Quốc Gia</span>
-                <ChevronDown size={14} className={`transform transition-transform ${countryOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown size={12} className={`transform transition-transform duration-300 ${countryOpen ? 'rotate-180' : ''}`} />
               </button>
 
               <AnimatePresence>
@@ -299,14 +345,12 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
                   >
                     <div className="flex flex-col gap-1.5">
                       {MOCK_COUNTRIES.map(c => {
-                        const flag = getCountryFlag(c.slug);
                         return (
                           <span
                             key={c.id}
                             onClick={() => navigateTo(`quoc-gia/${c.slug}`)}
                             className="group/item flex items-center gap-3 text-xs text-zinc-400 hover:text-[#E63946] hover:bg-[#E63946]/5 px-3 py-2 border border-transparent hover:border-[#E63946]/20 rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.04] hover:translate-x-0.5 select-none font-medium"
                           >
-                            <span className="text-base group-hover/item:scale-125 transition-transform duration-300">{flag}</span>
                             <span>{c.name}</span>
                           </span>
                         );
@@ -331,18 +375,71 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
               Phim Bộ
             </span>
 
-            <span 
-              onClick={() => navigateTo('tv')} 
-              className={getLinkClass('tv')}
+            {/* "Giải trí khác" dropdown combining TV and Music */}
+            <div 
+              className="relative"
+              onMouseEnter={handleEntertainmentMouseEnter}
+              onMouseLeave={handleEntertainmentMouseLeave}
             >
-              Kênh TV Live
-            </span>
+              <button
+                id="navbar-entertainment-dropdown-btn"
+                onClick={handleEntertainmentClick}
+                className={`text-[13px] font-bold py-1.5 px-3.5 rounded-full transition-all duration-300 cursor-pointer flex items-center gap-1.5 select-none ${
+                  currentRoute === 'tv' || currentRoute === 'music' || entertainmentOpen
+                    ? 'text-white bg-[#E63946] shadow-md shadow-[#E63946]/20 font-black'
+                    : 'text-zinc-300 hover:text-white hover:bg-zinc-800/40'
+                }`}
+              >
+                <span>Giải Trí</span>
+                <ChevronDown size={12} className={`transform transition-transform duration-300 ${entertainmentOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {entertainmentOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.96 }}
+                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute top-full left-[-30px] mt-2.5 w-60 bg-zinc-950/95 backdrop-blur-xl border border-zinc-900 rounded-[20px] p-4 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.9)] z-50 flex flex-col gap-2.5 text-left border-zinc-800/80"
+                  >
+                    <div className="flex flex-col gap-1.5">
+                      {/* Live TV choice */}
+                      <div
+                        onClick={() => navigateTo('tv')}
+                        className="group/item flex items-center justify-between gap-3 text-xs text-zinc-400 hover:text-[#E63946] hover:bg-[#E63946]/5 px-3 py-2.5 border border-transparent hover:border-[#E63946]/20 rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.04] select-none font-bold"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>TV Trực Tiếp</span>
+                        </div>
+                        <span className="text-[8px] font-black tracking-wider px-1.5 py-0.5 rounded bg-red-600 text-white animate-pulse">
+                          LIVE
+                        </span>
+                      </div>
+
+                      {/* Music Choice */}
+                      <div
+                        onClick={() => navigateTo('music')}
+                        className="group/item flex items-center justify-between gap-3 text-xs text-zinc-400 hover:text-[#E63946] hover:bg-[#E63946]/5 px-3 py-2.5 border border-transparent hover:border-[#E63946]/20 rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.04] select-none font-bold"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>Nghe Nhạc</span>
+                        </div>
+                        <span className="text-[8px] font-black tracking-wider px-1.5 py-0.5 rounded bg-emerald-600 text-white">
+                          FREE
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             <span 
               onClick={() => navigateTo('download')} 
               className={getLinkClass('download')}
             >
-              📱 Tải App
+              Tải App
             </span>
           </nav>
 
@@ -535,15 +632,23 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
             </span>
             <span
               onClick={() => navigateTo('tv')}
-              className={`text-lg font-bold p-2 rounded-lg ${currentRoute === 'tv' ? 'text-[var(--color-brand)] bg-zinc-900/40' : 'text-zinc-300'}`}
+              className={`text-lg font-bold p-2 rounded-lg flex items-center justify-between ${currentRoute === 'tv' ? 'text-[var(--color-brand)] bg-zinc-900/40' : 'text-zinc-300'}`}
             >
-              Kênh TV Live
+              <span className="flex items-center gap-2">TV Trực Tiếp</span>
+              <span className="text-[8px] font-black tracking-wider px-1.5 py-0.5 rounded bg-red-600 text-white">LIVE</span>
+            </span>
+            <span
+              onClick={() => navigateTo('music')}
+              className={`text-lg font-bold p-2 rounded-lg flex items-center justify-between ${currentRoute === 'music' ? 'text-[var(--color-brand)] bg-zinc-900/40' : 'text-zinc-300'}`}
+            >
+              <span className="flex items-center gap-2">Nghe Nhạc</span>
+              <span className="text-[8px] font-black tracking-wider px-1.5 py-0.5 rounded bg-emerald-600 text-white">FREE</span>
             </span>
             <span
               onClick={() => navigateTo('download')}
               className={`text-lg font-bold p-2 rounded-lg ${currentRoute === 'download' ? 'text-[var(--color-brand)] bg-zinc-900/40' : 'text-zinc-300'}`}
             >
-              📱 Tải App
+              Tải App
             </span>
             <span
               onClick={() => navigateTo('tai-khoan')}
@@ -578,14 +683,12 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
             </h4>
             <div className="grid grid-cols-2 gap-2 mt-2">
               {MOCK_COUNTRIES.map(num => {
-                const flag = getCountryFlag(num.slug);
                 return (
                   <span
                     key={num.id}
                     onClick={() => navigateTo(`quoc-gia/${num.slug}`)}
                     className="text-xs text-zinc-400 p-2.5 bg-zinc-900/30 border border-zinc-900 rounded-xl hover:text-white flex items-center gap-2 hover:bg-zinc-900/60 transition-all cursor-pointer"
                   >
-                    <span>{flag}</span>
                     <span>{num.name}</span>
                   </span>
                 );
