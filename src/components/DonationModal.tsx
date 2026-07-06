@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Heart, Sparkles, Copy, Check, ShieldCheck, QrCode } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import donationQr from '../assets/images/donation_qr_1783331550940.jpg';
+import donationQr from '../assets/images/donation_qr_new_1783381532536.jpg';
 
 export default function DonationModal() {
   const [isOpen, setIsOpen] = useState(false);

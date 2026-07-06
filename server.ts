@@ -519,6 +519,47 @@ async function fetchTrailerFromTmdb(movieName: string, year?: number): Promise<s
   return null;
 }
 
+function isCloseMatch(target: string, item: any): boolean {
+  if (!item) return false;
+  const targetLower = target.toLowerCase().trim();
+  const nameLower = (item.name || "").toLowerCase().trim();
+  const originLower = (item.origin_name || item.original_name || "").toLowerCase().trim();
+  
+  // Exact matches
+  if (nameLower === targetLower || originLower === targetLower) return true;
+  
+  // Clean special characters and compare
+  const cleanStr = (s: string) => s.replace(/[^a-zA-Z0-9\sàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/g, '').replace(/\s+/g, ' ').trim();
+  const cleanTarget = cleanStr(targetLower);
+  const cleanName = cleanStr(nameLower);
+  const cleanOrigin = cleanStr(originLower);
+  
+  if (cleanName === cleanTarget || cleanOrigin === cleanTarget) return true;
+  
+  // Partial matches with high confidence
+  if (cleanName.includes(cleanTarget) || cleanOrigin.includes(cleanTarget) || cleanTarget.includes(cleanName) || cleanTarget.includes(cleanOrigin)) {
+    return true;
+  }
+  
+  // Let's also check if they share significant words
+  const targetWords = cleanTarget.split(' ').filter(w => w.length > 1);
+  const nameWords = cleanName.split(' ').filter(w => w.length > 1);
+  const originWords = cleanOrigin.split(' ').filter(w => w.length > 1);
+  
+  if (targetWords.length > 0) {
+    // If target has multiple words, check if they are mostly present
+    const nameMatchCount = targetWords.filter(w => nameWords.includes(w)).length;
+    const originMatchCount = targetWords.filter(w => originWords.includes(w)).length;
+    
+    const threshold = Math.max(1, Math.ceil(targetWords.length * 0.6));
+    if (nameMatchCount >= threshold || originMatchCount >= threshold) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 async function findStreamSlug(movieName: string): Promise<{ source: string, slug: string } | null> {
   // First, try KKPhim
   try {
@@ -531,11 +572,8 @@ async function findStreamSlug(movieName: string): Promise<{ source: string, slug
       const data = await response.json();
       const items = data.data?.items || [];
       if (items.length > 0) {
-        // Find best match or default to first
-        const match = items.find((item: any) =>
-          (item.name && item.name.toLowerCase().includes(movieName.toLowerCase())) ||
-          (item.origin_name && item.origin_name.toLowerCase().includes(movieName.toLowerCase()))
-        ) || items[0];
+        // Find best match matching the movie name strictly (no loose index fallback to wrong movies)
+        const match = items.find((item: any) => isCloseMatch(movieName, item));
         if (match && match.slug) {
           return { source: 'KKPhim', slug: match.slug };
         }
@@ -556,10 +594,7 @@ async function findStreamSlug(movieName: string): Promise<{ source: string, slug
       const data = await response.json();
       const items = data.data?.items || [];
       if (items.length > 0) {
-        const match = items.find((item: any) =>
-          (item.name && item.name.toLowerCase().includes(movieName.toLowerCase())) ||
-          (item.origin_name && item.origin_name.toLowerCase().includes(movieName.toLowerCase()))
-        ) || items[0];
+        const match = items.find((item: any) => isCloseMatch(movieName, item));
         if (match && match.slug) {
           return { source: 'OPhim', slug: match.slug };
         }
@@ -580,10 +615,7 @@ async function findStreamSlug(movieName: string): Promise<{ source: string, slug
       const data = await response.json();
       const items = data.items || [];
       if (items.length > 0) {
-        const match = items.find((item: any) =>
-          (item.name && item.name.toLowerCase().includes(movieName.toLowerCase())) ||
-          (item.original_name && item.original_name.toLowerCase().includes(movieName.toLowerCase()))
-        ) || items[0];
+        const match = items.find((item: any) => isCloseMatch(movieName, item));
         if (match && match.slug) {
           return { source: 'NguonC', slug: match.slug };
         }
@@ -596,7 +628,7 @@ async function findStreamSlug(movieName: string): Promise<{ source: string, slug
   return null;
 }
 
-async function fetchEpisodesFromSlug(sourceName: string, streamSlug: string) {
+async function fetchEpisodesFromSlug(sourceName: string, streamSlug: string, expectedMovieName?: string) {
   try {
     let domain = 'https://phimapi.com';
     if (sourceName === 'OPhim') domain = 'https://ophim1.com';
@@ -614,6 +646,20 @@ async function fetchEpisodesFromSlug(sourceName: string, streamSlug: string) {
 
     if (response.ok) {
       const rawData = await response.json();
+      
+      // Strict verification: check if the movie details from the stream slug match the target movie
+      if (expectedMovieName) {
+        const foundMovie = rawData.movie || rawData.data?.movie;
+        if (foundMovie) {
+          const actualName = foundMovie.name || "";
+          const actualOrigin = foundMovie.origin_name || foundMovie.original_name || "";
+          if (!isCloseMatch(expectedMovieName, { name: actualName, origin_name: actualOrigin })) {
+            console.warn(`[fetchEpisodesFromSlug Validation Failed] Stream slug "${streamSlug}" name "${actualName}" doesn't match expected "${expectedMovieName}". Discarding stream.`);
+            return []; // Reject since it's a completely different movie!
+          }
+        }
+      }
+
       let rawEpisodes = rawData.episodes || rawData.data?.episodes || [];
       if (sourceName === 'NguonC' && rawData.movie && rawData.movie.episodes) {
         rawEpisodes = rawData.movie.episodes;
@@ -1413,7 +1459,7 @@ async function startServer() {
             const streamInfo = await findStreamSlug(title) || (original_title ? await findStreamSlug(original_title) : null);
             if (streamInfo) {
               console.log(`[TMDB Stream Finder] Found stream source: ${streamInfo.source} with slug ${streamInfo.slug} for TMDB movie ${title}`);
-              const fetchedEp = await fetchEpisodesFromSlug(streamInfo.source, streamInfo.slug);
+              const fetchedEp = await fetchEpisodesFromSlug(streamInfo.source, streamInfo.slug, title);
               if (fetchedEp && fetchedEp.length > 0) {
                 streamEpisodes = fetchedEp;
               }
@@ -1534,7 +1580,7 @@ async function startServer() {
           const streamInfo = await findStreamSlug(searchTitle) || 
                              (foundCustom.movie.origin_name ? await findStreamSlug(foundCustom.movie.origin_name) : null);
           if (streamInfo) {
-            const fetchedEp = await fetchEpisodesFromSlug(streamInfo.source, streamInfo.slug);
+            const fetchedEp = await fetchEpisodesFromSlug(streamInfo.source, streamInfo.slug, searchTitle);
             if (fetchedEp && fetchedEp.length > 0) {
               // Prepend the working stream servers while preserving mock servers for compliance
               finalEpisodes = [...fetchedEp, ...foundCustom.episodes];
