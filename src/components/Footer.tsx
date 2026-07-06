@@ -1,4 +1,5 @@
-import { Film, Github, ShieldAlert, Heart, Info, Globe } from 'lucide-react';
+import { Film, Github, ShieldAlert, Heart, Info, Globe, Mail } from 'lucide-react';
+import { SiFacebook, SiTiktok, SiThreads, SiInstagram } from 'react-icons/si';
 
 interface FooterProps {
   onNavigate: (route: string) => void;
@@ -35,6 +36,12 @@ export default function Footer({ onNavigate }: FooterProps) {
               <span onClick={() => onNavigate('phim-le')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Phim Lẻ Bản Đẹp</span>
               <span onClick={() => onNavigate('phim-bo')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Phim Bộ Trọn Bộ</span>
               <span onClick={() => onNavigate('tai-khoan')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Lịch Sử Xem</span>
+              <span 
+                onClick={() => window.dispatchEvent(new Event('open-donation-modal'))} 
+                className="text-xs text-rose-400 hover:text-rose-300 font-bold cursor-pointer transition-colors flex items-center gap-1 mt-1"
+              >
+                ❤️ Ủng hộ nhà phát triển
+              </span>
             </div>
           </div>
 
@@ -61,6 +68,66 @@ export default function Footer({ onNavigate }: FooterProps) {
               <span onClick={() => onNavigate('download/beta/ios')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Beta iOS</span>
               <span onClick={() => onNavigate('download/beta/android')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Beta Android</span>
             </div>
+          </div>
+        </div>
+
+        {/* Social Media Connections Section */}
+        <div className="border-t border-zinc-900/60 pb-12 pt-10 flex flex-col items-center justify-center gap-6">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-zinc-400 select-none">
+              Kênh Cộng Đồng &amp; Mạng Xã Hội
+            </h4>
+            <a 
+              href="mailto:muahakhongcoem@proton.me" 
+              className="text-xs text-zinc-400 hover:text-rose-400 font-sans flex items-center gap-1.5 mt-1 transition-colors select-text cursor-pointer bg-zinc-950/40 border border-zinc-900 px-3 py-1.5 rounded-xl hover:border-zinc-800"
+            >
+              <Mail size={12} className="text-zinc-500 animate-pulse" />
+              <span>Email: <strong className="font-bold text-zinc-300 hover:text-rose-400">muahakhongcoem@proton.me</strong></span>
+            </a>
+          </div>
+          
+          <div className="flex flex-wrap items-center justify-center gap-3.5 sm:gap-4">
+            {[
+              {
+                name: 'Facebook',
+                href: 'https://www.facebook.com/missyourvoice.zz',
+                color: 'hover:bg-[#1877F2] hover:text-white hover:border-[#1877F2]/50 text-zinc-100 bg-[#1A1A24]',
+                glow: 'shadow-[0_0_15px_rgba(24,119,242,0.4)]',
+                icon: <SiFacebook size={20} />
+              },
+              {
+                name: 'TikTok',
+                href: 'https://www.tiktok.com/@abcxyzconmeokeusao',
+                color: 'hover:bg-black hover:text-[#00f2fe] hover:border-zinc-700 text-zinc-100 bg-[#1A1A24]',
+                glow: 'shadow-[0_0_15px_rgba(0,242,254,0.3)]',
+                icon: <SiTiktok size={20} />
+              },
+              {
+                name: 'Threads',
+                href: 'https://www.threads.net/@ur.brace',
+                color: 'hover:bg-zinc-100 hover:text-black hover:border-zinc-300 text-zinc-100 bg-[#1A1A24]',
+                glow: 'shadow-[0_0_15px_rgba(255,255,255,0.3)]',
+                icon: <SiThreads size={20} />
+              },
+              {
+                name: 'Instagram',
+                href: 'https://www.instagram.com/ur.brace/',
+                color: 'hover:bg-[#E1306C] hover:text-white hover:border-[#E1306C]/50 text-zinc-100 bg-[#1A1A24]',
+                glow: 'shadow-[0_0_15px_rgba(225,48,108,0.4)]',
+                icon: <SiInstagram size={20} />
+              }
+            ].map((social) => (
+              <a
+                key={social.name}
+                href={social.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={social.name}
+                className={`w-12 h-12 rounded-full border border-zinc-800/80 flex items-center justify-center transition-all duration-300 hover:scale-[1.12] active:scale-95 ${social.color} hover:${social.glow} cursor-pointer`}
+              >
+                {social.icon}
+              </a>
+            ))}
           </div>
         </div>
 

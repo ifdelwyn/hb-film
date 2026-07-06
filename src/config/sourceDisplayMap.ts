@@ -10,6 +10,8 @@ export const SOURCE_DISPLAY_MAP: Record<string, string> = {
   "OPhim": "FilmFlow Vietsub #1",
   "KKPhim": "FilmFlow Vietsub #2",
   "AnimeHub": "FilmFlow Anime HD",
+  "NguonC": "FilmFlow Vietsub #4",
+  "NguonPhim": "FilmFlow Vietsub #5",
   "Server VIP": "FilmFlow Premium",
   "Server Gốc": "Server Alpha",
   "Netflix Proxy": "Server Beta",

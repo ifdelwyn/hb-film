@@ -10,7 +10,8 @@ import {
   RotateCw, 
   Monitor, 
   ShieldAlert,
-  SkipForward
+  SkipForward,
+  Clapperboard
 } from 'lucide-react';
 import Hls from 'hls.js';
 
@@ -27,6 +28,8 @@ interface VideoPlayerProps {
   onLocalPause?: (currentTime: number) => void;
   onLocalSeek?: (currentTime: number) => void;
   externalPlayState?: { isPlaying: boolean; currentTime: number; lastUpdated: number } | null;
+  isTheaterMode?: boolean;
+  onToggleTheaterMode?: () => void;
 }
 
 export default function VideoPlayer({ 
@@ -40,7 +43,9 @@ export default function VideoPlayer({
   onLocalPlay,
   onLocalPause,
   onLocalSeek,
-  externalPlayState
+  externalPlayState,
+  isTheaterMode = false,
+  onToggleTheaterMode
 }: VideoPlayerProps) {
   const [playerType, setPlayerType] = useState<'embed' | 'native'>('embed');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -62,6 +67,9 @@ export default function VideoPlayer({
 
   // Custom indicator state for volume changes
   const [volumeIndicator, setVolumeIndicator] = useState<{ visible: boolean; value: number } | null>(null);
+
+  // Active keyboard button visual feedback indicator
+  const [activeButton, setActiveButton] = useState<string | null>(null);
 
   // Hover seeking state for desktop progress bar
   const [hoverTime, setHoverTime] = useState<number | null>(null);
@@ -406,7 +414,15 @@ export default function VideoPlayer({
       if (indicatorTimeoutRef.current) window.clearTimeout(indicatorTimeoutRef.current);
       indicatorTimeoutRef.current = window.setTimeout(() => {
         setVolumeIndicator(null);
-      }, 1000);
+      }, 2000);
+    };
+
+    const triggerButtonFeedback = (buttonId: string) => {
+      setActiveButton(buttonId);
+      const timer = setTimeout(() => {
+        setActiveButton(null);
+      }, 200);
+      return timer;
     };
 
     const handleHotkeys = (e: KeyboardEvent) => {
@@ -418,14 +434,17 @@ export default function VideoPlayer({
         case ' ':
           e.preventDefault();
           togglePlay();
+          triggerButtonFeedback('play');
           break;
         case 'f':
           e.preventDefault();
           toggleFullscreen();
+          triggerButtonFeedback('fullscreen');
           break;
         case 'm':
           e.preventDefault();
           toggleMute();
+          triggerButtonFeedback('mute');
           break;
         case 'arrowleft':
           if (videoRef.current) {
@@ -434,6 +453,7 @@ export default function VideoPlayer({
             videoRef.current.currentTime = nextTime;
             setCurrentTime(nextTime);
             onLocalSeek?.(nextTime);
+            triggerButtonFeedback('backward');
           }
           break;
         case 'arrowright':
@@ -443,25 +463,30 @@ export default function VideoPlayer({
             videoRef.current.currentTime = nextTime;
             setCurrentTime(nextTime);
             onLocalSeek?.(nextTime);
+            triggerButtonFeedback('forward');
           }
           break;
         case 'arrowup':
           e.preventDefault();
-          setVolume(prev => {
-            const next = Math.min(1, prev + 0.05);
-            if (videoRef.current) videoRef.current.volume = next;
-            showHUD(next);
-            return next;
-          });
+          if (videoRef.current) {
+            const nextVolume = Math.min(1, videoRef.current.volume + 0.05);
+            videoRef.current.volume = nextVolume;
+            setVolume(nextVolume);
+            setIsMuted(nextVolume === 0);
+            showHUD(nextVolume);
+            triggerButtonFeedback('volume');
+          }
           break;
         case 'arrowdown':
           e.preventDefault();
-          setVolume(prev => {
-            const next = Math.max(0, prev - 0.05);
-            if (videoRef.current) videoRef.current.volume = next;
-            showHUD(next);
-            return next;
-          });
+          if (videoRef.current) {
+            const nextVolume = Math.max(0, videoRef.current.volume - 0.05);
+            videoRef.current.volume = nextVolume;
+            setVolume(nextVolume);
+            setIsMuted(nextVolume === 0);
+            showHUD(nextVolume);
+            triggerButtonFeedback('volume');
+          }
           break;
       }
     };
@@ -667,7 +692,11 @@ export default function VideoPlayer({
                 {/* [ Play/Pause ] */}
                 <button 
                   onClick={togglePlay} 
-                  className="text-white hover:text-[#E63946] transition-colors cursor-pointer shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  className={`cursor-pointer shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-white/5 active:scale-90 transition-all duration-150 ${
+                    activeButton === 'play' 
+                      ? 'scale-90 text-[#E63946] bg-white/10 shadow-[0_0_15px_rgba(230,57,70,0.6)]' 
+                      : 'text-white hover:text-[#E63946]'
+                  }`}
                 >
                   {isPlaying ? (
                     <Pause size={isFullscreen ? 22 : 18} fill="currentColor" />
@@ -678,12 +707,12 @@ export default function VideoPlayer({
 
                 {/* [ Tua -10s ] */}
                 <button 
-                  onClick={() => {
-                    if (videoRef.current) {
-                      videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
-                    }
-                  }} 
-                  className="text-zinc-350 hover:text-white transition-colors cursor-pointer shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  onClick={() => seekRelative(-10)} 
+                  className={`cursor-pointer shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-white/5 active:scale-90 transition-all duration-150 ${
+                    activeButton === 'backward' 
+                      ? 'scale-90 text-[#E63946] bg-white/10 shadow-[0_0_15px_rgba(230,57,70,0.6)] border border-[#E63946]/30' 
+                      : 'text-zinc-350 hover:text-white'
+                  }`}
                   title="Tua lùi 10s"
                 >
                   <RotateCcw size={isFullscreen ? 20 : 16} />
@@ -691,12 +720,12 @@ export default function VideoPlayer({
 
                 {/* [ Tua +10s ] */}
                 <button 
-                  onClick={() => {
-                    if (videoRef.current) {
-                      videoRef.current.currentTime = Math.min(duration, videoRef.current.currentTime + 10);
-                    }
-                  }} 
-                  className="text-zinc-350 hover:text-white transition-colors cursor-pointer shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  onClick={() => seekRelative(10)} 
+                  className={`cursor-pointer shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-white/5 active:scale-90 transition-all duration-150 ${
+                    activeButton === 'forward' 
+                      ? 'scale-90 text-[#E63946] bg-white/10 shadow-[0_0_15px_rgba(230,57,70,0.6)] border border-[#E63946]/30' 
+                      : 'text-zinc-350 hover:text-white'
+                  }`}
                   title="Tua tiến 10s"
                 >
                   <RotateCw size={isFullscreen ? 20 : 16} />
@@ -751,7 +780,11 @@ export default function VideoPlayer({
                 <div className="flex items-center gap-1.5 group/volume shrink-0 relative">
                   <button 
                     onClick={toggleMute} 
-                    className="text-zinc-200 hover:text-white transition-colors cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center"
+                    className={`cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-white/5 active:scale-90 transition-all duration-150 ${
+                      activeButton === 'mute' || activeButton === 'volume'
+                        ? 'scale-90 text-[#E63946] bg-white/10 shadow-[0_0_15px_rgba(230,57,70,0.6)]' 
+                        : 'text-zinc-200 hover:text-white'
+                    }`}
                   >
                     {isMuted || volume === 0 ? (
                       <VolumeX size={isFullscreen ? 21 : 17} />
@@ -814,6 +847,24 @@ export default function VideoPlayer({
                   )}
                 </div>
 
+                {/* [ Chế độ xem rạp ] */}
+                {onToggleTheaterMode && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleTheaterMode();
+                    }} 
+                    className={`cursor-pointer shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-white/5 active:scale-90 transition-all duration-150 ${
+                      isTheaterMode 
+                        ? 'scale-90 text-[#E63946] bg-white/10 shadow-[0_0_15px_rgba(230,57,70,0.6)]' 
+                        : 'text-zinc-200 hover:text-white'
+                    }`}
+                    title={isTheaterMode ? "Thoát chế độ rạp" : "Chế độ xem rạp"}
+                  >
+                    <Clapperboard size={isFullscreen ? 20 : 16} className={isTheaterMode ? "text-[#E63946]" : ""} />
+                  </button>
+                )}
+
                 {/* [ PiP (Picture-in-Picture) ] */}
                 <button 
                   onClick={togglePiP} 
@@ -826,7 +877,11 @@ export default function VideoPlayer({
                 {/* [ Fullscreen ] */}
                 <button 
                   onClick={toggleFullscreen} 
-                  className="text-zinc-200 hover:text-white transition-colors cursor-pointer shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  className={`cursor-pointer shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-white/5 active:scale-90 transition-all duration-150 ${
+                    activeButton === 'fullscreen' 
+                      ? 'scale-90 text-[#E63946] bg-white/10 shadow-[0_0_15px_rgba(230,57,70,0.6)]' 
+                      : 'text-zinc-200 hover:text-white'
+                  }`}
                   title="Toàn màn hình"
                 >
                   {isFullscreen ? (

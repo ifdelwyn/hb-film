@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { fetchMovieDetail } from '../lib/api/vsmov';
 import { Movie, EpisodeServer, EpisodeData } from '../types/movie';
 import { useWatchHistory } from '../lib/hooks/useWatchHistory';
 import VideoPlayer from '../components/VideoPlayer';
-import { Play, Tv, ChevronRight, HelpCircle, Flame, Star, Compass, ArrowLeft } from 'lucide-react';
+import { Play, Tv, ChevronRight, HelpCircle, Flame, Star, Compass, ArrowLeft, Sparkles } from 'lucide-react';
 import { getCustomSourceName } from '../config/sourceDisplayMap';
 
 interface WatchScreenProps {
@@ -46,6 +46,84 @@ export default function WatchScreen({
   const [isJoiningRoom, setIsJoiningRoom] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [lastExternalEvent, setLastExternalEvent] = useState<{ isPlaying: boolean; currentTime: number; lastUpdated: number } | null>(null);
+
+  // Theater Mode state
+  const [isTheaterMode, setIsTheaterMode] = useState(false);
+
+  // AI recommendations states
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [recPrompt, setRecPrompt] = useState('');
+  const [isRecLoading, setIsRecLoading] = useState(false);
+  const [isAiGenerated, setIsAiGenerated] = useState(false);
+
+  // Fetch initial recommendations on load
+  useEffect(() => {
+    const fetchInitialRecs = async () => {
+      setIsRecLoading(true);
+      try {
+        const res = await fetch('/api/recommend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            currentMovieSlug: slug,
+            currentMovie: movie ? {
+              name: movie.name,
+              origin_name: movie.origin_name,
+              content: movie.content,
+              category: movie.category,
+              type: movie.type,
+              year: movie.year
+            } : null
+          })
+        }).then(r => r.json());
+
+        if (res.status && res.items) {
+          setRecommendations(res.items);
+          setIsAiGenerated(res.isAiGenerated);
+        }
+      } catch (err) {
+        console.error('Failed to fetch recommendations:', err);
+      } finally {
+        setIsRecLoading(false);
+      }
+    };
+    if (slug && movie && movie.slug === slug) {
+      fetchInitialRecs();
+    }
+  }, [slug, movie]);
+
+  const handleCustomRec = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isRecLoading || !movie) return;
+    setIsRecLoading(true);
+    try {
+      const res = await fetch('/api/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          currentMovieSlug: slug,
+          currentMovie: {
+            name: movie.name,
+            origin_name: movie.origin_name,
+            content: movie.content,
+            category: movie.category,
+            type: movie.type,
+            year: movie.year
+          },
+          userPrompt: recPrompt.trim()
+        })
+      }).then(r => r.json());
+
+      if (res.status && res.items) {
+        setRecommendations(res.items);
+        setIsAiGenerated(res.isAiGenerated);
+      }
+    } catch (err) {
+      console.error('Failed to fetch custom recommendations:', err);
+    } finally {
+      setIsRecLoading(false);
+    }
+  };
 
   const [userId] = useState(() => {
     let id = localStorage.getItem('watch_party_user_id');
@@ -275,35 +353,57 @@ export default function WatchScreen({
   const currentServerList = episodes[activeServerIdx]?.server_data || [];
 
   return (
-    <div className="w-full min-h-screen bg-black text-white pt-20 pb-20 select-none font-sans">
-      <div className="max-w-7xl mx-auto px-4 md:px-8">
+    <div className={`w-full min-h-screen bg-black text-white select-none font-sans transition-all duration-300 ${isTheaterMode ? 'pt-0 pb-12' : 'pt-20 pb-20'}`}>
+      {isTheaterMode && (
+        <style>{`
+          header, footer, .global-header, .global-footer {
+            display: none !important;
+          }
+        `}</style>
+      )}
+
+      {isTheaterMode && (
+        <div className="absolute top-4 left-4 z-40 flex items-center gap-2">
+          <button
+            onClick={() => setIsTheaterMode(false)}
+            className="px-4 py-2 bg-black/80 hover:bg-[#E63946] border border-zinc-850 hover:border-transparent rounded-xl text-xs font-black uppercase text-white cursor-pointer transition-all shadow-2xl flex items-center gap-1.5"
+          >
+            <ArrowLeft size={12} />
+            <span>Thoát Chế Độ Rạp</span>
+          </button>
+        </div>
+      )}
+
+      <div className={`${isTheaterMode ? 'max-w-full px-0' : 'max-w-7xl mx-auto px-4 md:px-8'}`}>
         
         {/* Navigation Breadcrumb Back trigger */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 select-none border-b border-zinc-900/80 pb-4">
-          <button 
-            onClick={onBack}
-            className="group flex items-center gap-2.5 px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-900 border border-zinc-900 hover:border-[var(--color-brand)]/45 text-zinc-400 hover:text-white transition-all duration-300 cursor-pointer shadow-[0_4px_12px_rgba(0,0,0,0.5)] active:scale-95"
-          >
-            <ArrowLeft size={16} className="text-zinc-500 group-hover:text-[var(--color-brand)] transition-all group-hover:-translate-x-1 duration-300" />
-            <span className="text-xs font-extrabold uppercase tracking-widest">Quay Lại</span>
-          </button>
-          
-          <div className="flex items-center gap-2 text-xs font-semibold text-zinc-400">
-            <span className="hover:text-white transition-colors cursor-pointer" onClick={onBack}>Trang Trước</span>
-            <ChevronRight size={12} className="text-zinc-600" />
-            <span className="hover:text-white transition-colors cursor-pointer" onClick={() => onNavigateToDetail(movie.slug)}>
-              {movie.name}
-            </span>
-            <ChevronRight size={12} className="text-zinc-600" />
-            <span className="text-[var(--color-brand)] font-bold bg-[var(--color-brand)]/10 py-1 px-2.5 rounded-md border border-[var(--color-brand)]/15">Đang Xem</span>
+        {!isTheaterMode && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 select-none border-b border-zinc-900/80 pb-4">
+            <button 
+              onClick={onBack}
+              className="group flex items-center gap-2.5 px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-900 border border-zinc-900 hover:border-[var(--color-brand)]/45 text-zinc-400 hover:text-white transition-all duration-300 cursor-pointer shadow-[0_4px_12px_rgba(0,0,0,0.5)] active:scale-95"
+            >
+              <ArrowLeft size={16} className="text-zinc-500 group-hover:text-[var(--color-brand)] transition-all group-hover:-translate-x-1 duration-300" />
+              <span className="text-xs font-extrabold uppercase tracking-widest">Quay Lại</span>
+            </button>
+            
+            <div className="flex items-center gap-2 text-xs font-semibold text-zinc-400">
+              <span className="hover:text-white transition-colors cursor-pointer" onClick={onBack}>Trang Trước</span>
+              <ChevronRight size={12} className="text-zinc-600" />
+              <span className="hover:text-white transition-colors cursor-pointer" onClick={() => onNavigateToDetail(movie.slug)}>
+                {movie.name}
+              </span>
+              <ChevronRight size={12} className="text-zinc-600" />
+              <span className="text-[var(--color-brand)] font-bold bg-[var(--color-brand)]/10 py-1 px-2.5 rounded-md border border-[var(--color-brand)]/15">Đang Xem</span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* 4A-4B. CUSTOM HYBRID VIDEO PLAYER MOUNTED */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-start">
-          <div className={`${roomId ? 'lg:col-span-8 xl:col-span-9' : 'lg:col-span-12'} flex flex-col gap-4`}>
+        <div className={`grid grid-cols-1 ${isTheaterMode ? 'lg:grid-cols-1' : 'lg:grid-cols-12'} gap-6 mb-8 items-start`}>
+          <div className={`${(isTheaterMode || !roomId) ? 'lg:col-span-12' : 'lg:col-span-8 xl:col-span-9'} flex flex-col gap-4`}>
             {activeEpisode ? (
-              <div className="shadow-3xl bg-black rounded-2xl overflow-hidden relative border border-zinc-900">
+              <div className={`shadow-3xl bg-black overflow-hidden relative border border-zinc-900 ${isTheaterMode ? 'rounded-none' : 'rounded-2xl'}`}>
                 <VideoPlayer
                   key={`movie-player-${activeEpisode.link_embed || activeEpisode.slug || 'player'}`}
                   embedUrl={activeEpisode.link_embed}
@@ -346,6 +446,8 @@ export default function WatchScreen({
                     }
                   }}
                   externalPlayState={lastExternalEvent}
+                  isTheaterMode={isTheaterMode}
+                  onToggleTheaterMode={() => setIsTheaterMode(prev => !prev)}
                 />
               </div>
             ) : (
@@ -405,7 +507,7 @@ export default function WatchScreen({
           </div>
 
           {/* Chat Sidebar Panel */}
-          {roomId && (
+          {roomId && !isTheaterMode && (
             <div className="lg:col-span-4 xl:col-span-3 flex flex-col bg-zinc-950 border border-zinc-900 rounded-2xl overflow-hidden shadow-2xl h-[400px] lg:h-[450px] xl:h-[480px]">
               {/* Header */}
               <div className="px-4 py-3 bg-zinc-900/60 border-b border-zinc-900 flex items-center justify-between">
@@ -509,194 +611,305 @@ export default function WatchScreen({
         </div>
 
         {/* 4C. SERVER SELECTOR PORT / GATE SELECT */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
-          
-          {/* Broad description, tags */}
-          <div className="lg:col-span-8 flex flex-col gap-6">
-            <div>
-              <span className="text-[10px] text-[var(--color-brand)] font-bold tracking-widest uppercase mb-1 block">
-                🎬 ĐANG PHÁT TRỰC TUYẾN
-              </span>
-              <h2 className="text-xl sm:text-2xl font-extrabold sm:font-black tracking-tighter text-white drop-shadow">
-                {movie.name} {activeEpisode && (<span>— <span className="text-[var(--color-brand)] font-black">Tập {activeEpisode.name}</span></span>)}
-              </h2>
-              <p className="text-xs text-zinc-500 font-medium font-sans mt-1">
-                {movie.origin_name} • {movie.quality} • {movie.lang} • Lượt xem: {movie.view.toLocaleString()} views
-              </p>
-            </div>
-
-            {/* Servers listing tags: Thiết kế Netflix-style, bo góc 999px, nền đỏ gradient, font Plus Jakarta Sans SemiBold, hover sáng nhẹ */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3.5 p-4 rounded-2xl bg-[#12121A]/50 border border-zinc-900 shadow-xl backdrop-blur-sm transition-all">
-              <span className="text-xs font-black text-zinc-300 uppercase tracking-widest flex items-center gap-1.5 shrink-0 select-none">
-                <Flame size={14} className="text-[#E63946] animate-pulse fill-[#E63946]/10" />
-                Nguồn phát:
-              </span>
-              
-              <div className="flex flex-wrap gap-2.5">
-                {episodes.map((svr, idx) => {
-                  const customName = getCustomSourceName(svr.server_name, idx);
-                  const isActive = activeServerIdx === idx;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setActiveServerIdx(idx);
-                        // Reset to first episode of that server, matching same episode if possible
-                        const otherServerList = episodes[idx]?.server_data || [];
-                        const matchingep = otherServerList.find(e => e.slug === activeEpisode?.slug);
-                        setActiveEpisode(matchingep || otherServerList[0]);
-                      }}
-                      className={`text-xs px-5 py-2.5 rounded-[999px] font-semibold tracking-wide transition-all duration-300 transform hover:scale-[1.03] cursor-pointer ${
-                        isActive 
-                          ? 'bg-gradient-to-r from-[#E63946] to-[#C1121F] text-white font-semibold border-none shadow-[0_0_15px_rgba(230,57,70,0.4)] hover:brightness-110' 
-                          : 'bg-zinc-900 hover:bg-zinc-850 text-zinc-400 hover:text-zinc-200 border border-zinc-800 hover:border-zinc-700'
-                      }`}
-                    >
-                      {customName}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Watch Party Launcher Section */}
-            {!roomId && (
-              <div className="p-5 rounded-2xl bg-[#12121A]/85 border border-zinc-900 shadow-xl backdrop-blur-md flex flex-col md:flex-row items-center justify-between gap-6 transition-all hover:border-zinc-800/60">
-                <div className="text-left flex-1">
-                  <div className="flex items-center gap-1.5 text-[var(--color-brand)] font-black text-[10px] tracking-widest uppercase mb-1">
-                    <span className="flex h-2 w-2 relative">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                    </span>
-                    TÍNH NĂNG XEM CHUNG MỚI
-                  </div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-tight">CÙNG XEM CHUNG VỚI BẠN BÈ</h3>
-                  <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                    Bắt đầu một buổi xem chung thời gian thực! Đồng bộ hoàn toàn Play, Pause, Tua thời gian và trò chuyện trực tiếp cùng mọi người.
-                  </p>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 w-full md:w-auto">
-                  <div className="flex flex-col gap-1 w-full sm:w-[150px]">
-                    <span className="text-[9px] font-extrabold text-zinc-500 uppercase tracking-widest block ml-1">Biệt danh của bạn</span>
-                    <input
-                      type="text"
-                      placeholder="Biệt danh..."
-                      value={partyUsername}
-                      onChange={(e) => {
-                        setPartyUsername(e.target.value);
-                        localStorage.setItem('watch_party_username', e.target.value);
-                      }}
-                      className="bg-zinc-950 border border-zinc-850 hover:border-zinc-800 text-xs px-3 py-2 rounded-xl text-white outline-none font-bold"
-                    />
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-2.5 items-stretch h-full mt-auto">
-                    <button
-                      onClick={() => {
-                        const randomCode = 'WP-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-                        setRoomId(randomCode);
-                        window.location.hash = `#/xem/${movie?.slug}?tap=${activeEpisode?.slug || ''}&server=${activeServerIdx}&room=${randomCode}`;
-                      }}
-                      className="px-5 py-2.5 bg-gradient-to-r from-[#E63946] to-[#C1121F] text-white hover:brightness-110 text-xs font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-red-650/20 cursor-pointer text-center"
-                    >
-                      🎉 Tạo Phòng Mới
-                    </button>
-
-                    <div className="flex items-center gap-1.5 border border-zinc-800 rounded-xl bg-zinc-950 p-1">
-                      <input
-                        type="text"
-                        placeholder="Mã phòng..."
-                        id="watch-party-join-code-input"
-                        className="bg-transparent border-none text-xs px-2 py-1.5 text-white outline-none w-[90px] uppercase font-bold font-mono"
-                      />
-                      <button
-                        onClick={async () => {
-                          const input = document.getElementById('watch-party-join-code-input') as HTMLInputElement;
-                          const code = input?.value?.trim()?.toUpperCase();
-                          if (!code) return;
-
-                          setIsJoiningRoom(true);
-                          try {
-                            const res = await fetch(`/api/watch-party/room/${code}`).then(r => r.json());
-                            if (res.status && res.room) {
-                              setRoomId(code);
-                              window.location.hash = `#/xem/${res.room.movieSlug}?tap=${res.room.episodeSlug}&server=${activeServerIdx}&room=${code}`;
-                            } else {
-                              alert('Không tìm thấy phòng xem chung hoặc phòng đã hết hạn!');
-                            }
-                          } catch (err) {
-                            alert('Lỗi khi tham gia phòng xem chung. Vui lòng thử lại!');
-                          } finally {
-                            setIsJoiningRoom(false);
-                          }
-                        }}
-                        disabled={isJoiningRoom}
-                        className="px-3.5 py-1.5 bg-zinc-900 hover:bg-zinc-850 text-white text-xs font-black rounded-lg cursor-pointer transition-all active:scale-95 border border-zinc-850"
-                      >
-                        {isJoiningRoom ? 'Đang vào...' : 'Vào'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* General Description content dropdown list */}
-            <div className="flex flex-col gap-2 font-sans text-xs sm:text-sm">
-              <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-zinc-900 pb-2 mb-2">
-                <Compass size={14} className="text-[var(--color-brand)]" />
-                Cốt truyện tiêu điểm
-              </h3>
-              <p className="text-zinc-400 leading-relaxed font-sans">{movie.content}</p>
-            </div>
-
-          </div>
-
-          {/* Collapsible Sidebar playlists episodes select */}
-          <div className="lg:col-span-4 bg-[var(--color-bg-elevated)] border border-zinc-900 rounded-2xl p-5 select-none h-fit">
-            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-zinc-900 pb-3 mb-4">
-              <Tv size={14} className="text-[var(--color-brand)]" />
-              Danh Sách Tập Phim
-            </h3>
-
-            {currentServerList.length === 0 ? (
-              <p className="text-xs text-zinc-500 text-center font-medium py-10">Kênh truyền tải chưa cập nhật tập phim nào.</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <p className="text-[11px] text-zinc-500 mb-1 leading-normal">
-                  Bạn đang xem: <span className="text-white font-extrabold font-sans">{episodes[activeServerIdx] ? getCustomSourceName(episodes[activeServerIdx].server_name, activeServerIdx) : 'N/A'}</span>
+        {!isTheaterMode && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
+            
+            {/* Broad description, tags */}
+            <div className="lg:col-span-8 flex flex-col gap-6">
+              <div>
+                <span className="text-[10px] text-[var(--color-brand)] font-bold tracking-widest uppercase mb-1 block">
+                  🎬 ĐANG PHÁT TRỰC TUYẾN
+                </span>
+                <h2 className="text-xl sm:text-2xl font-extrabold sm:font-black tracking-tighter text-white drop-shadow">
+                  {movie.name} {activeEpisode && (<span>— <span className="text-[var(--color-brand)] font-black">Tập {activeEpisode.name}</span></span>)}
+                </h2>
+                <p className="text-xs text-zinc-500 font-medium font-sans mt-1">
+                  {movie.origin_name} • {movie.quality} • {movie.lang} • Lượt xem: {movie.view.toLocaleString()} views
                 </p>
+              </div>
 
-                {/* Episodes button grid list */}
-                <div className="grid grid-cols-4 gap-2.5 max-h-[300px] overflow-y-auto pr-1 no-scrollbar">
-                  {currentServerList.map((ep, idx) => {
-                    const isWatching = activeEpisode && activeEpisode.slug === ep.slug;
+              {/* Servers listing tags: Thiết kế Netflix-style, bo góc 999px, nền đỏ gradient, font Plus Jakarta Sans SemiBold, hover sáng nhẹ */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3.5 p-4 rounded-2xl bg-[#12121A]/50 border border-zinc-900 shadow-xl backdrop-blur-sm transition-all">
+                <span className="text-xs font-black text-zinc-300 uppercase tracking-widest flex items-center gap-1.5 shrink-0 select-none">
+                  <Flame size={14} className="text-[#E63946] animate-pulse fill-[#E63946]/10" />
+                  Nguồn phát:
+                </span>
+                
+                <div className="flex flex-wrap gap-2.5">
+                  {episodes.map((svr, idx) => {
+                    const customName = getCustomSourceName(svr.server_name, idx);
+                    const isActive = activeServerIdx === idx;
                     return (
                       <button
-                        key={`${ep.slug}-${idx}`}
-                        id={`btn-ep-watch-select-${ep.slug}`}
+                        key={idx}
                         onClick={() => {
-                          setActiveEpisode(ep);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                          setActiveServerIdx(idx);
+                          // Reset to first episode of that server, matching same episode if possible
+                          const otherServerList = episodes[idx]?.server_data || [];
+                          const matchingep = otherServerList.find(e => e.slug === activeEpisode?.slug);
+                          setActiveEpisode(matchingep || otherServerList[0]);
                         }}
-                        className={`text-xs p-2 rounded-md font-black text-center border cursor-pointer transition-all ${
-                          isWatching 
-                            ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] shadow-lg shadow-red-650/15' 
-                            : 'bg-zinc-900 text-zinc-400 hover:text-white border-zinc-800 hover:border-zinc-700'
+                        className={`text-xs px-5 py-2.5 rounded-[999px] font-semibold tracking-wide transition-all duration-300 transform hover:scale-[1.03] cursor-pointer ${
+                          isActive 
+                            ? 'bg-gradient-to-r from-[#E63946] to-[#C1121F] text-white font-semibold border-none shadow-[0_0_15px_rgba(230,57,70,0.4)] hover:brightness-110' 
+                            : 'bg-zinc-900 hover:bg-zinc-850 text-zinc-400 hover:text-zinc-200 border border-zinc-800 hover:border-zinc-700'
                         }`}
                       >
-                        {ep.name}
+                        {customName}
                       </button>
                     );
                   })}
                 </div>
               </div>
-            )}
+
+              {/* Watch Party Launcher Section */}
+              {!roomId && (
+                <div className="p-5 rounded-2xl bg-[#12121A]/85 border border-zinc-900 shadow-xl backdrop-blur-md flex flex-col md:flex-row items-center justify-between gap-6 transition-all hover:border-zinc-800/60">
+                  <div className="text-left flex-1">
+                    <div className="flex items-center gap-1.5 text-[var(--color-brand)] font-black text-[10px] tracking-widest uppercase mb-1">
+                      <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                      </span>
+                      TÍNH NĂNG XEM CHUNG MỚI
+                    </div>
+                    <h3 className="text-sm font-black text-white uppercase tracking-tight">CÙNG XEM CHUNG VỚI BẠN BÈ</h3>
+                    <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                      Bắt đầu một buổi xem chung thời gian thực! Đồng bộ hoàn toàn Play, Pause, Tua thời gian và trò chuyện trực tiếp cùng mọi người.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 w-full md:w-auto">
+                    <div className="flex flex-col gap-1 w-full sm:w-[150px]">
+                      <span className="text-[9px] font-extrabold text-zinc-500 uppercase tracking-widest block ml-1">Biệt danh của bạn</span>
+                      <input
+                        type="text"
+                        placeholder="Biệt danh..."
+                        value={partyUsername}
+                        onChange={(e) => {
+                          setPartyUsername(e.target.value);
+                          localStorage.setItem('watch_party_username', e.target.value);
+                        }}
+                        className="bg-zinc-950 border border-zinc-850 hover:border-zinc-800 text-xs px-3 py-2 rounded-xl text-white outline-none font-bold"
+                      />
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2.5 items-stretch h-full mt-auto">
+                      <button
+                        onClick={() => {
+                          const randomCode = 'WP-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+                          setRoomId(randomCode);
+                          window.location.hash = `#/xem/${movie?.slug}?tap=${activeEpisode?.slug || ''}&server=${activeServerIdx}&room=${randomCode}`;
+                        }}
+                        className="px-5 py-2.5 bg-gradient-to-r from-[#E63946] to-[#C1121F] text-white hover:brightness-110 text-xs font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-red-650/20 cursor-pointer text-center"
+                      >
+                        🎉 Tạo Phòng Mới
+                      </button>
+
+                      <div className="flex items-center gap-1.5 border border-zinc-800 rounded-xl bg-zinc-950 p-1">
+                        <input
+                          type="text"
+                          placeholder="Mã phòng..."
+                          id="watch-party-join-code-input"
+                          className="bg-transparent border-none text-xs px-2 py-1.5 text-white outline-none w-[90px] uppercase font-bold font-mono"
+                        />
+                        <button
+                          onClick={async () => {
+                            const input = document.getElementById('watch-party-join-code-input') as HTMLInputElement;
+                            const code = input?.value?.trim()?.toUpperCase();
+                            if (!code) return;
+
+                            setIsJoiningRoom(true);
+                            try {
+                              const res = await fetch(`/api/watch-party/room/${code}`).then(r => r.json());
+                              if (res.status && res.room) {
+                                setRoomId(code);
+                                window.location.hash = `#/xem/${res.room.movieSlug}?tap=${res.room.episodeSlug}&server=${activeServerIdx}&room=${code}`;
+                              } else {
+                                alert('Không tìm thấy phòng xem chung hoặc phòng đã hết hạn!');
+                              }
+                            } catch (err) {
+                              alert('Lỗi khi tham gia phòng xem chung. Vui lòng thử lại!');
+                            } finally {
+                              setIsJoiningRoom(false);
+                            }
+                          }}
+                          disabled={isJoiningRoom}
+                          className="px-3.5 py-1.5 bg-zinc-900 hover:bg-zinc-850 text-white text-xs font-black rounded-lg cursor-pointer transition-all active:scale-95 border border-zinc-850"
+                        >
+                          {isJoiningRoom ? 'Đang vào...' : 'Vào'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* General Description content dropdown list */}
+              <div className="flex flex-col gap-2 font-sans text-xs sm:text-sm">
+                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-zinc-900 pb-2 mb-2">
+                  <Compass size={14} className="text-[var(--color-brand)]" />
+                  Cốt truyện tiêu điểm
+                </h3>
+                <p className="text-zinc-400 leading-relaxed font-sans">{movie.content}</p>
+              </div>
+
+            </div>
+
+            {/* Collapsible Sidebar playlists episodes select */}
+            <div className="lg:col-span-4 bg-[var(--color-bg-elevated)] border border-zinc-900 rounded-2xl p-5 select-none h-fit">
+              <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-zinc-900 pb-3 mb-4">
+                <Tv size={14} className="text-[var(--color-brand)]" />
+                Danh Sách Tập Phim
+              </h3>
+
+              {currentServerList.length === 0 ? (
+                <p className="text-xs text-zinc-500 text-center font-medium py-10">Kênh truyền tải chưa cập nhật tập phim nào.</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <p className="text-[11px] text-zinc-500 mb-1 leading-normal">
+                    Bạn đang xem: <span className="text-white font-extrabold font-sans">{episodes[activeServerIdx] ? getCustomSourceName(episodes[activeServerIdx].server_name, activeServerIdx) : 'N/A'}</span>
+                  </p>
+
+                  {/* Episodes button grid list */}
+                  <div className="grid grid-cols-4 gap-2.5 max-h-[300px] overflow-y-auto pr-1 no-scrollbar">
+                    {currentServerList.map((ep, idx) => {
+                      const isWatching = activeEpisode && activeEpisode.slug === ep.slug;
+                      return (
+                        <button
+                          key={`${ep.slug}-${idx}`}
+                          id={`btn-ep-watch-select-${ep.slug}`}
+                          onClick={() => {
+                            setActiveEpisode(ep);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className={`text-xs p-2 rounded-md font-black text-center border cursor-pointer transition-all ${
+                            isWatching 
+                              ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] shadow-lg shadow-red-650/15' 
+                              : 'bg-zinc-900 text-zinc-400 hover:text-white border-zinc-800 hover:border-zinc-700'
+                          }`}
+                        >
+                          {ep.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+            </div>
 
           </div>
+        )}
 
-        </div>
+        {/* AI MOVIE RECOMMENDATIONS SYSTEM */}
+        {!isTheaterMode && (
+          <div className="mt-12 p-6 rounded-3xl bg-gradient-to-b from-[#12121A]/90 to-black border border-zinc-900 shadow-2xl relative overflow-hidden select-none">
+            {/* Ambient Background Glow */}
+            <div className="absolute top-0 right-0 w-80 h-80 bg-[var(--color-brand)]/5 rounded-full blur-[100px] pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-teal-500/5 rounded-full blur-[100px] pointer-events-none" />
+
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-zinc-900 pb-6 mb-6">
+              <div className="text-left">
+                <div className="flex items-center gap-2 text-[var(--color-brand)] font-black text-xs tracking-widest uppercase mb-1.5">
+                  <Sparkles size={16} className="text-amber-400 animate-pulse" />
+                  <span>Trợ Lý Gợi Ý Phim AI</span>
+                </div>
+                <h3 className="text-lg sm:text-xl font-black text-white tracking-tight uppercase">
+                  Có thể bạn muốn xem tiếp?
+                </h3>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Đề xuất thông minh cá nhân hóa từ Gemini AI dựa trên bộ phim bạn đang xem.
+                </p>
+              </div>
+
+              {/* Chat-style custom recommendation prompt */}
+              <form onSubmit={handleCustomRec} className="flex items-center gap-2 bg-zinc-950 border border-zinc-900 focus-within:border-zinc-800 p-1.5 rounded-2xl w-full md:w-[450px] transition-all">
+                <input
+                  type="text"
+                  placeholder="Tôi muốn xem phim hài hước giống phim này..."
+                  value={recPrompt}
+                  onChange={(e) => setRecPrompt(e.target.value)}
+                  className="flex-1 bg-transparent border-none text-xs px-3 py-1.5 text-white placeholder-zinc-600 outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={isRecLoading}
+                  className="px-4 py-2 bg-gradient-to-r from-[#E63946] to-[#C1121F] text-white hover:brightness-110 disabled:opacity-50 text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 shrink-0"
+                >
+                  Yêu Cầu AI
+                </button>
+              </form>
+            </div>
+
+            {/* Recommendations grid/list */}
+            {isRecLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-4">
+                <div className="relative flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full border-4 border-zinc-900 border-t-[var(--color-brand)] animate-spin"></div>
+                  <Sparkles size={18} className="text-amber-400 absolute animate-pulse" />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-black text-white uppercase tracking-wider">Trợ lý AI đang phân tích...</p>
+                  <p className="text-[10px] text-zinc-500 mt-1">Khám phá kho phim và biên soạn lý do đề xuất dành riêng cho bạn...</p>
+                </div>
+              </div>
+            ) : recommendations.length === 0 ? (
+              <div className="text-center py-12 text-zinc-500 text-xs font-semibold">
+                Không tìm thấy gợi ý phù hợp vào lúc này.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {recommendations.map((recMovie) => (
+                  <div
+                    key={recMovie.slug}
+                    onClick={() => onNavigateToDetail(recMovie.slug)}
+                    className="flex flex-col bg-zinc-950/60 hover:bg-zinc-900/40 border border-zinc-900 hover:border-zinc-800 rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 group shadow-lg text-left relative"
+                  >
+                    {/* Glowing Accent for AI recommendations */}
+                    {isAiGenerated && (
+                      <div className="absolute top-2 right-2 z-10 bg-amber-500/10 backdrop-blur-md border border-amber-500/30 rounded-full px-2 py-0.5 text-[8px] text-amber-400 font-extrabold flex items-center gap-1 uppercase tracking-wider">
+                        <Sparkles size={8} className="fill-amber-400/20" />
+                        <span>AI Đề Xuất</span>
+                      </div>
+                    )}
+
+                    <div className="flex gap-4 p-4 items-start">
+                      <img
+                        src={recMovie.poster_url || recMovie.thumb_url}
+                        alt={recMovie.name}
+                        className="w-20 h-28 object-cover rounded-xl border border-white/5 shadow-md shrink-0 group-hover:scale-105 transition-transform duration-350"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="flex-grow min-w-0 flex flex-col justify-between min-h-[112px]">
+                        <div>
+                          <h4 className="text-xs sm:text-sm font-black text-white group-hover:text-[var(--color-brand)] transition-colors truncate">
+                            {recMovie.name}
+                          </h4>
+                          <p className="text-[10px] text-zinc-500 font-bold truncate mt-0.5">
+                            {recMovie.origin_name} • {recMovie.year}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-400 font-bold">
+                              {recMovie.quality || 'FHD'}
+                            </span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-900/60 text-zinc-500 font-medium">
+                              {recMovie.lang || 'Vietsub'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-[10px] text-zinc-400 mt-2 line-clamp-2 leading-relaxed bg-zinc-900/30 p-2 rounded-lg border border-zinc-900/40 font-medium italic">
+                          "{recMovie.aiReason || "Bộ phim cực kỳ lôi cuốn cùng thể loại rất đáng để bạn thưởng thức."}"
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
     </div>

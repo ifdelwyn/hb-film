@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import DonationModal from './components/DonationModal';
 
 // Screens
 import HomeScreen from './screens/HomeScreen';
@@ -781,6 +782,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* GLOBAL DONATION MODAL FOR SUPPORTING THE DEVELOPER */}
+      <DonationModal />
 
     </div>
   );

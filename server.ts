@@ -127,6 +127,7 @@ const SEED_ANIME_FALLBACKS = [
 ];
 
 let JIKAN_MOVIES: any[] = [];
+const DISCOVERED_MOVIES = new Map<string, any>();
 
 function slugify(text: string) {
   return text
@@ -291,6 +292,11 @@ const SOURCES = [
     name: 'NguonC',
     domain: 'https://phim.nguonc.com',
     imgBase: ''
+  },
+  {
+    name: 'NguonPhim',
+    domain: 'https://api.nguonphim.tv',
+    imgBase: 'https://img.nguonphim.tv/uploads/movies'
   }
 ];
 
@@ -335,7 +341,13 @@ function getAbsoluteImageUrl(url: string, pathImage: string, fallbackBase: strin
   }
 
   // Only wrap OPhim and KKPhim images that have hotlinking blocks (e.g. phimimg.com or ophimimg.com)
-  const isOphimOrKkphim = absUrl.includes('phimimg.com') || absUrl.includes('ophimimg.com') || absUrl.includes('ophim') || absUrl.includes('phimapi') || absUrl.includes('phimapi.com');
+  const isOphimOrKkphim = absUrl.includes('phimimg.com') || 
+                          absUrl.includes('ophimimg.com') || 
+                          absUrl.includes('ophim') || 
+                          absUrl.includes('phimapi') || 
+                          absUrl.includes('phimapi.com') ||
+                          absUrl.includes('myanimelist.net') ||
+                          absUrl.includes('cdn.myanimelist.net');
   const isAlreadyProxied = absUrl.includes('image.php?url=') || absUrl.includes('wsrv.nl') || absUrl.includes('weserv.nl');
 
   if (isOphimOrKkphim && !isAlreadyProxied) {
@@ -372,7 +384,7 @@ function normalizeItem(item: any, pathImage: string, fallbackBase: string, defau
     }
   }
 
-  return {
+  const normalized = {
     name: item.name || "",
     slug: item.slug || "",
     origin_name: item.origin_name || item.original_name || "",
@@ -382,8 +394,23 @@ function normalizeItem(item: any, pathImage: string, fallbackBase: string, defau
     type: movieType,
     episode_current: item.episode_current || item.current_episode || "Full",
     quality: item.quality || "FHD",
-    lang: item.lang || item.language || "Vietsub"
+    lang: item.lang || item.language || "Vietsub",
+    category: item.category || [],
+    country: item.country || [],
+    content: item.content || ""
   };
+
+  // Cache in DISCOVERED_MOVIES Map
+  if (normalized.slug && typeof DISCOVERED_MOVIES !== 'undefined') {
+    if (!DISCOVERED_MOVIES.has(normalized.slug)) {
+      DISCOVERED_MOVIES.set(normalized.slug, {
+        movie: normalized,
+        episodes: []
+      });
+    }
+  }
+
+  return normalized;
 }
 
 // Unified multi-source fallback resolver
@@ -939,6 +966,9 @@ async function startServer() {
       if (source.name === 'NguonC') {
         return `${source.domain}/api/films/phim-moi-cap-nhat?page=${page}`;
       }
+      if (source.name === 'NguonPhim') {
+        return `https://ophim1.com/danh-sach/phim-moi-cap-nhat?page=${page}`;
+      }
       return `${source.domain}/danh-sach/phim-moi-cap-nhat?page=${page}`;
     };
 
@@ -1033,6 +1063,33 @@ async function startServer() {
           }
         }
         return `${source.domain}/api/films/phim-moi-cap-nhat?page=${parsedPage}`;
+      }
+
+      if (source.name === 'NguonPhim') {
+        if (category) {
+          return `https://ophim1.com/v1/api/the-loai/${category}?page=${parsedPage}`;
+        }
+        if (country) {
+          return `https://ophim1.com/v1/api/quoc-gia/${country}?page=${parsedPage}`;
+        }
+        if (year) {
+          return `https://ophim1.com/v1/api/nam/${year}?page=${parsedPage}`;
+        }
+        if (type) {
+          if (type === 'hoathinh' || type === 'hoat-hinh') {
+            return `https://ophim1.com/v1/api/danh-sach/hoat-hinh?page=${parsedPage}`;
+          }
+          if (type === 'tvshows' || type === 'tv-shows') {
+            return `https://ophim1.com/v1/api/danh-sach/tv-shows?page=${parsedPage}`;
+          }
+          if (type === 'single') {
+            return `https://ophim1.com/v1/api/danh-sach/phim-le?page=${parsedPage}`;
+          }
+          if (type === 'series') {
+            return `https://ophim1.com/v1/api/danh-sach/phim-bo?page=${parsedPage}`;
+          }
+        }
+        return `https://ophim1.com/danh-sach/phim-moi-cap-nhat?page=${parsedPage}`;
       }
 
       // OPhim / KKPhim / AnimeHub lists
@@ -1178,6 +1235,9 @@ async function startServer() {
         let searchUrl = `${src.domain}/v1/api/tim-kiem?keyword=${encKeyword}&page=${parsedPage}&limit=16`;
         if (src.name === 'NguonC') {
           searchUrl = `${src.domain}/api/films/search?keyword=${encKeyword}&page=${parsedPage}`;
+        }
+        if (src.name === 'NguonPhim') {
+          searchUrl = `https://ophim1.com/v1/api/tim-kiem?keyword=${encKeyword}&page=${parsedPage}&limit=16`;
         }
 
         const controller = new AbortController();
@@ -1459,17 +1519,46 @@ async function startServer() {
     // Fast-path interceptor for custom Jikan anime or pre-seeded mocks
     const foundCustom = getMergedMovies().find(item => item.movie.slug === slug);
     if (foundCustom) {
+      let finalEpisodes = [...foundCustom.episodes];
+
+      // If the mock movie episodes are empty or unplayable, try to resolve real stream links!
+      const needsStream = finalEpisodes.length === 0 || finalEpisodes.some(srv => 
+        !srv.server_data || 
+        srv.server_data.length === 0 || 
+        srv.server_data.some((ep: any) => !ep.link_embed || ep.link_embed.trim() === "" || ep.link_m3u8?.includes("commondatastorage.googleapis.com"))
+      );
+
+      if (needsStream) {
+        try {
+          const searchTitle = foundCustom.movie.name;
+          const streamInfo = await findStreamSlug(searchTitle) || 
+                             (foundCustom.movie.origin_name ? await findStreamSlug(foundCustom.movie.origin_name) : null);
+          if (streamInfo) {
+            const fetchedEp = await fetchEpisodesFromSlug(streamInfo.source, streamInfo.slug);
+            if (fetchedEp && fetchedEp.length > 0) {
+              // Prepend the working stream servers while preserving mock servers for compliance
+              finalEpisodes = [...fetchedEp, ...foundCustom.episodes];
+            }
+          }
+        } catch (e: any) {
+          console.error(`[Mock Movie Stream Repair] Failed to search stream for ${slug}:`, e.message || e);
+        }
+      }
+
       return res.json({
         status: true,
         msg: 'Thành công',
         movie: foundCustom.movie,
-        episodes: foundCustom.episodes
+        episodes: finalEpisodes
       });
     }
 
     const getPath = (source: typeof SOURCES[0]) => {
       if (source.name === 'NguonC') {
         return `${source.domain}/api/film/${slug}`;
+      }
+      if (source.name === 'NguonPhim') {
+        return `https://phimapi.com/phim/${slug}`;
       }
       return `${source.domain}/phim/${slug}`;
     };
@@ -1886,6 +1975,13 @@ async function startServer() {
         data.episodes = finalServers;
       }
 
+      if (data.movie && data.movie.slug) {
+        DISCOVERED_MOVIES.set(data.movie.slug, {
+          movie: data.movie,
+          episodes: data.episodes
+        });
+      }
+
       return res.json(data);
     }
 
@@ -2039,6 +2135,162 @@ async function startServer() {
         episodeSlug: room.episodeSlug
       }
     });
+  });
+
+  // 6.7 AI Movie Recommendations (using Gemini API gemini-3.5-flash)
+  app.post('/api/recommend', async (req, res) => {
+    try {
+      const { currentMovieSlug, currentMovie: reqCurrentMovie, userPrompt } = req.body;
+      
+      if (!currentMovieSlug) {
+        return res.status(400).json({ status: false, message: 'Missing currentMovieSlug' });
+      }
+
+      // Merge base movies and discovered movies
+      const allMovies = [...getMergedMovies()];
+      for (const [slug, item] of DISCOVERED_MOVIES.entries()) {
+        if (!allMovies.some(m => m.movie.slug === slug)) {
+          allMovies.push(item);
+        }
+      }
+
+      const dbMovie = allMovies.find(m => m.movie.slug === currentMovieSlug);
+      const currentMovie = dbMovie?.movie || reqCurrentMovie;
+      
+      const currentMovieInfo = currentMovie ? {
+        name: currentMovie.name,
+        origin_name: currentMovie.origin_name || currentMovie.original_name,
+        content: currentMovie.content,
+        genres: Array.isArray(currentMovie.category)
+          ? currentMovie.category.map((g: any) => g.name || g)
+          : [],
+        year: currentMovie.year
+      } : null;
+
+      const currentGenres = currentMovieInfo ? currentMovieInfo.genres : [];
+
+      // Fallback recommendations list in case of errors/no key
+      const getFallbackRecs = () => {
+        return allMovies
+          .filter(m => m.movie.slug !== currentMovieSlug)
+          .map(m => {
+            const mGenres = Array.isArray(m.movie.category)
+              ? m.movie.category.map((g: any) => g.name || g)
+              : [];
+            const overlap = mGenres.filter(g => currentGenres.includes(g)).length;
+            return { item: m, overlap };
+          })
+          .sort((a, b) => b.overlap - a.overlap)
+          .slice(0, 3)
+          .map(x => ({
+            slug: x.item.movie.slug,
+            reason: `Phim cùng thể loại ${currentGenres.join(', ')} mang đến trải nghiệm cảm xúc tương đồng lôi cuốn.`
+          }));
+      };
+
+      let recommendations: Array<{ slug: string; reason: string }> = [];
+      let isAiGenerated = false;
+
+      // Check if API key is present
+      if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY') {
+        try {
+          const { GoogleGenAI, Type } = await import('@google/genai');
+          const aiClient = new GoogleGenAI({
+            apiKey: process.env.GEMINI_API_KEY,
+            httpOptions: {
+              headers: {
+                'User-Agent': 'aistudio-build'
+              }
+            }
+          });
+
+          const candidates = allMovies.map(item => ({
+            name: item.movie.name,
+            slug: item.movie.slug,
+            genres: Array.isArray(item.movie.category)
+              ? item.movie.category.map((g: any) => g.name || g)
+              : [],
+            year: item.movie.year
+          }));
+
+          const systemInstruction = `Bạn là Trợ lý Gợi ý Phim thông minh của rạp phim cao cấp FilmFlow.
+Nhiệm vụ của bạn là phân tích bộ phim người dùng đang xem và đề xuất ra đúng 3 bộ phim phù hợp nhất từ danh sách phim có sẵn (Candidate Pool) được cung cấp dưới dạng JSON.
+Nếu người dùng cung cấp lời nhắn/yêu cầu cụ thể (userPrompt), hãy ưu tiên đáp ứng đúng sở thích, tâm trạng, thể loại mà họ yêu cầu nhưng vẫn bám sát danh sách Candidate Pool có sẵn.
+Bạn PHẢI trả về kết quả dưới dạng JSON khớp hoàn hảo với cấu trúc responseSchema được yêu cầu. Không được tự bịa ra phim hay slug ngoài danh sách Candidate Pool.`;
+
+          const prompt = `Phim hiện tại người dùng đang xem:
+${JSON.stringify(currentMovieInfo, null, 2)}
+
+Yêu cầu cụ thể của người xem (nếu có):
+"${userPrompt || "Không có yêu cầu cụ thể, gợi ý dựa trên sự tương đồng về nội dung và thể loại phim hiện tại."}"
+
+Danh Sách Phim Có Sẵn trong kho (Candidate Pool):
+${JSON.stringify(candidates, null, 2)}
+
+Hãy chọn ra đúng 3 bộ phim từ kho có sẵn phù hợp nhất để đề xuất, kèm lý do thuyết phục bằng tiếng Việt thân thiện, hấp dẫn.`;
+
+          const response = await aiClient.models.generateContent({
+            model: 'gemini-3.5-flash',
+            contents: prompt,
+            config: {
+              systemInstruction,
+              responseMimeType: 'application/json',
+              responseSchema: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    slug: {
+                      type: Type.STRING,
+                      description: "Slug của phim được đề xuất, phải trùng khớp 100% với slug trong kho có sẵn."
+                    },
+                    reason: {
+                      type: Type.STRING,
+                      description: "Lý do đề xuất thuyết phục, hấp dẫn bằng tiếng Việt (khoảng 1-2 câu ngắn gọn, súc tích)."
+                    }
+                  },
+                  required: ["slug", "reason"]
+                }
+              }
+            }
+          });
+
+          if (response.text) {
+            const parsed = JSON.parse(response.text.trim());
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              recommendations = parsed;
+              isAiGenerated = true;
+            }
+          }
+        } catch (err: any) {
+          console.error('Gemini Recommendation API error:', err.message || err);
+        }
+      }
+
+      // Fallback if AI recommendations failed or wasn't run
+      if (recommendations.length === 0) {
+        recommendations = getFallbackRecs();
+      }
+
+      // Map recommendations to full movie data
+      const recommendedItems = recommendations.map(rec => {
+        const found = allMovies.find(m => m.movie.slug === rec.slug);
+        if (!found) return null;
+        return {
+          ...found.movie,
+          aiReason: rec.reason
+        };
+      }).filter(Boolean);
+
+      res.json({
+        status: true,
+        isAiGenerated,
+        items: recommendedItems
+      });
+    } catch (globalErr: any) {
+      console.error('Recommend API global error:', globalErr);
+      res.status(500).json({ status: false, message: 'Lỗi máy chủ khi xử lý gợi ý phim.' });
+    }
   });
 
   // Vite development vs production compiler
@@ -2277,8 +2529,49 @@ async function startServer() {
     };
   }
 
+  async function preloadTrendingMovies() {
+    const sourcesToPreload = [
+      { name: 'KKPhim', url: 'https://phimapi.com/danh-sach/phim-moi-cap-nhat?page=1' },
+      { name: 'OPhim', url: 'https://ophim1.com/danh-sach/phim-moi-cap-nhat?page=1' }
+    ];
+
+    for (const src of sourcesToPreload) {
+      try {
+        const res = await fetch(src.url).then(r => r.json());
+        let items: any[] = [];
+        let pathImage = '';
+        if (res.data && Array.isArray(res.data.items)) {
+          items = res.data.items;
+          pathImage = res.data.pathImage || '';
+        } else if (Array.isArray(res.items)) {
+          items = res.items;
+          pathImage = res.pathImage || '';
+        }
+
+        items.forEach(item => {
+          const normalized = normalizeItem(item, pathImage, src.name === 'KKPhim' ? 'https://phimimg.com/uploads/movies' : 'https://ophimimg.com/uploads/movies');
+          if (normalized && normalized.slug) {
+            DISCOVERED_MOVIES.set(normalized.slug, {
+              movie: {
+                ...normalized,
+                category: item.category || [],
+                country: item.country || [],
+                content: item.content || `${normalized.name} - Phim chất lượng cao, lôi cuốn hấp dẫn.`
+              },
+              episodes: []
+            });
+          }
+        });
+        console.log(`[Preload] Successfully preloaded trending movies from ${src.name}`);
+      } catch (err) {
+        console.error(`[Preload] Failed to preload from ${src.name}:`, err);
+      }
+    }
+  }
+
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
+    preloadTrendingMovies().catch(err => console.error('Error preloading trending movies:', err));
   });
 }
 

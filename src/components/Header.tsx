@@ -560,6 +560,16 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
                         <Globe size={13} className="text-blue-400" />
                         <span>Giao diện</span>
                       </button>
+                      <button
+                        onClick={() => {
+                          setProfileDropdownOpen(false);
+                          window.dispatchEvent(new Event('open-donation-modal'));
+                        }}
+                        className="w-full text-left p-2 hover:bg-zinc-950 hover:text-rose-400 rounded-lg text-zinc-300 font-bold tracking-wide transition-colors cursor-pointer flex items-center gap-2"
+                      >
+                        <Heart size={13} className="text-rose-400 fill-rose-400/20 animate-pulse" />
+                        <span>Ủng hộ nhà phát triển</span>
+                      </button>
                     </div>
 
                     <div className="border-t border-zinc-900/80 mt-1.5 pt-1 mb-0.5 text-xs">
