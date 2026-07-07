@@ -348,9 +348,9 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
             {/* Synopsis overview excerpt truncated with toggle button */}
             <div className="mb-8 max-w-3xl">
               <p className={`text-xs sm:text-sm text-zinc-300 leading-relaxed font-sans select-text drop-shadow-md transition-all duration-300 ${!isDescExpanded ? 'line-clamp-4' : ''}`}>
-                {movie.content}
+                {movie.content ? movie.content.replace(/<[^>]*>/g, '').trim() : ''}
               </p>
-              {movie.content && movie.content.length > 250 && (
+              {movie.content && movie.content.replace(/<[^>]*>/g, '').trim().length > 250 && (
                 <button
                   onClick={() => setIsDescExpanded(!isDescExpanded)}
                   className="text-xs font-black text-[var(--color-brand)] h-8 flex items-center gap-1 mt-2.5 transition-all hover:text-[var(--color-brand-hover)] cursor-pointer hover:underline"
@@ -523,7 +523,7 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
                     Cốt truyện đỉnh cao
                   </h3>
                   <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed max-w-xl">
-                    {movie.content}
+                    {movie.content ? movie.content.replace(/<[^>]*>/g, '').trim() : ''}
                   </p>
 
                   {movie.trailer_url && (

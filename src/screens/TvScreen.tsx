@@ -183,6 +183,56 @@ const cleanGroup = (group: string, prefix: string): string => {
 };
 
 export default function TvScreen() {
+  return (
+    <div className="w-full min-h-screen bg-[#0A0A0F] text-white pt-32 pb-20 select-none font-sans flex items-center justify-center">
+      <div className="max-w-md w-full mx-auto px-4">
+        <div className="relative rounded-[28px] bg-[#12121A]/80 border border-[#2A2A3A]/60 p-8 text-center backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden">
+          {/* Accent glow elements */}
+          <div className="absolute top-0 right-0 w-48 h-48 bg-[#E63946]/10 rounded-full blur-[80px] pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-500/5 rounded-full blur-[80px] pointer-events-none" />
+          
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#E63946]/20 to-[#E63946]/5 border border-[#E63946]/30 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-red-500/5">
+            <Tv size={36} className="text-[#E63946] animate-pulse" />
+          </div>
+          
+          <span className="text-[10px] font-extrabold text-[#E63946] uppercase tracking-widest bg-[#E63946]/10 border border-[#E63946]/20 rounded-full px-3 py-1 mb-3 inline-block">
+            HỆ THỐNG BẢO TRÌ
+          </span>
+          
+          <h2 className="text-2xl font-black text-white tracking-tight mb-4">
+            KÊNH TV LIVE ĐANG BẢO TRÌ
+          </h2>
+          
+          <p className="text-sm text-zinc-400 leading-relaxed mb-6 font-medium">
+            Mục xem truyền hình trực tuyến (IPTV) hiện đang tạm khóa để thực hiện nâng cấp hệ thống định tuyến băng thông, bổ sung nguồn phát mới chất lượng cao và tối ưu hóa trải nghiệm mượt mà không quảng cáo.
+          </p>
+          
+          <div className="bg-black/35 rounded-xl border border-white/5 p-4 mb-6 text-left space-y-2.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-zinc-500 font-semibold">Thời gian bắt đầu:</span>
+              <span className="text-zinc-300 font-bold">14:00 - Hôm nay</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-zinc-500 font-semibold">Dự kiến hoàn thành:</span>
+              <span className="text-amber-400 font-bold">Bảo trì định kỳ 2 - 3 giờ</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-zinc-500 font-semibold">Trạng thái hạ tầng:</span>
+              <span className="text-red-400 font-bold uppercase tracking-wider text-[10px]">Tạm khóa (Offline)</span>
+            </div>
+          </div>
+          
+          <button
+            onClick={() => window.location.hash = '#/'}
+            className="w-full py-3.5 bg-gradient-to-r from-[#E63946] to-[#B02A33] hover:from-[#B02A33] hover:to-[#8E1E26] text-white text-xs font-extrabold uppercase tracking-widest rounded-xl transition-all duration-300 shadow-lg shadow-red-500/10 hover:scale-[1.02] cursor-pointer"
+          >
+            Quay lại Trang Chủ
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [isLoadingPlaylist, setIsLoadingPlaylist] = useState(true);

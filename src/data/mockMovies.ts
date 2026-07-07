@@ -416,5 +416,43 @@ export const MOCK_MOVIES: DetailedMovie[] = [
         ]
       }
     ]
+  },
+  {
+    movie: {
+      name: 'Gặp Nhau Cuối Năm: Táo Quân',
+      slug: 'gap-nhau-cuoi-nam-tao-quan',
+      origin_name: 'Tao Quan - Gap Nhau Cuoi Nam',
+      content: 'Chương trình hài kịch đặc biệt Gặp Nhau Cuối Năm - Táo Quân phát sóng vào đêm Giao Thừa Tết Nguyên Đán hằng năm. Nơi các Táo quân chầu trời báo cáo Ngọc Hoàng về những sự kiện nổi bật trong năm qua, mang lại tiếng cười trào phúng thâm thúy sâu sắc.',
+      type: 'single',
+      status: 'completed',
+      thumb_url: 'https://images.unsplash.com/photo-1590073844006-33379778ae09?w=800&auto=format&fit=crop&q=60',
+      poster_url: 'https://images.unsplash.com/photo-1590073844006-33379778ae09?w=800&auto=format&fit=crop&q=60',
+      year: 2026,
+      view: 950000,
+      actor: ['NSND Quốc Khánh', 'NSND Xuân Bắc', 'NSND Tự Long', 'NSƯT Chí Trung', 'Vân Dung', 'NSƯT Quang Thắng'],
+      director: ['Khải Anh'],
+      category: [{ id: '6', name: 'Hài Hước', slug: 'hai-huoc' }, { id: '8', name: 'Tâm Lý', slug: 'tam-ly' }],
+      country: [{ id: 'vn', name: 'Việt Nam', slug: 'viet-nam' }],
+      time: '180 phút',
+      episode_current: 'Full HD',
+      episode_total: '1 tập',
+      lang: 'Bản Chuẩn',
+      quality: 'FHD',
+      imdb: { star: '9.0', vote: 8500 }
+    },
+    episodes: [
+      {
+        server_name: 'VTV Giải Trí',
+        server_data: [
+          {
+            name: 'Full',
+            slug: 'full',
+            filename: 'tao_quan_giao_thua_full.mp4',
+            link_embed: 'https://www.youtube.com/embed/8V81eK4K7Uo',
+            link_m3u8: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4'
+          }
+        ]
+      }
+    ]
   }
 ];

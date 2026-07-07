@@ -24,12 +24,57 @@ export default function MovieCard({
   const { isInWatchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
   const { isFavorite, addToFavorites, removeFromFavorites } = useFavorites();
   const [imageError, setImageError] = useState(false);
+  const [customImgUrl, setCustomImgUrl] = useState<string | null>(null);
+  const [hasAttemptedSelfHeal, setHasAttemptedSelfHeal] = useState(false);
   const isAdded = isInWatchlist(movie.slug);
   const isFav = isFavorite(movie.slug);
 
+  // Reset imageError when movie details change
+  React.useEffect(() => {
+    setImageError(false);
+    setCustomImgUrl(null);
+    setHasAttemptedSelfHeal(false);
+  }, [movie.slug, movie.poster_url, movie.thumb_url]);
+
   const fallbackImage = 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=500&auto=format&fit=crop&q=80';
 
+  const handleImageError = () => {
+    if (!hasAttemptedSelfHeal && movie.slug) {
+      setHasAttemptedSelfHeal(true);
+      fetch(`/api/phim/${movie.slug}`)
+        .then((res) => {
+          if (!res.ok) throw new Error('Failed to fetch detail');
+          return res.json();
+        })
+        .then((detail) => {
+          if (detail && detail.status && detail.movie) {
+            const realPoster = detail.movie.poster_url;
+            const realThumb = detail.movie.thumb_url;
+            
+            if (realPoster && typeof realPoster === 'string' && realPoster.startsWith('http')) {
+              setCustomImgUrl(realPoster);
+              setImageError(false);
+            } else if (realThumb && typeof realThumb === 'string' && realThumb.startsWith('http')) {
+              setCustomImgUrl(realThumb);
+              setImageError(false);
+            } else {
+              setImageError(true);
+            }
+          } else {
+            setImageError(true);
+          }
+        })
+        .catch((err) => {
+          console.log(`[Self-healing Status] Unable to auto-resolve custom image for slug: ${movie.slug}`);
+          setImageError(true);
+        });
+    } else {
+      setImageError(true);
+    }
+  };
+
   const getPoster = (movieItem: any) => {
+    if (customImgUrl) return customImgUrl;
     if (imageError) return fallbackImage;
 
     // TMDB poster path or formatted path if stored
@@ -104,7 +149,7 @@ export default function MovieCard({
           <img 
             src={displayImage} 
             alt={movie.name} 
-            onError={() => setImageError(true)}
+            onError={handleImageError}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             referrerPolicy="no-referrer"
             loading="lazy"
@@ -141,7 +186,7 @@ export default function MovieCard({
         <img 
           src={movie.thumb_url || displayImage} 
           alt={movie.name} 
-          onError={() => setImageError(true)}
+          onError={handleImageError}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           referrerPolicy="no-referrer"
         />
@@ -210,7 +255,7 @@ export default function MovieCard({
       <img 
         src={displayImage} 
         alt={movie.name} 
-        onError={() => setImageError(true)}
+        onError={handleImageError}
         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         referrerPolicy="no-referrer"
       />

@@ -423,7 +423,7 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
                         className="group/item flex items-center justify-between gap-3 text-xs text-zinc-400 hover:text-[#E63946] hover:bg-[#E63946]/5 px-3 py-2.5 border border-transparent hover:border-[#E63946]/20 rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.04] select-none font-bold"
                       >
                         <div className="flex items-center gap-2">
-                          <span>Nghe Nhạc</span>
+                          <span>Play Music</span>
                         </div>
                         <span className="text-[8px] font-black tracking-wider px-1.5 py-0.5 rounded bg-emerald-600 text-white">
                           FREE
@@ -651,7 +651,7 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
               onClick={() => navigateTo('music')}
               className={`text-lg font-bold p-2 rounded-lg flex items-center justify-between ${currentRoute === 'music' ? 'text-[var(--color-brand)] bg-zinc-900/40' : 'text-zinc-300'}`}
             >
-              <span className="flex items-center gap-2">Nghe Nhạc</span>
+              <span className="flex items-center gap-2">Play Music</span>
               <span className="text-[8px] font-black tracking-wider px-1.5 py-0.5 rounded bg-emerald-600 text-white">FREE</span>
             </span>
             <span

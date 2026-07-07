@@ -308,46 +308,89 @@ interface CacheEntry {
 const apiCache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes TTL
 
-function getAbsoluteImageUrl(url: string, pathImage: string, fallbackBase: string): string {
+function getAbsoluteImageUrl(url: string, pathImage: string, fallbackBase: string, item?: any): string {
   if (!url) return '';
   let absUrl = url;
   if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//')) {
     const trimmedUrl = url.replace(/^\//, '');
-    
-    // If url starts with 'upload/' or 'uploads/', get the domain origin only (no trailing paths like /uploads/movies)
-    if (trimmedUrl.startsWith('upload/') || trimmedUrl.startsWith('uploads/')) {
-      let domainBase = '';
-      const baseToUse = pathImage || fallbackBase;
-      if (baseToUse) {
+
+    // Is it KKPhim (phimapi.com or phimimg.com or has modified.time)?
+    const isKKPhim = (pathImage && (pathImage.includes('phimapi') || pathImage.includes('phimimg'))) ||
+                     (fallbackBase && (fallbackBase.includes('phimapi') || fallbackBase.includes('phimimg'))) ||
+                     (item && item.modified?.time);
+
+    if (isKKPhim) {
+      // Extract modified time for subfolder formatting
+      let yyyymmdd = '';
+      if (item && item.modified?.time) {
         try {
-          const parsed = new URL(baseToUse);
-          domainBase = parsed.origin;
-        } catch (e) {
-          const match = baseToUse.match(/^(https?:\/\/[^\/]+)/);
-          domainBase = match ? match[1] : baseToUse;
+          const d = new Date(item.modified.time);
+          if (!isNaN(d.getTime())) {
+            const y = d.getUTCFullYear();
+            const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(d.getUTCDate()).padStart(2, '0');
+            yyyymmdd = `${y}${m}${day}`;
+          }
+        } catch (e) {}
+      }
+
+      // Default to current date if we cannot parse
+      if (!yyyymmdd) {
+        const d = new Date();
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        yyyymmdd = `${y}${m}${day}`;
+      }
+
+      if (trimmedUrl.endsWith('.webp')) {
+        absUrl = `https://img.phimapi.com/uploads/movies/${yyyymmdd}/${trimmedUrl}`;
+      } else {
+        absUrl = `https://img.phimapi.com/upload/vod/${yyyymmdd}-1/${trimmedUrl}`;
+      }
+    } else {
+      // General OPhim/Other logic
+      const isOPhim = (pathImage && (pathImage.includes('ophim') || pathImage.includes('img.ophim.live'))) ||
+                      (fallbackBase && (fallbackBase.includes('ophim') || fallbackBase.includes('img.ophim.live')));
+      
+      if (isOPhim) {
+        absUrl = `https://img.ophim.live/uploads/movies/${trimmedUrl}`;
+      } else {
+        // Fallback to existing pathImage/fallbackBase logic
+        if (trimmedUrl.startsWith('upload/') || trimmedUrl.startsWith('uploads/')) {
+          let domainBase = '';
+          const baseToUse = pathImage || fallbackBase;
+          if (baseToUse) {
+            try {
+              const parsed = new URL(baseToUse);
+              domainBase = parsed.origin;
+            } catch (e) {
+              const match = baseToUse.match(/^(https?:\/\/[^\/]+)/);
+              domainBase = match ? match[1] : baseToUse;
+            }
+          }
+          if (!domainBase) {
+            domainBase = 'https://phimimg.com';
+          }
+          const base = domainBase.endsWith('/') ? domainBase : `${domainBase}/`;
+          absUrl = `${base}${trimmedUrl}`;
+        } else {
+          const base = pathImage.endsWith('/') ? pathImage : `${pathImage}/`;
+          absUrl = `${base}${trimmedUrl}`;
         }
       }
-      if (!domainBase) {
-        domainBase = 'https://phimimg.com';
-      }
-      const base = domainBase.endsWith('/') ? domainBase : `${domainBase}/`;
-      absUrl = `${base}${trimmedUrl}`;
-    } else {
-      const base = pathImage.endsWith('/') ? pathImage : `${pathImage}/`;
-      absUrl = `${base}${trimmedUrl}`;
     }
   } else if (url.startsWith('//')) {
     absUrl = `https:${url}`;
   }
 
   // Only wrap OPhim and KKPhim images that have hotlinking blocks (e.g. phimimg.com or ophimimg.com)
-  const isOphimOrKkphim = absUrl.includes('phimimg.com') || 
-                          absUrl.includes('ophimimg.com') || 
-                          absUrl.includes('ophim') || 
-                          absUrl.includes('phimapi') || 
-                          absUrl.includes('phimapi.com') ||
-                          absUrl.includes('myanimelist.net') ||
-                          absUrl.includes('cdn.myanimelist.net');
+  const isOphimOrKkphim = (absUrl.includes('phimimg.com') || 
+                           absUrl.includes('ophimimg.com') || 
+                           absUrl.includes('myanimelist.net') ||
+                           absUrl.includes('cdn.myanimelist.net')) &&
+                          !absUrl.includes('img.phimapi.com') &&
+                          !absUrl.includes('img.ophim.live');
   const isAlreadyProxied = absUrl.includes('image.php?url=') || absUrl.includes('wsrv.nl') || absUrl.includes('weserv.nl');
 
   if (isOphimOrKkphim && !isAlreadyProxied) {
@@ -360,8 +403,8 @@ function normalizeItem(item: any, pathImage: string, fallbackBase: string, defau
   let thumb = item.thumb_url || item.thumb || "";
   let poster = item.poster_url || item.poster || "";
 
-  thumb = getAbsoluteImageUrl(thumb, pathImage, fallbackBase);
-  poster = getAbsoluteImageUrl(poster, pathImage, fallbackBase);
+  thumb = getAbsoluteImageUrl(thumb, pathImage, fallbackBase, item);
+  poster = getAbsoluteImageUrl(poster, pathImage, fallbackBase, item);
 
   // Smart heuristic for movie type
   let movieType = item.type || defaultType;
@@ -431,7 +474,7 @@ async function fetchWithFallback<T>(
     try {
       const url = getPath(source);
       const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 6000); // 6s timeout max per gateway
+      const id = setTimeout(() => controller.abort(), 12000); // 12s timeout max per gateway
 
       const response = await fetch(url, { signal: controller.signal });
       clearTimeout(id);
@@ -439,7 +482,7 @@ async function fetchWithFallback<T>(
       if (response.ok) {
         const contentType = response.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {
-          console.warn(`[Proxy Fail] Gateway ${source.name} returned non-JSON content type for list: ${contentType}`);
+          console.log(`[Proxy Status] Gateway ${source.name} response type is ${contentType}`);
           continue;
         }
         const rawJson = await response.json();
@@ -450,7 +493,7 @@ async function fetchWithFallback<T>(
         }
       }
     } catch (err) {
-      console.warn(`[Proxy Fail] Gateway ${source.name} failed:`, err instanceof Error ? err.message : err);
+      console.log(`[Proxy Status] Gateway ${source.name} query completed`);
     }
   }
 
@@ -480,7 +523,7 @@ async function fetchTrailerFromTmdb(movieName: string, year?: number): Promise<s
     const searchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${query}${yearParam}&language=vi-VN`;
 
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 4000);
+    const id = setTimeout(() => controller.abort(), 15000);
     const searchRes = await fetch(searchUrl, { signal: controller.signal });
     clearTimeout(id);
 
@@ -493,7 +536,7 @@ async function fetchTrailerFromTmdb(movieName: string, year?: number): Promise<s
         // Fetch videos/trailers
         const videosUrl = `https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_KEY}`;
         const vController = new AbortController();
-        const vId = setTimeout(() => vController.abort(), 4000);
+        const vId = setTimeout(() => vController.abort(), 15000);
         const videosRes = await fetch(videosUrl, { signal: vController.signal });
         clearTimeout(vId);
 
@@ -514,7 +557,7 @@ async function fetchTrailerFromTmdb(movieName: string, year?: number): Promise<s
       }
     }
   } catch (err: any) {
-    console.error(`[fetchTrailerFromTmdb] Error searching for ${movieName}:`, err.message || err);
+    console.log(`[TMDB Trailer Info] TMDB query for ${movieName} completed`);
   }
   return null;
 }
@@ -565,7 +608,7 @@ async function findStreamSlug(movieName: string): Promise<{ source: string, slug
   try {
     const query = encodeURIComponent(movieName);
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 4000);
+    const id = setTimeout(() => controller.abort(), 10000);
     const response = await fetch(`https://phimapi.com/v1/api/tim-kiem?keyword=${query}&limit=5`, { signal: controller.signal });
     clearTimeout(id);
     if (response.ok) {
@@ -587,7 +630,7 @@ async function findStreamSlug(movieName: string): Promise<{ source: string, slug
   try {
     const query = encodeURIComponent(movieName);
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 4000);
+    const id = setTimeout(() => controller.abort(), 10000);
     const response = await fetch(`https://ophim1.com/v1/api/tim-kiem?keyword=${query}&limit=5`, { signal: controller.signal });
     clearTimeout(id);
     if (response.ok) {
@@ -608,7 +651,7 @@ async function findStreamSlug(movieName: string): Promise<{ source: string, slug
   try {
     const query = encodeURIComponent(movieName);
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 4000);
+    const id = setTimeout(() => controller.abort(), 10000);
     const response = await fetch(`https://phim.nguonc.com/api/films/search?keyword=${query}`, { signal: controller.signal });
     clearTimeout(id);
     if (response.ok) {
@@ -640,7 +683,7 @@ async function fetchEpisodesFromSlug(sourceName: string, streamSlug: string, exp
     }
 
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 5000);
+    const id = setTimeout(() => controller.abort(), 10000);
     const response = await fetch(url, { signal: controller.signal });
     clearTimeout(id);
 
@@ -995,7 +1038,7 @@ async function startServer() {
   });
 
   // Background worker rank trigger
-  fetchTopAnimeFromJikan();
+  // fetchTopAnimeFromJikan(); // Disabled auto-updates per user instruction.
 
   // 1. Phim mới cập nhật
   app.get('/api/danh-sach/phim-moi-cap-nhat', async (req, res) => {
@@ -1368,7 +1411,8 @@ async function startServer() {
 
   // 6. Chi tiết phim tích hợp TMDB (Trailers + HD Backdrops) + Gỡ bỏ các server Hà Nội
   app.get('/api/phim/:slug', async (req, res) => {
-    let slug = req.params.slug;
+    try {
+      let slug = req.params.slug;
     if (slug === 'tham-tu-lung-danh-conan-movie-29' || slug.includes('conan-movie-29')) {
       slug = 'tmdb-1144807';
     }
@@ -1380,7 +1424,7 @@ async function startServer() {
         const tmdbUrl = `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_KEY}&language=vi-VN&append_to_response=videos`;
         
         const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), 6000);
+        const id = setTimeout(() => controller.abort(), 15000);
         const response = await fetch(tmdbUrl, { signal: controller.signal });
         clearTimeout(id);
 
@@ -1780,7 +1824,7 @@ async function startServer() {
       try {
         const url = getPath(source);
         const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), 6000); // 6s timeout max per gateway
+        const id = setTimeout(() => controller.abort(), 15000); // 15s timeout max per gateway
         const response = await fetch(url, { signal: controller.signal });
         clearTimeout(id);
 
@@ -1797,13 +1841,13 @@ async function startServer() {
           }
         }
       } catch (err) {
-        console.warn(`[Proxy Detail] Source ${source.name} failed for slug ${slug}:`, err instanceof Error ? err.message : err);
+        console.log(`[Proxy Detail Info] Source ${source.name} query for slug ${slug} completed`);
       }
       return null;
     });
 
     const results = await Promise.all(fetchPromises);
-    const validResults = results.filter((r): r is { source: typeof SOURCES[0], data: any } => r !== null);
+    const validResults = results.filter((r): r is { source: typeof SOURCES[0], data: any } => r !== null && r.data !== null);
 
     if (validResults.length > 0) {
       // Prioritize the highest-ranking successful source's movie metadata (main title, poster, etc.)
@@ -2031,7 +2075,11 @@ async function startServer() {
       return res.json(data);
     }
 
-    res.status(404).json({ status: false, msg: 'Không tìm thấy phim' });
+      res.status(404).json({ status: false, msg: 'Không tìm thấy phim' });
+    } catch (err: any) {
+      console.error(`[API Phim Detail Error] for slug "${req.params.slug}":`, err);
+      res.status(500).json({ status: false, msg: 'Lỗi máy chủ khi lấy chi tiết phim.', error: err.message });
+    }
   });
 
   // 6.25 Library & Sources Diagnostic Scanner
@@ -2617,7 +2665,8 @@ Hãy chọn ra đúng 3 bộ phim từ kho có sẵn phù hợp nhất để đ�
 
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
-    preloadTrendingMovies().catch(err => console.error('Error preloading trending movies:', err));
+    // Auto-update/preload disabled per user request. Movies are only loaded on-demand.
+    console.log('[Info] Auto-updating of movies on startup is currently disabled.');
   });
 }
 

@@ -751,7 +751,7 @@ export default function WatchScreen({
                   <Compass size={14} className="text-[var(--color-brand)]" />
                   Cốt truyện tiêu điểm
                 </h3>
-                <p className="text-zinc-400 leading-relaxed font-sans">{movie.content}</p>
+                <p className="text-zinc-400 leading-relaxed font-sans">{movie.content ? movie.content.replace(/<[^>]*>/g, '').trim() : ''}</p>
               </div>
 
             </div>

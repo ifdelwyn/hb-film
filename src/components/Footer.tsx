@@ -1,4 +1,4 @@
-import { Film, Github, ShieldAlert, Heart, Info, Globe, Mail, Camera } from 'lucide-react';
+import { Film, Github, ShieldAlert, Heart, Info, Globe, Mail } from 'lucide-react';
 import { SiFacebook, SiTiktok, SiThreads, SiInstagram } from 'react-icons/si';
 
 interface FooterProps {
@@ -119,9 +119,16 @@ export default function Footer({ onNavigate }: FooterProps) {
               {
                 name: 'Locket',
                 href: 'https://locket.cam/if.delwyn',
-                color: 'hover:bg-[#FFB900] hover:text-black hover:border-[#FFB900]/50 text-zinc-100 bg-[#1A1A24]',
-                glow: 'shadow-[0_0_15px_rgba(255,185,0,0.4)]',
-                icon: <Camera size={20} />
+                color: 'hover:bg-[#FFCC00] hover:text-black hover:border-[#FFCC00]/50 text-zinc-100 bg-[#1A1A24]',
+                glow: 'shadow-[0_0_15px_rgba(255,204,0,0.4)]',
+                icon: (
+                  <svg viewBox="0 0 100 100" className="w-5 h-5 rounded-md overflow-hidden select-none" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="100" height="100" rx="22" fill="#FFCC00" />
+                    <circle cx="50" cy="50" r="26" fill="#111111" />
+                    <circle cx="50" cy="50" r="21" stroke="#222222" strokeWidth="2.5" fill="none" />
+                    <path d="M50 62 C47 62 36 52.5 36 44 C36 37 41.5 33.5 46 36.5 C50 39 50 39 50 39 C50 39 50 39 54 36.5 C58.5 33.5 64 37 64 44 C64 53.5 53 62 50 62 Z" fill="#FFCC00" />
+                  </svg>
+                )
               }
             ].map((social) => (
               <a
