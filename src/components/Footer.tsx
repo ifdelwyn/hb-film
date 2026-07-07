@@ -1,4 +1,4 @@
-import { Film, Github, ShieldAlert, Heart, Info, Globe, Mail } from 'lucide-react';
+import { Film, Github, ShieldAlert, Heart, Info, Globe, Mail, Camera } from 'lucide-react';
 import { SiFacebook, SiTiktok, SiThreads, SiInstagram } from 'react-icons/si';
 
 interface FooterProps {
@@ -115,6 +115,13 @@ export default function Footer({ onNavigate }: FooterProps) {
                 color: 'hover:bg-[#E1306C] hover:text-white hover:border-[#E1306C]/50 text-zinc-100 bg-[#1A1A24]',
                 glow: 'shadow-[0_0_15px_rgba(225,48,108,0.4)]',
                 icon: <SiInstagram size={20} />
+              },
+              {
+                name: 'Locket',
+                href: 'https://locket.cam/if.delwyn',
+                color: 'hover:bg-[#FFB900] hover:text-black hover:border-[#FFB900]/50 text-zinc-100 bg-[#1A1A24]',
+                glow: 'shadow-[0_0_15px_rgba(255,185,0,0.4)]',
+                icon: <Camera size={20} />
               }
             ].map((social) => (
               <a
