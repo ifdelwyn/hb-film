@@ -262,7 +262,7 @@ export default function HeroBanner({ movies, onPlay, onDetail }: HeroBannerProps
 
             {/* Type badge */}
             <span className="px-3 py-1.5 rounded-full bg-[#E50914]/15 border border-[#E50914]/35 backdrop-blur-md text-[10px] font-extrabold text-[#E50914] uppercase tracking-wider shadow-md">
-              {currentMovie.type === 'series' ? 'Phim Bộ' : 'Phim Lẻ'}
+              {(currentMovie.type === 'series' || currentMovie.type === 'tvshows' || currentMovie.type === 'tv-shows') ? 'Phim Bộ' : 'Phim Lẻ'}
             </span>
 
             {/* Year Badge */}

@@ -312,7 +312,7 @@ export default function MovieCard({
         </p>
         <div className="flex items-center justify-between mt-2 pt-1 border-t border-[var(--color-border)]/30">
           <span className="text-[10px] text-[var(--color-text-secondary)] font-semibold uppercase">
-            {movie.type === 'series' ? 'Phim Bộ' : 'Phim Lẻ'}
+            {(movie.type === 'series' || movie.type === 'tvshows' || movie.type === 'tv-shows') ? 'Phim Bộ' : 'Phim Lẻ'}
           </span>
           <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 border border-zinc-700/50">
             {movie.episode_current}

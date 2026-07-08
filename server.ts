@@ -1125,6 +1125,66 @@ async function startServer() {
     const parsedPage = parseInt(page as string) || 1;
     const parsedLimit = parseInt(limit as string) || 24;
 
+    if (type === 'tvshows' || type === 'tv-shows' || category === 'tv-shows') {
+      const tvShows = [
+        {
+          name: "Outlast: Rừng nhiệt đới",
+          slug: "outlast-rung-nhiet-doi",
+          origin_name: "Outlast: The Jungle",
+          thumb_url: "https://phim.nguonc.com/public/images/Post/2/outlast-rung-nhiet-doi.jpg",
+          poster_url: "https://phim.nguonc.com/public/images/Post/2/outlast-rung-nhiet-doi-1.jpg",
+          year: 2026,
+          time: "60 Phút/Tập",
+          quality: "HD",
+          lang: "Vietsub",
+          episode_current: "Hoàn tất (6/6)"
+        },
+        {
+          name: "Đi Phượt Bản Giới Hạn",
+          slug: "di-phuot-ban-gioi-han",
+          origin_name: "Unplanned Trip: Limited Edition",
+          thumb_url: "https://phim.nguonc.com/public/images/Post/1/di-phuot-ban-gioi-han.jpg",
+          poster_url: "https://phim.nguonc.com/public/images/Post/1/di-phuot-ban-gioi-han-1.jpg",
+          year: 2006,
+          time: "45 Phút/Tập",
+          quality: "HD",
+          lang: "Vietsub",
+          episode_current: "Hoàn tất (12/12)"
+        },
+        {
+          name: "Show Của Đen",
+          slug: "show-cua-den",
+          origin_name: "Show Của Đen",
+          thumb_url: "https://phim.nguonc.com/public/images/Film/vfDF76CIhgI8RhXfGfWMLKB54OQ.jpg",
+          poster_url: "https://phim.nguonc.com/public/images/Film/cssGWj8TFNl8t5VCVpHeNHqDfFw.jpg",
+          year: 2019,
+          time: "84 phút",
+          quality: "HD",
+          lang: "Vietsub",
+          episode_current: "Hoàn tất"
+        }
+      ];
+
+      // Perform a clean search filter if requested
+      const query = req.query.keyword ? (req.query.keyword as string).toLowerCase().trim() : '';
+      const filtered = tvShows.filter(item => 
+        !query || 
+        item.name.toLowerCase().includes(query) || 
+        item.origin_name.toLowerCase().includes(query)
+      );
+
+      return res.json({
+        status: true,
+        items: filtered,
+        pagination: {
+          totalItems: filtered.length,
+          totalItemsPerPage: parsedLimit,
+          currentPage: parsedPage,
+          totalPages: Math.ceil(filtered.length / parsedLimit)
+        }
+      });
+    }
+
     const getPath = (source: typeof SOURCES[0]) => {
       if (source.name === 'NguonC') {
         if (category) {
@@ -1413,7 +1473,147 @@ async function startServer() {
   app.get('/api/phim/:slug', async (req, res) => {
     try {
       let slug = req.params.slug;
-    if (slug === 'tham-tu-lung-danh-conan-movie-29' || slug.includes('conan-movie-29')) {
+
+      if (slug === 'outlast-rung-nhiet-doi') {
+        return res.json({
+          status: true,
+          movie: {
+            name: "Outlast: Rừng nhiệt đới",
+            slug: "outlast-rung-nhiet-doi",
+            origin_name: "Outlast: The Jungle",
+            content: "Trên hòn đảo nhiệt đới hẻo lánh, 16 người chơi phải sống sót trong điều kiện khắc nghiệt, vượt qua đối thủ và duy trì tinh thần đồng đội để có cơ hội giành giải thưởng 1 triệu đô.",
+            type: "tvshows",
+            status: "completed",
+            thumb_url: "https://phim.nguonc.com/public/images/Post/2/outlast-rung-nhiet-doi.jpg",
+            poster_url: "https://phim.nguonc.com/public/images/Post/2/outlast-rung-nhiet-doi-1.jpg",
+            backdrop_url: "https://phim.nguonc.com/public/images/Post/2/outlast-rung-nhiet-doi.jpg",
+            trailer_url: "",
+            year: 2026,
+            view: 24500,
+            actor: ["Abby Chu", "Ben Orndorff", "Braxton Fish", "Brett Johnson"],
+            director: [],
+            category: [{"id": "tv-shows", "name": "TV shows", "slug": "tv-shows"}],
+            country: [{"id": "au-my", "name": "Âu Mỹ", "slug": "au-my"}],
+            time: "60 Phút/Tập",
+            episode_current: "Hoàn tất (6/6)",
+            episode_total: "6 tập",
+            lang: "Vietsub",
+            quality: "HD",
+            imdb: {
+              star: "8.2",
+              vote: "250"
+            }
+          },
+          episodes: [
+            {
+              server_name: "Vietsub #1",
+              server_data: [
+                { name: "1", slug: "tap-1", filename: "Outlast: Rừng nhiệt đới Tập 1", link_embed: "https://embed18.streamc.xyz/embed.php?hash=54aa8a4bcc98f92ff2c07f2dea38609b", link_m3u8: "" },
+                { name: "2", slug: "tap-2", filename: "Outlast: Rừng nhiệt đới Tập 2", link_embed: "https://embed18.streamc.xyz/embed.php?hash=f2866a92c7b41875f3be1fa4c3391990", link_m3u8: "" },
+                { name: "3", slug: "tap-3", filename: "Outlast: Rừng nhiệt đới Tập 3", link_embed: "https://embed18.streamc.xyz/embed.php?hash=2314cf194390cfd2e6214861556cc69b", link_m3u8: "" },
+                { name: "4", slug: "tap-4", filename: "Outlast: Rừng nhiệt đới Tập 4", link_embed: "https://embed18.streamc.xyz/embed.php?hash=c9dd6754cf250760b30191361329632b", link_m3u8: "" },
+                { name: "5", slug: "tap-5", filename: "Outlast: Rừng nhiệt đới Tập 5", link_embed: "https://embed18.streamc.xyz/embed.php?hash=3920621222176881b9e4966712ed293f", link_m3u8: "" },
+                { name: "6", slug: "tap-6", filename: "Outlast: Rừng nhiệt đới Tập 6", link_embed: "https://embed18.streamc.xyz/embed.php?hash=78f43342513813990c515ce13ebb83dd", link_m3u8: "" }
+              ]
+            }
+          ]
+        });
+      }
+
+      if (slug === 'di-phuot-ban-gioi-han') {
+        return res.json({
+          status: true,
+          movie: {
+            name: "Đi Phượt Bản Giới Hạn",
+            slug: "di-phuot-ban-gioi-han",
+            origin_name: "Unplanned Trip: Limited Edition",
+            content: "Các minh tinh Park Seo Joon, Jung Yu Mi và Choi Woo Sik bất ngờ bị \"lạc trôi\" vào một chuyến đi phượt bất định, không có kế hoạch trước. Họ sẽ chống chọi ra sao với chuyến chu du tự túc vòng quanh Hàn Quốc cùng vô vàn tình huống dở khóc dở cười?",
+            type: "tvshows",
+            status: "completed",
+            thumb_url: "https://phim.nguonc.com/public/images/Post/1/di-phuot-ban-gioi-han.jpg",
+            poster_url: "https://phim.nguonc.com/public/images/Post/1/di-phuot-ban-gioi-han-1.jpg",
+            backdrop_url: "https://phim.nguonc.com/public/images/Post/1/di-phuot-ban-gioi-han.jpg",
+            trailer_url: "",
+            year: 2006,
+            view: 32400,
+            actor: ["Jung Yu Mi", "Park Seo Joon", "Choi Woo Shik"],
+            director: ["Na Young Seok"],
+            category: [{"id": "tv-shows", "name": "TV shows", "slug": "tv-shows"}],
+            country: [{"id": "han-quoc", "name": "Hàn Quốc", "slug": "han-quoc"}],
+            time: "45 Phút/Tập",
+            episode_current: "Hoàn tất (12/12)",
+            episode_total: "12 tập",
+            lang: "Vietsub",
+            quality: "HD",
+            imdb: {
+              star: "8.5",
+              vote: "410"
+            }
+          },
+          episodes: [
+            {
+              server_name: "Vietsub #1",
+              server_data: [
+                { name: "1", slug: "tap-1", filename: "Đi Phượt Bản Giới Hạn Tập 1", link_embed: "https://embed15.streamc.xyz/embed.php?hash=36f29f5e62c69b03d95d7f5a03693fc7", link_m3u8: "" },
+                { name: "2", slug: "tap-2", filename: "Đi Phượt Bản Giới Hạn Tập 2", link_embed: "https://embed18.streamc.xyz/embed.php?hash=9d1d266482616d97554a8c46ae7d945a", link_m3u8: "" },
+                { name: "3", slug: "tap-3", filename: "Đi Phượt Bản Giới Hạn Tập 3", link_embed: "https://embed14.streamc.xyz/embed.php?hash=1862381a3e7748b9b34d4fdd8b98fbfc", link_m3u8: "" },
+                { name: "4", slug: "tap-4", filename: "Đi Phượt Bản Giới Hạn Tập 4", link_embed: "https://embed14.streamc.xyz/embed.php?hash=7d2c2068a95417cd1507abd4c02834bd", link_m3u8: "" },
+                { name: "5", slug: "tap-5", filename: "Đi Phượt Bản Giới Hạn Tập 5", link_embed: "https://embed14.streamc.xyz/embed.php?hash=19e1fd819dd72752adb39d0033c52287", link_m3u8: "" },
+                { name: "6", slug: "tap-6", filename: "Đi Phượt Bản Giới Hạn Tập 6", link_embed: "https://embed14.streamc.xyz/embed.php?hash=61c840f2aba0e04ba51fb5ae17d8f419", link_m3u8: "" },
+                { name: "7", slug: "tap-7", filename: "Đi Phượt Bản Giới Hạn Tập 7", link_embed: "https://embed14.streamc.xyz/embed.php?hash=5fec26c3311de6ef16626abd114dc2db", link_m3u8: "" },
+                { name: "8", slug: "tap-8", filename: "Đi Phượt Bản Giới Hạn Tập 8", link_embed: "https://embed14.streamc.xyz/embed.php?hash=1a0b8e378ebbd3164e66d1d368701513", link_m3u8: "" },
+                { name: "9", slug: "tap-9", filename: "Đi Phượt Bản Giới Hạn Tập 9", link_embed: "https://embed15.streamc.xyz/embed.php?hash=4d7f028e99c62ae342855116df8678a6", link_m3u8: "" },
+                { name: "10", slug: "tap-10", filename: "Đi Phượt Bản Giới Hạn Tập 10", link_embed: "https://embed15.streamc.xyz/embed.php?hash=63786cbd8aa1221643707c28e633a9a1", link_m3u8: "" },
+                { name: "11", slug: "tap-11", filename: "Đi Phượt Bản Giới Hạn Tập 11", link_embed: "https://embed15.streamc.xyz/embed.php?hash=2ae04c2e3650d681d1ce9c4982d1e853", link_m3u8: "" },
+                { name: "12", slug: "tap-12", filename: "Đi Phượt Bản Giới Hạn Tập 12", link_embed: "https://embed15.streamc.xyz/embed.php?hash=2228e0004e70ae8dcae6076e6d996f0c", link_m3u8: "" }
+              ]
+            }
+          ]
+        });
+      }
+
+      if (slug === 'show-cua-den') {
+        return res.json({
+          status: true,
+          movie: {
+            name: "Show Của Đen",
+            slug: "show-cua-den",
+            origin_name: "Show Của Đen",
+            content: "Kỷ niệm 10 năm làm nghề, rapper người Việt Đen Vâu trình diễn trong liveshow hoành tráng ở Thành phố Hồ Chí Minh cùng ban nhạc sống và các khách mời đặc biệt.",
+            type: "tvshows",
+            status: "completed",
+            thumb_url: "https://phim.nguonc.com/public/images/Film/vfDF76CIhgI8RhXfGfWMLKB54OQ.jpg",
+            poster_url: "https://phim.nguonc.com/public/images/Film/cssGWj8TFNl8t5VCVpHeNHqDfFw.jpg",
+            backdrop_url: "https://phim.nguonc.com/public/images/Film/vfDF76CIhgI8RhXfGfWMLKB54OQ.jpg",
+            trailer_url: "",
+            year: 2019,
+            view: 19500,
+            actor: ["Đen Vâu"],
+            director: [],
+            category: [{"id": "tv-shows", "name": "TV shows", "slug": "tv-shows"}],
+            country: [{"id": "viet-nam", "name": "Việt Nam", "slug": "viet-nam"}],
+            time: "84 phút",
+            episode_current: "Hoàn tất",
+            episode_total: "1 tập",
+            lang: "Vietsub",
+            quality: "HD",
+            imdb: {
+              star: "8.9",
+              vote: "120"
+            }
+          },
+          episodes: [
+            {
+              server_name: "Vietsub #1",
+              server_data: [
+                { name: "Full", slug: "tap-full", filename: "Show Của Đen", link_embed: "https://embed.streamc.xyz/embed.php?hash=3c023d5bda4b93b5477003c41e139e92", link_m3u8: "" }
+              ]
+            }
+          ]
+        });
+      }
+
+      if (slug === 'tham-tu-lung-danh-conan-movie-29' || slug.includes('conan-movie-29')) {
       slug = 'tmdb-1144807';
     }
 
@@ -1970,95 +2170,170 @@ async function startServer() {
         const originLower = (data.movie.origin_name || "").toLowerCase();
         const slugLower = (data.movie.slug || "").toLowerCase();
 
-        const isConanMovie1 = 
-          slugLower === "tham-tu-lung-danh-conan-1-qua-bom-choc-troi" ||
-          slugLower === "tham-tu-lung-danh-conan-1-ke-danh-bom-cao-oc" ||
-          slugLower === "conan-movie-1" ||
-          slugLower.includes("conan-1-ke-danh-bom") ||
-          nameLower.includes("bom chọc trời") ||
-          nameLower.includes("bom choc troi") ||
-          nameLower.includes("quả bom chọc trời") ||
-          nameLower.includes("qua bom choc troi") ||
-          originLower.includes("timed skyscraper") ||
-          originLower.includes("time-bombed skyscraper");
+        const CONAN_DUB_LINKS = [
+          "https://embed11.streamc.xyz/embed.php?hash=12431887de49d3195fa2f7c8e340bdfc", // 1
+          "https://embed11.streamc.xyz/embed.php?hash=14f5e0bce5f578d0d512b929ac9dab32", // 2
+          "https://embed13.streamc.xyz/embed.php?hash=23b601f75a66e884629dc76f5835d87e", // 3
+          "https://embed11.streamc.xyz/embed.php?hash=6eb647968d105ee3665057d33b516e12", // 4
+          "https://embed15.streamc.xyz/embed.php?hash=8031c6caa4374290e369ec5284a523d", // 5
+          "https://embed15.streamc.xyz/embed.php?hash=a4697d82f5b247a4bf6559e0d47658f4", // 6
+          "https://embed13.streamc.xyz/embed.php?hash=70a71298cf88fe8ff95df397ac99d013", // 7
+          "https://embed13.streamc.xyz/embed.php?hash=f4927f9b364f5478617568b10a4e7b34", // 8
+          "https://embed12.streamc.xyz/embed.php?hash=8d30d19edaebd174368df6120be117cc", // 9
+          "https://embed11.streamc.xyz/embed.php?hash=ce88df16c07c74557508c96e4e8d903e", // 10
+          "https://embed11.streamc.xyz/embed.php?hash=f8d0f6823014b722de22184b7a6fa52e", // 11
+          "https://embed14.streamc.xyz/embed.php?hash=4e962cee03e2b7675cc0f3e9c5964331", // 12
+          "https://embed14.streamc.xyz/embed.php?hash=d20aae96aaeeaa2e70aadc6d39fef631", // 13
+          "https://embed13.streamc.xyz/embed.php?hash=1a4029493b51b1db9f3f570681bbc68a", // 14
+          "https://embed13.streamc.xyz/embed.php?hash=66e1bb27626c24980983a3a13e254dec", // 15
+          "https://embed13.streamc.xyz/embed.php?hash=fd5ba9307675432d6d311856c0c88e42", // 16
+          "https://embed13.streamc.xyz/embed.php?hash=5962e618cb1095217fee6919b61cc2c9", // 17
+          "https://embed15.streamc.xyz/embed.php?hash=e86a1ada062afbee8447c45f7bbfd054", // 18
+          "https://embed12.streamc.xyz/embed.php?hash=df69fe6ee9cb5450679619811a8bd32a", // 19
+          "https://embed15.streamc.xyz/embed.php?hash=99a80be8221e05ddbc2d633b28ffc670", // 20
+          "https://embed11.streamc.xyz/embed.php?hash=0389601836cc731009d844747781182b", // 21
+          "https://embed4.streamc.xyz/embed.php?hash=5a2004a816b5a3d6267518e79ed09a99", // 22
+          "https://embed11.streamc.xyz/embed.php?hash=0499c5c68fd03dd8115fb4bfb954e519", // 23 (Thuyết minh) - đặc biệt
+          "https://embed14.streamc.xyz/embed.php?hash=f1c48e5f6cf92a91861e31794dfda570", // 24
+          "https://embed15.streamc.xyz/embed.php?hash=c2e1f4304b47846f5c68eef4e142ac7a", // 25 (Thuyết minh) - đặc biệt
+          "https://embed15.streamc.xyz/embed.php?hash=5a6e9113ee6117e92f0d0aee38e302e6", // 26
+          "https://embed15.streamc.xyz/embed.php?hash=71e546aa0c86ed1c407742e0aa9818a1"  // 27
+        ];
 
-        const isConanMovie4 = 
-          slugLower === "tham-tu-lung-danh-conan-4-thu-pham-trong-doi-mat" ||
-          slugLower === "conan-movie-4" ||
-          slugLower.includes("conan-4-thu-pham") ||
-          nameLower.includes("thủ phạm trong đôi mắt") ||
-          nameLower.includes("thu pham trong doi mat") ||
-          originLower.includes("captured in her eyes") ||
-          originLower.includes("capturing in her eyes");
+        function getConanMovieNum(name: string, origin: string, slug: string, year: number): number {
+          const n = (name || "").toLowerCase();
+          const o = (origin || "").toLowerCase();
+          const s = (slug || "").toLowerCase();
 
-        if (isConanMovie4) {
-          finalServers = [
-            {
-              server_name: "Chất Lượng Cao (Vietsub)",
-              server_data: [
-                {
-                  name: "Full HD",
-                  slug: "full",
-                  filename: data.movie.name,
-                  link_embed: "https://www.youtube.com/embed/FALiF-622G8",
-                  link_m3u8: ""
-                }
-              ]
-            },
-            {
-              server_name: "Chất Lượng Cao (Lồng Tiếng)",
-              server_data: [
-                {
-                  name: "Full HD",
-                  slug: "full",
-                  filename: data.movie.name,
-                  link_embed: "https://www.youtube.com/embed/FALiF-622G8",
-                  link_m3u8: ""
-                }
-              ]
+          const slugMatch = s.match(/conan(?:-movie)?-(\d+)/);
+          if (slugMatch) {
+            const num = parseInt(slugMatch[1], 10);
+            if (num >= 1 && num <= 27) return num;
+          }
+
+          if (n.includes("chọc trời") || n.includes("choc troi") || o.includes("skyscraper") || s.includes("bom-choc-troi") || s.includes("ke-danh-bom")) return 1;
+          if (n.includes("mục tiêu thứ 14") || n.includes("muc tieu thu 14") || n.includes("mục tiêu số 14") || o.includes("fourteenth target") || o.includes("14th target") || s.includes("muc-tieu")) return 2;
+          if (n.includes("phù thủy cuối cùng") || n.includes("phu thuy cuoi cung") || o.includes("last wizard") || s.includes("phu-thuy")) return 3;
+          if (n.includes("thủ phạm trong đôi mắt") || n.includes("thu pham trong doi mat") || o.includes("captured in her eyes") || o.includes("capturing in her eyes") || s.includes("thu-pham")) return 4;
+          if (n.includes("thiên đường") || n.includes("thien duong") || o.includes("countdown to heaven") || s.includes("thien-duong")) return 5;
+          if (n.includes("bóng ma đường baker") || n.includes("bong ma duong baker") || o.includes("phantom of baker") || s.includes("baker")) return 6;
+          if (n.includes("mê cung") || n.includes("me cung") || o.includes("crossroad in the ancient") || s.includes("me-cung")) return 7;
+          if (n.includes("ảo thuật") || n.includes("ao thuat") || o.includes("magician of the silver") || s.includes("ao-thuat")) return 8;
+          if (n.includes("âm mưu trên biển") || n.includes("am muu tren bien") || o.includes("strategy above the depths") || s.includes("am-muu")) return 9;
+          if (n.includes("bài hát cầu hồn") || n.includes("bai hat cau hon") || o.includes("private eyes") || s.includes("bai-hat-cau-hon") || s.includes("requiem")) return 10;
+          if (n.includes("kho báu") || n.includes("kho bau") || o.includes("jolly roger") || s.includes("kho-bau")) return 11;
+          if (n.includes("sợ hãi tột cùng") || n.includes("so hai tot cung") || o.includes("full score of fear") || s.includes("so-hai")) return 12;
+          if (n.includes("truy lùng tổ chức") || n.includes("truy lung to chuc") || o.includes("raven chaser") || s.includes("truy-lung")) return 13;
+          if (n.includes("tàu chiến lửng lơ") || n.includes("tau chien lung lo") || o.includes("lost ship") || s.includes("tau-chien")) return 14;
+          if (n.includes("15 phút tĩnh lặng") || n.includes("15 phut tinh lang") || o.includes("quarter of silence") || s.includes("15-phut")) return 15;
+          if (n.includes("tiền đạo thứ 11") || n.includes("tien dao thu 11") || o.includes("eleventh striker") || s.includes("tien-dao")) return 16;
+          if (n.includes("mắt thần") || n.includes("mat than") || o.includes("private eye in the distant") || s.includes("mat-than")) return 17;
+          if (n.includes("bắn tỉa") || n.includes("ban tia") || o.includes("dimensional sniper") || s.includes("ban-tia")) return 18;
+          if (n.includes("hoa hướng dương") || n.includes("hoa huong duong") || o.includes("sunflowers of inferno") || s.includes("hoa-huong-duong")) return 19;
+          if (n.includes("ác mộng") || n.includes("ac mong") || o.includes("darkest nightmare") || s.includes("ac-mong")) return 20;
+          if (n.includes("tình ca màu đỏ thẫm") || n.includes("tinh ca mau do") || n.includes("tình ca đỏ thẫm") || o.includes("crimson love letter") || s.includes("tinh-ca")) return 21;
+          if (n.includes("hành pháp") || n.includes("hanh phap") || o.includes("zero the enforcer") || s.includes("hanh-phap")) return 22;
+          if (n.includes("cú đấm sapphire") || n.includes("cu dam sapphire") || o.includes("fist of blue sapphire") || s.includes("cu-dam")) return 23;
+          if (n.includes("viên đạn đỏ") || n.includes("vien dan do") || o.includes("scarlet bullet") || s.includes("vien-dan-do")) return 24;
+          if (n.includes("nàng dâu") || n.includes("nang dau") || o.includes("bride of halloween") || s.includes("nang-dau")) return 25;
+          if (n.includes("tàu ngầm sắt") || n.includes("tau ngam sat") || o.includes("black iron submarine") || s.includes("tau-ngam")) return 26;
+          if (n.includes("ngôi sao năm cánh") || n.includes("ngoi sao nam canh") || o.includes("pentagram") || s.includes("ngoi-sao-nam-canh")) return 27;
+
+          if (year === 1997) return 1;
+          if (year === 1998) return 2;
+          if (year === 1999) return 3;
+          if (year === 2000) return 4;
+          if (year === 2001) return 5;
+          if (year === 2002) return 6;
+          if (year === 2003) return 7;
+          if (year === 2004) return 8;
+          if (year === 2005) return 9;
+          if (year === 2006) return 10;
+          if (year === 2007) return 11;
+          if (year === 2008) return 12;
+          if (year === 2009) return 13;
+          if (year === 2010) return 14;
+          if (year === 2011) return 15;
+          if (year === 2012) return 16;
+          if (year === 2013) return 17;
+          if (year === 2014) return 18;
+          if (year === 2015) return 19;
+          if (year === 2016) return 20;
+          if (year === 2017) return 21;
+          if (year === 2018) return 22;
+          if (year === 2019) return 23;
+          if (year === 2021) return 24;
+          if (year === 2022) return 25;
+          if (year === 2023) return 26;
+          if (year === 2024) return 27;
+
+          return 0;
+        }
+
+        const isConan = nameLower.includes("conan") || originLower.includes("conan") || slugLower.includes("conan");
+        const conanMovieNum = isConan ? getConanMovieNum(data.movie.name, data.movie.origin_name || data.movie.original_name, data.movie.slug, data.movie.year || data.movie.release_year) : 0;
+
+        if (conanMovieNum >= 1 && conanMovieNum <= 27) {
+          const isSpecial = conanMovieNum === 23 || conanMovieNum === 25;
+          const serverLabel = isSpecial ? "Chất Lượng Cao (Thuyết Minh)" : "Chất Lượng Cao (Lồng Tiếng)";
+          const streamUrl = CONAN_DUB_LINKS[conanMovieNum - 1];
+
+          // Make sure first server is named containing (Vietsub) if not already
+          if (finalServers.length > 0) {
+            const firstSvr = finalServers[0];
+            const fsNameLower = (firstSvr.server_name || "").toLowerCase();
+            if (!fsNameLower.includes("vietsub")) {
+              firstSvr.server_name = `${firstSvr.server_name} (Vietsub)`;
             }
-          ];
-        } else if (isConanMovie1) {
-          // Put FilmFlow Vietsub 2 at the front of servers
-          finalServers.unshift({
-            server_name: "FilmFlow Vietsub 2",
+          }
+
+          // Filter out existing Lồng Tiếng/Thuyết Minh to avoid duplicates
+          finalServers = finalServers.filter((svr: any) => {
+            const sNameLower = (svr.server_name || "").toLowerCase();
+            return !sNameLower.includes("lồng tiếng") && !sNameLower.includes("thuyết minh") && !sNameLower.includes("long tieng");
+          });
+
+          // Append high-fidelity dub server
+          finalServers.push({
+            server_name: serverLabel,
             server_data: [
               {
-                name: "Full HD (YouTube)",
+                name: "Full HD",
                 slug: "full",
                 filename: data.movie.name,
-                link_embed: "https://www.youtube.com/embed/R6FlrHW5Urw?si=_tVeGtOFR9CQxMnT",
+                link_embed: streamUrl,
                 link_m3u8: ""
               }
             ]
           });
-        }
+        } else {
+          // Fallback for other Anime or non-mainline Conan movies
+          const isConanOrAnime = 
+            nameLower.includes("conan") || 
+            nameLower.includes("doraemon") || 
+            nameLower.includes("khuyển dạ xoa") || 
+            nameLower.includes("inuyasha") || 
+            originLower.includes("conan") || 
+            originLower.includes("doraemon") || 
+            originLower.includes("inuyasha") || 
+            slugLower.includes("conan") || 
+            slugLower.includes("doraemon") || 
+            slugLower.includes("inuyasha");
 
-        const isConanOrAnime = 
-          nameLower.includes("conan") || 
-          nameLower.includes("doraemon") || 
-          nameLower.includes("khuyển dạ xoa") || 
-          nameLower.includes("inuyasha") || 
-          originLower.includes("conan") || 
-          originLower.includes("doraemon") || 
-          originLower.includes("inuyasha") || 
-          slugLower.includes("conan") || 
-          slugLower.includes("doraemon") || 
-          slugLower.includes("inuyasha");
-
-        if (isConanOrAnime && finalServers.length > 0 && !isConanMovie4) {
-          const hasLongTieng = finalServers.some((svr: any) => {
-            const sName = (svr.server_name || "").toLowerCase();
-            return sName.includes("lồng tiếng") || sName.includes("long tieng") || sName.includes("longtieng") || sName.includes("thuyết minh");
-          });
-
-          if (!hasLongTieng) {
-            const sourceServer = finalServers[0];
-            const copiedData = JSON.parse(JSON.stringify(sourceServer.server_data));
-            finalServers.push({
-              server_name: "Chất Lượng Cao (Lồng Tiếng)",
-              server_data: copiedData
+          if (isConanOrAnime && finalServers.length > 0) {
+            const hasLongTieng = finalServers.some((svr: any) => {
+              const sName = (svr.server_name || "").toLowerCase();
+              return sName.includes("lồng tiếng") || sName.includes("long tieng") || sName.includes("longtieng") || sName.includes("thuyết minh");
             });
+
+            if (!hasLongTieng) {
+              const sourceServer = finalServers[0];
+              const copiedData = JSON.parse(JSON.stringify(sourceServer.server_data));
+              finalServers.push({
+                server_name: "Chất Lượng Cao (Lồng Tiếng)",
+                server_data: copiedData
+              });
+            }
           }
         }
 

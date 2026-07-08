@@ -197,7 +197,8 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
           setEpisodes(res.episodes || []);
           
           // Set tab state depending on format type
-          setActiveTab(res.movie.type === 'series' ? 'episodes' : 'info');
+          const isSeries = res.movie.type === 'series' || res.movie.type === 'tvshows' || res.movie.type === 'tv-shows';
+          setActiveTab(isSeries ? 'episodes' : 'info');
 
           // Load related recommendations based on the first category
           if (res.movie.category && res.movie.category.length > 0) {
@@ -233,6 +234,7 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
   }
 
   const isAdded = isInWatchlist(movie.slug);
+  const isSeries = movie.type === 'series' || movie.type === 'tvshows' || movie.type === 'tv-shows';
 
   const handleWatchlistClick = () => {
     if (isAdded) {
@@ -426,7 +428,7 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
         <div className="mt-16 sm:mt-24">
           {/* Tab switches */}
           <div className="flex border-b border-zinc-900 pb-3 gap-6 sm:gap-8 overflow-x-auto no-scrollbar">
-            {movie.type === 'series' && (
+            {isSeries && (
               <button
                 onClick={() => setActiveTab('episodes')}
                 className={`text-sm font-bold pb-2 transition-colors cursor-pointer select-none uppercase tracking-wider relative ${activeTab === 'episodes' ? 'text-[var(--color-brand)]' : 'text-zinc-500 hover:text-white'}`}

@@ -21,7 +21,7 @@ export interface Movie {
   slug: string;
   origin_name: string;
   content: string;
-  type: 'series' | 'single';
+  type: 'series' | 'single' | string;
   status: 'completed' | 'ongoing' | 'trailer';
   thumb_url: string;
   poster_url: string;
@@ -63,7 +63,7 @@ export interface MovieDetailResponse {
 }
 
 export interface MovieListParams {
-  type?: 'single' | 'series';
+  type?: 'single' | 'series' | string;
   page?: number;
   limit?: number;
   sort_field?: 'modified_time' | 'year';
@@ -80,7 +80,7 @@ export interface MovieListItem {
   thumb_url: string;
   poster_url: string;
   year: number;
-  type: 'series' | 'single';
+  type: 'series' | 'single' | string;
   episode_current: string;
   quality: string;
   lang: string;

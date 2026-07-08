@@ -404,16 +404,16 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
                     className="absolute top-full left-[-30px] mt-2.5 w-60 bg-zinc-950/95 backdrop-blur-xl border border-zinc-900 rounded-[20px] p-4 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.9)] z-50 flex flex-col gap-2.5 text-left border-zinc-800/80"
                   >
                     <div className="flex flex-col gap-1.5">
-                      {/* Live TV choice */}
+                      {/* TV Shows Choice */}
                       <div
                         onClick={() => navigateTo('tv')}
                         className="group/item flex items-center justify-between gap-3 text-xs text-zinc-400 hover:text-[#E63946] hover:bg-[#E63946]/5 px-3 py-2.5 border border-transparent hover:border-[#E63946]/20 rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.04] select-none font-bold"
                       >
                         <div className="flex items-center gap-2">
-                          <span>TV Trực Tiếp</span>
+                          <span>TV Shows</span>
                         </div>
-                        <span className="text-[8px] font-black tracking-wider px-1.5 py-0.5 rounded bg-red-600 text-white animate-pulse">
-                          LIVE
+                        <span className="text-[8px] font-black tracking-wider px-1.5 py-0.5 rounded bg-amber-600 text-white">
+                          HOT
                         </span>
                       </div>
 
@@ -544,7 +544,7 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
                         className="w-full text-left p-2 hover:bg-zinc-950 hover:text-[var(--color-brand)] rounded-lg text-zinc-300 font-bold tracking-wide transition-colors cursor-pointer flex items-center gap-2"
                       >
                         <Tv size={13} className="text-red-500" />
-                        <span>Kênh TV Live</span>
+                        <span>TV Shows</span>
                       </button>
                       <button
                         onClick={() => navigateTo('membership')}
@@ -644,8 +644,8 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
               onClick={() => navigateTo('tv')}
               className={`text-lg font-bold p-2 rounded-lg flex items-center justify-between ${currentRoute === 'tv' ? 'text-[var(--color-brand)] bg-zinc-900/40' : 'text-zinc-300'}`}
             >
-              <span className="flex items-center gap-2">TV Trực Tiếp</span>
-              <span className="text-[8px] font-black tracking-wider px-1.5 py-0.5 rounded bg-red-600 text-white">LIVE</span>
+              <span className="flex items-center gap-2">TV Shows</span>
+              <span className="text-[8px] font-black tracking-wider px-1.5 py-0.5 rounded bg-amber-600 text-white">HOT</span>
             </span>
             <span
               onClick={() => navigateTo('music')}

@@ -449,7 +449,7 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
           </div>
 
           {/* RIGHT VIEWING MODULE - CONTENT AREA WITH SKELETON OPTIONS */}
-          <div className="lg:col-span-9 min-h-[460px]">
+          <div className="col-span-12 lg:col-span-9 min-h-[460px] w-full">
             {isTabLoading ? (
               /* PREMIUM SKELETON LOADER STATE */
               <div className="flex flex-col gap-6 animate-pulse select-none">
@@ -1007,138 +1007,148 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
 
                 {/* 3F. TAB: SETTINGS & PREFERENCES */}
                 {activeTab === 'settings' && (
-                  <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-6 w-full">
                     <div className="border-b border-white/5 pb-3">
                       <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">CÀI ĐẶT HỆ THỐNG</h2>
                       <p className="text-xs text-zinc-500 mt-1">Tuỳ chỉnh rạp phim, ngôn ngữ phụ đề rạp bao.</p>
                     </div>
 
-                    <div className="flex flex-col gap-5 p-5 sm:p-6 rounded-[24px] bg-[#12121A]/30 border border-white/5 text-left">
+                    <div className="flex flex-col gap-5 p-4 sm:p-6 rounded-[24px] bg-[#12121A]/30 border border-white/5 text-left w-full">
                       {/* Display name setting inside */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
-                        <div>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4 w-full">
+                        <div className="flex-grow min-w-0">
                           <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
-                            <User size={15} className="text-[#E63946]" />
+                            <User size={15} className="text-[#E63946] flex-shrink-0" />
                             Tên sử dụng rạp phim
                           </h4>
-                          <p className="text-[11px] text-zinc-500 mt-1">Thay đổi tên hiển thị để chào mừng bạn khi mở rạp.</p>
+                          <p className="text-[11px] text-zinc-500 mt-1 break-words">Thay đổi tên hiển thị để chào mừng bạn khi mở rạp.</p>
                         </div>
-                        <input
-                          type="text"
-                          value={preferences.userName}
-                          onChange={(e) => updatePreferences({ userName: e.target.value })}
-                          className="p-2.5 px-4 rounded-xl bg-black border border-white/5 text-xs font-bold text-white outline-none focus:border-[#E63946] min-w-[220px]"
-                        />
+                        <div className="w-full sm:w-auto flex-shrink-0">
+                          <input
+                            type="text"
+                            value={preferences.userName}
+                            onChange={(e) => updatePreferences({ userName: e.target.value })}
+                            className="p-2.5 px-4 rounded-xl bg-black border border-white/5 text-xs font-bold text-white outline-none focus:border-[#E63946] w-full sm:w-[240px]"
+                          />
+                        </div>
                       </div>
 
                       {/* Language Selection Setting */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
-                        <div>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4 w-full">
+                        <div className="flex-grow min-w-0">
                           <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
-                            <Languages size={15} className="text-emerald-400" />
+                            <Languages size={15} className="text-emerald-400 flex-shrink-0" />
                             Ngôn ngữ hiển thị &amp; Sub mặc định
                           </h4>
-                          <p className="text-[11px] text-zinc-500 mt-1">Ủy thác tự động hiển thị Vietsub hoặc Voice rạp.</p>
+                          <p className="text-[11px] text-zinc-500 mt-1 break-words">Ủy thác tự động hiển thị Vietsub hoặc Voice rạp.</p>
                         </div>
-                        <select
-                          value={preferences.language}
-                          onChange={(e) => {
-                            updatePreferences({ language: e.target.value as any });
-                            triggerToast('Đã lưu cấu hình ngôn ngữ rạp phim.');
-                          }}
-                          className="p-2.5 bg-black border border-white/5 rounded-xl text-xs font-bold text-white cursor-pointer Outline-none"
-                        >
-                          <option value="vietsub">Tiếng Việt (Bản Vietsub)</option>
-                          <option value="thuyetminh">Lồng Tiếng (Thuyết Minh)</option>
-                          <option value="goc">Bản Nguyên Gốc (Raw Sound + En)</option>
-                        </select>
+                        <div className="w-full sm:w-auto flex-shrink-0">
+                          <select
+                            value={preferences.language}
+                            onChange={(e) => {
+                              updatePreferences({ language: e.target.value as any });
+                              triggerToast('Đã lưu cấu hình ngôn ngữ rạp phim.');
+                            }}
+                            className="p-2.5 bg-black border border-white/5 rounded-xl text-xs font-bold text-white cursor-pointer outline-none w-full sm:w-[240px]"
+                          >
+                            <option value="vietsub">Tiếng Việt (Bản Vietsub)</option>
+                            <option value="thuyetminh">Lồng Tiếng (Thuyết Minh)</option>
+                            <option value="goc">Bản Nguyên Gốc (Raw Sound + En)</option>
+                          </select>
+                        </div>
                       </div>
 
                       {/* Default video Resolution Stream Quality Setting */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
-                        <div>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4 w-full">
+                        <div className="flex-grow min-w-0">
                           <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
-                            <Film size={15} className="text-teal-400" />
+                            <Film size={15} className="text-teal-400 flex-shrink-0" />
                             Độ phân giải truyền tải tối đa
                           </h4>
-                          <p className="text-[11px] text-zinc-500 mt-1">Cân bằng băng thông của thiết bị rạp chiếu.</p>
+                          <p className="text-[11px] text-zinc-500 mt-1 break-words">Cân bằng băng thông của thiết bị rạp chiếu.</p>
                         </div>
-                        <select
-                          value={preferences.defaultQuality}
-                          onChange={(e) => {
-                            updatePreferences({ defaultQuality: e.target.value as any });
-                            triggerToast('Đã cấu hình chất lượng phát phim mới.');
-                          }}
-                          className="p-2.5 bg-black border border-white/5 rounded-xl text-xs font-bold text-white cursor-pointer outline-none"
-                        >
-                          <option value="auto">Tự động điều chỉnh (Auto Detect-Adaptive)</option>
-                          <option value="1080p">Tối đa 1080p FHD (Khuyên dùng)</option>
-                          <option value="720p">Tiết kiệm 720p HD</option>
-                        </select>
+                        <div className="w-full sm:w-auto flex-shrink-0">
+                          <select
+                            value={preferences.defaultQuality}
+                            onChange={(e) => {
+                              updatePreferences({ defaultQuality: e.target.value as any });
+                              triggerToast('Đã cấu hình chất lượng phát phim mới.');
+                            }}
+                            className="p-2.5 bg-black border border-white/5 rounded-xl text-xs font-bold text-white cursor-pointer outline-none w-full sm:w-[240px]"
+                          >
+                            <option value="auto">Tự động điều chỉnh (Auto Detect-Adaptive)</option>
+                            <option value="1080p">Tối đa 1080p FHD (Khuyên dùng)</option>
+                            <option value="720p">Tiết kiệm 720p HD</option>
+                          </select>
+                        </div>
                       </div>
 
                       {/* Autoplay setting toggles layout */}
-                      <div className="flex flex-row items-center justify-between gap-3 border-b border-white/5 pb-4">
-                        <div>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4 w-full">
+                        <div className="flex-grow min-w-0">
                           <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
-                            <Zap size={15} className="text-amber-400" />
+                            <Zap size={15} className="text-amber-400 flex-shrink-0" />
                             Tự động chuyển tiếp tập tiếp theo
                           </h4>
-                          <p className="text-[11px] text-zinc-500 mt-1">Liên phát khi tập phim cũ kết thúc để không ngắt quãng.</p>
+                          <p className="text-[11px] text-zinc-500 mt-1 break-words">Liên phát khi tập phim cũ kết thúc để không ngắt quãng.</p>
                         </div>
-                        <button
-                          onClick={() => {
-                            updatePreferences({ autoplay: !preferences.autoplay });
-                            triggerToast(preferences.autoplay ? 'Đã tắt tự động phát tiếp.' : 'Đã bật tự động phát liên tục tập mới!');
-                          }}
-                          className={`p-2 px-4 rounded-xl text-xs font-black border transition-all cursor-pointer ${
-                            preferences.autoplay 
-                              ? 'bg-[#E63946] text-white border-[#E63946] shadow-md shadow-red-500/10' 
-                              : 'bg-black text-zinc-400 border-white/5'
-                          }`}
-                        >
-                          {preferences.autoplay ? 'Đã bật liên phát' : 'Đang tắt'}
-                        </button>
+                        <div className="w-full sm:w-auto flex-shrink-0">
+                          <button
+                            onClick={() => {
+                              updatePreferences({ autoplay: !preferences.autoplay });
+                              triggerToast(preferences.autoplay ? 'Đã tắt tự động phát tiếp.' : 'Đã bật tự động phát liên tục tập mới!');
+                            }}
+                            className={`p-2.5 px-5 rounded-xl text-xs font-black border transition-all cursor-pointer w-full sm:w-[240px] flex-shrink-0 text-center ${
+                              preferences.autoplay 
+                                ? 'bg-[#E63946] text-white border-[#E63946] shadow-md shadow-red-500/10' 
+                                : 'bg-black text-zinc-400 border-white/5'
+                            }`}
+                          >
+                            {preferences.autoplay ? 'Đã bật liên phát' : 'Đang tắt'}
+                          </button>
+                        </div>
                       </div>
 
                       {/* Appearance theme mock setting (Requested: dark/light/auto option list) */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
-                        <div>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4 w-full">
+                        <div className="flex-grow min-w-0">
                           <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
-                            <Monitor size={15} className="text-indigo-400" />
+                            <Monitor size={15} className="text-indigo-400 flex-shrink-0" />
                             Giao diện hiển thị (Theme)
                           </h4>
-                          <p className="text-[11px] text-zinc-500 mt-1">Thiết kế sáng tối hoặc bám theo cấu hình thiết bị.</p>
+                          <p className="text-[11px] text-zinc-500 mt-1 break-words">Thiết kế sáng tối hoặc bám theo cấu hình thiết bị.</p>
                         </div>
-                        <div className="flex items-center gap-1.5 bg-black p-1 rounded-xl border border-white/5">
-                          {(['dark', 'light', 'auto'] as const).map((mode) => (
-                            <button
-                              key={mode}
-                              onClick={() => {
-                                setAppearance(mode);
-                                updatePreferences({ theme: mode });
-                                triggerToast(`Đã chuyển đổi giao diện sang dạng ${mode === 'dark' ? 'Tối (Kinh điển)' : mode === 'light' ? 'Sáng (Sắc nét)' : 'Tự động bám thiết bị'}`);
-                              }}
-                              className={`p-1.5 px-3 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                appearance === mode 
-                                  ? 'bg-[#E63946] text-white shadow-md' 
-                                  : 'text-zinc-500 hover:text-white'
-                              }`}
-                            >
-                              {mode === 'dark' ? 'Tối' : mode === 'light' ? 'Sáng' : 'Auto'}
-                            </button>
-                          ))}
+                        <div className="w-full sm:w-auto flex-shrink-0">
+                          <div className="flex items-center gap-1.5 bg-black p-1 rounded-xl border border-white/5 w-full sm:w-[240px] justify-between">
+                            {(['dark', 'light', 'auto'] as const).map((mode) => (
+                              <button
+                                key={mode}
+                                onClick={() => {
+                                  setAppearance(mode);
+                                  updatePreferences({ theme: mode });
+                                  triggerToast(`Đã chuyển đổi giao diện sang dạng ${mode === 'dark' ? 'Tối (Kinh điển)' : mode === 'light' ? 'Sáng (Sắc nét)' : 'Tự động bám thiết bị'}`);
+                                }}
+                                className={`p-1.5 px-3 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex-1 text-center ${
+                                  appearance === mode 
+                                    ? 'bg-[#E63946] text-white shadow-md' 
+                                    : 'text-zinc-500 hover:text-white'
+                                }`}
+                              >
+                                {mode === 'dark' ? 'Tối' : mode === 'light' ? 'Sáng' : 'Auto'}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
 
                       {/* Notifications switches list */}
-                      <div className="flex flex-col gap-3 pt-1 text-left">
+                      <div className="flex flex-col gap-3 pt-1 text-left w-full">
                         <h4 className="text-xs font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2 mb-1.5">
-                          <Bell size={14} className="text-[#E63946]" />
+                          <Bell size={14} className="text-[#E63946] flex-shrink-0" />
                           Cài đặt thông báo rạp
                         </h4>
-                        <div className="flex flex-col gap-2.5">
-                          <label className="flex items-center gap-3 text-xs text-zinc-300 font-bold cursor-pointer">
+                        <div className="flex flex-col gap-3.5 w-full">
+                          <label className="flex items-start gap-3 text-xs text-zinc-300 font-bold cursor-pointer w-full">
                             <input 
                               type="checkbox" 
                               checked={notifNewMovies} 
@@ -1146,11 +1156,11 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
                                 setNotifNewMovies(!notifNewMovies);
                                 triggerToast('Đã lưu thiết lập thông báo phim mới.');
                               }}
-                              className="w-4 h-4 accent-[#E63946] bg-black border-white/5 rounded"
+                              className="w-4 h-4 mt-0.5 accent-[#E63946] bg-black border-white/5 rounded flex-shrink-0"
                             />
-                            <span>Nhận thông báo khi có phim mới cập nhật (Hàng ngày)</span>
+                            <span className="leading-tight break-words">Nhận thông báo khi có phim mới cập nhật (Hàng ngày)</span>
                           </label>
-                          <label className="flex items-center gap-3 text-xs text-zinc-300 font-bold cursor-pointer">
+                          <label className="flex items-start gap-3 text-xs text-zinc-300 font-bold cursor-pointer w-full">
                             <input 
                               type="checkbox" 
                               checked={notifPromos} 
@@ -1158,11 +1168,11 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
                                 setNotifPromos(!notifPromos);
                                 triggerToast('Đã lưu thiết lập khuyến mại VIP.');
                               }}
-                              className="w-4 h-4 accent-[#E63946] bg-black border-white/5 rounded"
+                              className="w-4 h-4 mt-0.5 accent-[#E63946] bg-black border-white/5 rounded flex-shrink-0"
                             />
-                            <span>Ưu đãi nâng cấp VIP, mã giảm giá gói cước &amp; sự kiện rạp</span>
+                            <span className="leading-tight break-words">Ưu đãi nâng cấp VIP, mã giảm giá gói cước &amp; sự kiện rạp</span>
                           </label>
-                          <label className="flex items-center gap-3 text-xs text-zinc-300 font-bold cursor-pointer">
+                          <label className="flex items-start gap-3 text-xs text-zinc-300 font-bold cursor-pointer w-full">
                             <input 
                               type="checkbox" 
                               checked={notifSecurity} 
@@ -1170,16 +1180,16 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
                                 setNotifSecurity(!notifSecurity);
                                 triggerToast('Đã lưu thiết lập cảnh báo bảo mật.');
                               }}
-                              className="w-4 h-4 accent-[#E63946] bg-black border-white/5 rounded"
+                              className="w-4 h-4 mt-0.5 accent-[#E63946] bg-black border-white/5 rounded flex-shrink-0"
                             />
-                            <span>Thông báo đăng nhập lạ, ngắt kết nối thiết bị đột ngột</span>
+                            <span className="leading-tight break-words">Thông báo đăng nhập lạ, ngắt kết nối thiết bị đột ngột</span>
                           </label>
                         </div>
                       </div>
 
                     </div>
 
-                    <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 text-zinc-500 font-sans text-[11px] leading-relaxed">
+                    <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 text-zinc-500 font-sans text-[11px] leading-relaxed w-full">
                       Lưu ý: Bạn đang đăng nhập độc quyền qua Gmail được liên kết. Một số thiết lập rạp chiếu đặc thù có thể mất vài phút để đồng bộ hóa hoàn chỉnh trên các ứng dụng Smart TV liên quan.
                     </div>
                   </div>

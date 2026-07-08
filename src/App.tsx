@@ -572,7 +572,7 @@ export default function App() {
                     </h4>
                     <div className="flex flex-col gap-3">
                       {overlayResults.map((movieItem) => {
-                        const isSeries = movieItem.type === 'series';
+                        const isSeries = movieItem.type === 'series' || movieItem.type === 'tvshows' || movieItem.type === 'tv-shows';
                         const genreDesc = isSeries 
                           ? 'Phim bộ chất lượng cao. Cập nhật tập mới nhất liên tục, âm thanh sống động và vietsub hoàn chỉnh.' 
                           : 'Phim lẻ bom tấn chiếu rạp. Trải nghiệm tốc độ truyền tải nhanh, hình ảnh chuẩn rạp không giật lag.';

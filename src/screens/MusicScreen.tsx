@@ -220,7 +220,6 @@ export default function MusicScreen() {
                   <span className="flex items-center gap-1.5 text-[10px] font-black text-red-500 uppercase tracking-widest bg-red-500/10 px-2.5 py-1 rounded-full border border-red-500/20">
                     <Flame size={12} className="animate-bounce" /> Đang Phát
                   </span>
-                  <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">• {activeVideo.views}</span>
                 </div>
                 <h2 className="text-lg sm:text-xl font-black text-white tracking-tight leading-snug">
                   {activeVideo.title}
@@ -296,7 +295,7 @@ export default function MusicScreen() {
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.3, delay: idx * 0.05 }}
                       onClick={() => setActiveVideo(track)}
-                      className={`group p-3 rounded-2xl border transition-all duration-300 flex items-start gap-3.5 cursor-pointer relative overflow-hidden ${
+                      className={`group p-3 rounded-2xl border transition-all duration-300 flex items-center gap-3.5 cursor-pointer relative overflow-hidden ${
                         isActive 
                           ? 'bg-[#12121E]/80 border-[#E63946]/30 shadow-lg shadow-[#E63946]/5' 
                           : 'bg-[#0A0A0F]/60 border-zinc-900/80 hover:bg-zinc-900/40 hover:border-zinc-800'
@@ -310,7 +309,7 @@ export default function MusicScreen() {
                       {/* Video Thumbnail Wrapper */}
                       <div className="relative w-28 sm:w-32 aspect-video rounded-lg overflow-hidden shrink-0 bg-zinc-950 border border-zinc-800 shadow-md">
                         <img 
-                          src={track.thumbnail} 
+                           src={track.thumbnail} 
                           alt={track.title} 
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
@@ -329,18 +328,13 @@ export default function MusicScreen() {
                       </div>
 
                       {/* Song Details */}
-                      <div className="flex flex-col gap-1 min-w-0">
+                      <div className="flex flex-col gap-1 min-w-0 justify-center">
                         <h4 className={`text-xs font-black leading-snug line-clamp-2 ${isActive ? 'text-[#E63946]' : 'text-zinc-100 group-hover:text-white'}`}>
                           {track.title}
                         </h4>
                         <span className="text-[10px] text-zinc-400 font-bold tracking-wide">
                           {track.creator}
                         </span>
-                        <div className="flex items-center gap-2 text-[9px] text-zinc-500 font-semibold mt-1">
-                          <span>{track.views}</span>
-                          <span>•</span>
-                          <span>{track.uploadedAt}</span>
-                        </div>
                       </div>
                     </motion.div>
                   );
@@ -353,14 +347,6 @@ export default function MusicScreen() {
                   <p className="text-xs font-bold text-zinc-500">Không tìm thấy bài hát phù hợp</p>
                 </div>
               )}
-            </div>
-
-            {/* Bottom info card */}
-            <div className="flex items-start gap-2 text-[10px] text-zinc-500 max-w-md bg-zinc-900/10 border border-zinc-900/50 p-4 rounded-xl mt-2 font-medium leading-relaxed">
-              <Info size={14} className="text-[#3A86C8] shrink-0 mt-0.5" />
-              <p>
-                Trình phát hỗ trợ chế độ tương tác cao. Chọn bất kỳ video nào bên trên để thưởng thức tức thì với chất lượng HD tốt nhất.
-              </p>
             </div>
 
           </div>
