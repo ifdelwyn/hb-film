@@ -133,7 +133,7 @@ export default function DonationModal() {
 
             {/* Footer */}
             <p className="text-[10px] text-zinc-600 mt-4 italic font-sans">
-              * Mọi đóng góp của bạn đều được trân trọng và sử dụng 100% để thanh toán chi phí máy chủ CDN phát trực tuyến. Xin chân thành cảm ơn!
+              * mọi đóng góp của bạn đều đáng quý và đáng được trân trọng, chúc bạn một ngày vui vẻ
             </p>
           </motion.div>
         </div>

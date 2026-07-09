@@ -434,19 +434,19 @@ export default function LoginScreen({ onAuthSuccess, redirectRoute }: LoginScree
                   <div className="flex flex-col gap-2 mb-4">
                     {[
                       {
-                        name: 'Bảo Lê Huy',
-                        email: 'lehuybao17112007@gmail.com',
-                        avatar: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=100&h=100&fit=crop'
+                        name: 'Demo 1',
+                        email: 'demo1@gmail.com',
+                        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=demo1'
                       },
                       {
-                        name: 'Lan Anh Nguyễn',
-                        email: 'lananh.nguyen@gmail.com',
-                        avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop'
+                        name: 'Demo 2',
+                        email: 'demo2@gmail.com',
+                        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=demo2'
                       },
                       {
-                        name: 'Guest Explorer',
-                        email: 'guest.explorer@gmail.com',
-                        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=guestabc'
+                        name: 'Demo 3',
+                        email: 'demo3@gmail.com',
+                        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=demo3'
                       }
                     ].map((acc, index) => (
                       <div

@@ -47,7 +47,7 @@ export default function VideoPlayer({
   isTheaterMode = false,
   onToggleTheaterMode
 }: VideoPlayerProps) {
-  const [playerType, setPlayerType] = useState<'embed' | 'native'>('embed');
+  const [playerType, setPlayerType] = useState<'embed' | 'native'>('native');
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -83,13 +83,7 @@ export default function VideoPlayer({
 
   // Preference load and set player mode
   useEffect(() => {
-    if (m3u8Url && m3u8Url.trim() !== '') {
-      setPlayerType('native');
-    } else if (embedUrl && embedUrl.trim() !== '') {
-      setPlayerType('embed');
-    } else {
-      setPlayerType('native');
-    }
+    setPlayerType('native');
     setIsLoading(true);
     setLoadTimeoutError(false);
   }, [embedUrl, m3u8Url]);
@@ -560,15 +554,41 @@ export default function VideoPlayer({
           <div className="absolute inset-0 z-35 flex flex-col items-center justify-center bg-zinc-950 p-6 text-center">
             <ShieldAlert size={32} className="text-[#E63946] mb-3" />
             <p className="text-sm font-black text-white mb-2">Tải luồng chậm hơn bình thường</p>
-            <p className="text-xs text-zinc-500 max-w-xs mb-4 leading-relaxed">Đang tải phim lâu hơn dự kiến. Vui lòng bấm nguồn phát dự phòng bên dưới.</p>
-            {embedUrl && (
-              <button 
-                onClick={() => setPlayerType('embed')}
-                className="px-4 py-2 bg-[#E63946] hover:bg-red-600 rounded-xl text-xs font-black uppercase text-white cursor-pointer"
-              >
-                Chuyển qua máy chủ Dự phòng
-              </button>
-            )}
+            <p className="text-xs text-zinc-500 max-w-xs mb-4 leading-relaxed">Đang tải phim lâu hơn dự kiến. Vui lòng thử tải lại trang hoặc chờ trong giây lát.</p>
+            <button 
+              onClick={() => {
+                setIsLoading(true);
+                setLoadTimeoutError(false);
+                const video = videoRef.current;
+                if (video) {
+                  const prevTime = video.currentTime;
+                  if (hlsRef.current) {
+                    hlsRef.current.destroy();
+                    hlsRef.current = null;
+                  }
+                  if (m3u8Url) {
+                    if (Hls.isSupported() && (m3u8Url.includes('.m3u8') || !m3u8Url.toLowerCase().endsWith('.mp4'))) {
+                      const hls = new Hls({
+                        autoStartLoad: true,
+                        startLevel: -1,
+                        capLevelToPlayerSize: false,
+                      });
+                      hlsRef.current = hls;
+                      hls.loadSource(m3u8Url);
+                      hls.attachMedia(video);
+                      hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+                        if (prevTime > 0) video.currentTime = prevTime;
+                      });
+                    } else {
+                      video.load();
+                    }
+                  }
+                }
+              }}
+              className="px-4 py-2 bg-[#E63946] hover:bg-red-600 rounded-xl text-xs font-black uppercase text-white cursor-pointer"
+            >
+              Thử tải lại luồng phát
+            </button>
           </div>
         )}
 

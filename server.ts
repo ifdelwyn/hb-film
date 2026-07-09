@@ -314,39 +314,52 @@ function getAbsoluteImageUrl(url: string, pathImage: string, fallbackBase: strin
   if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//')) {
     const trimmedUrl = url.replace(/^\//, '');
 
+    const isOPhim = (pathImage && (pathImage.includes('ophim') || pathImage.includes('img.ophim.live'))) ||
+                    (fallbackBase && (fallbackBase.includes('ophim') || fallbackBase.includes('img.ophim.live')));
+
+    const isNguonPhim = (pathImage && pathImage.includes('nguonphim')) ||
+                        (fallbackBase && fallbackBase.includes('nguonphim'));
+
     // Is it KKPhim (phimapi.com or phimimg.com or has modified.time)?
-    const isKKPhim = (pathImage && (pathImage.includes('phimapi') || pathImage.includes('phimimg'))) ||
-                     (fallbackBase && (fallbackBase.includes('phimapi') || fallbackBase.includes('phimimg'))) ||
-                     (item && item.modified?.time);
+    // Ensure we do not misidentify OPhim or NguonPhim as KKPhim.
+    const isKKPhim = !isOPhim && !isNguonPhim && (
+      (pathImage && (pathImage.includes('phimapi') || (pathImage.includes('phimimg') && !pathImage.includes('ophimimg')))) ||
+      (fallbackBase && (fallbackBase.includes('phimapi') || (fallbackBase.includes('phimimg') && !fallbackBase.includes('ophimimg')))) ||
+      (item && item.modified?.time)
+    );
 
     if (isKKPhim) {
-      // Extract modified time for subfolder formatting
-      let yyyymmdd = '';
-      if (item && item.modified?.time) {
-        try {
-          const d = new Date(item.modified.time);
-          if (!isNaN(d.getTime())) {
-            const y = d.getUTCFullYear();
-            const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-            const day = String(d.getUTCDate()).padStart(2, '0');
-            yyyymmdd = `${y}${m}${day}`;
-          }
-        } catch (e) {}
-      }
-
-      // Default to current date if we cannot parse
-      if (!yyyymmdd) {
-        const d = new Date();
-        const y = d.getUTCFullYear();
-        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(d.getUTCDate()).padStart(2, '0');
-        yyyymmdd = `${y}${m}${day}`;
-      }
-
-      if (trimmedUrl.endsWith('.webp')) {
-        absUrl = `https://img.phimapi.com/uploads/movies/${yyyymmdd}/${trimmedUrl}`;
+      if (trimmedUrl.startsWith('uploads/movies/') || trimmedUrl.startsWith('upload/vod/') || trimmedUrl.startsWith('uploads/') || trimmedUrl.startsWith('upload/')) {
+        absUrl = `https://phimimg.com/${trimmedUrl}`;
       } else {
-        absUrl = `https://img.phimapi.com/upload/vod/${yyyymmdd}-1/${trimmedUrl}`;
+        // Extract modified time for subfolder formatting
+        let yyyymmdd = '';
+        if (item && item.modified?.time) {
+          try {
+            const d = new Date(item.modified.time);
+            if (!isNaN(d.getTime())) {
+              const y = d.getUTCFullYear();
+              const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+              const day = String(d.getUTCDate()).padStart(2, '0');
+              yyyymmdd = `${y}${m}${day}`;
+            }
+          } catch (e) {}
+        }
+
+        // Default to current date if we cannot parse
+        if (!yyyymmdd) {
+          const d = new Date();
+          const y = d.getUTCFullYear();
+          const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(d.getUTCDate()).padStart(2, '0');
+          yyyymmdd = `${y}${m}${day}`;
+        }
+
+        if (trimmedUrl.endsWith('.webp')) {
+          absUrl = `https://img.phimapi.com/uploads/movies/${yyyymmdd}/${trimmedUrl}`;
+        } else {
+          absUrl = `https://img.phimapi.com/upload/vod/${yyyymmdd}-1/${trimmedUrl}`;
+        }
       }
     } else {
       // General OPhim/Other logic
@@ -384,16 +397,27 @@ function getAbsoluteImageUrl(url: string, pathImage: string, fallbackBase: strin
     absUrl = `https:${url}`;
   }
 
-  // Only wrap OPhim and KKPhim images that have hotlinking blocks (e.g. phimimg.com or ophimimg.com)
-  const isOphimOrKkphim = (absUrl.includes('phimimg.com') || 
-                           absUrl.includes('ophimimg.com') || 
-                           absUrl.includes('myanimelist.net') ||
-                           absUrl.includes('cdn.myanimelist.net')) &&
-                          !absUrl.includes('img.phimapi.com') &&
-                          !absUrl.includes('img.ophim.live');
+  // Handle hotlinking proxies and blocks for ALL movie provider domains
+  const proxyDomains = [
+    'phimimg.com',
+    'ophimimg.com',
+    'img.ophim.live',
+    'img.phimapi.com',
+    'phim.nguonc.com',
+    'img.nguonphim.tv',
+    'api.nguonphim.tv',
+    'ophim1.com',
+    'ophim17.cc',
+    'phimapi.com',
+    'myanimelist.net',
+    'cdn.myanimelist.net',
+    'image.tmdb.org'
+  ];
+
+  const needsProxy = proxyDomains.some(domain => absUrl.includes(domain));
   const isAlreadyProxied = absUrl.includes('image.php?url=') || absUrl.includes('wsrv.nl') || absUrl.includes('weserv.nl');
 
-  if (isOphimOrKkphim && !isAlreadyProxied) {
+  if (needsProxy && !isAlreadyProxied) {
     return `https://wsrv.nl/?url=${encodeURIComponent(absUrl)}`;
   }
   return absUrl;
@@ -523,7 +547,7 @@ async function fetchTrailerFromTmdb(movieName: string, year?: number): Promise<s
     const searchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${query}${yearParam}&language=vi-VN`;
 
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 3000);
+    const id = setTimeout(() => controller.abort(), 10000);
     const searchRes = await fetch(searchUrl, { signal: controller.signal });
     clearTimeout(id);
 
@@ -536,7 +560,7 @@ async function fetchTrailerFromTmdb(movieName: string, year?: number): Promise<s
         // Fetch videos/trailers
         const videosUrl = `https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_KEY}`;
         const vController = new AbortController();
-        const vId = setTimeout(() => vController.abort(), 3000);
+        const vId = setTimeout(() => vController.abort(), 10000);
         const videosRes = await fetch(videosUrl, { signal: vController.signal });
         clearTimeout(vId);
 
@@ -737,7 +761,8 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: '300mb' }));
+  app.use(express.urlencoded({ limit: '300mb', extended: true }));
 
   // IPTV Stream Proxy to bypass CORS restrictions and support headers/absolute path rewriting
   app.get('/api/tv/proxy', async (req, res) => {
@@ -1624,7 +1649,7 @@ async function startServer() {
         const tmdbUrl = `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_KEY}&language=vi-VN&append_to_response=videos`;
         
         const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), 4000);
+        const id = setTimeout(() => controller.abort(), 15000);
         const response = await fetch(tmdbUrl, { signal: controller.signal });
         clearTimeout(id);
 
@@ -1639,8 +1664,10 @@ async function startServer() {
           
           const poster_path = item.poster_path;
           const backdrop_path = item.backdrop_path;
-          const poster_url = poster_path ? `https://image.tmdb.org/t/p/w500${poster_path}` : '/assets/no-poster.jpg';
-          const backdrop_url = backdrop_path ? `https://image.tmdb.org/t/p/original${backdrop_path}` : poster_url;
+          const raw_poster_url = poster_path ? `https://image.tmdb.org/t/p/w500${poster_path}` : '/assets/no-poster.jpg';
+          const raw_backdrop_url = backdrop_path ? `https://image.tmdb.org/t/p/original${backdrop_path}` : raw_poster_url;
+          const poster_url = getAbsoluteImageUrl(raw_poster_url, '', '');
+          const backdrop_url = getAbsoluteImageUrl(raw_backdrop_url, '', '');
           
           const release_date = item.release_date || '';
           const release_year = release_date ? new Date(release_date).getFullYear() : 2024;
@@ -2546,15 +2573,70 @@ async function startServer() {
             const mGenres = Array.isArray(m.movie.category)
               ? m.movie.category.map((g: any) => g.name || g)
               : [];
+            
+            // 1. Calculate genre overlap
             const overlap = mGenres.filter(g => currentGenres.includes(g)).length;
-            return { item: m, overlap };
+            
+            // 2. Year similarity score
+            let yearScore = 0;
+            if (currentMovieInfo && currentMovieInfo.year && m.movie.year) {
+              const diff = Math.abs(currentMovieInfo.year - m.movie.year);
+              if (diff === 0) yearScore = 5;
+              else if (diff <= 2) yearScore = 3;
+              else if (diff <= 5) yearScore = 1;
+            }
+
+            // 3. Keyword matching (title and content)
+            let keywordScore = 0;
+            if (currentMovieInfo) {
+              const cleanCurrentName = currentMovieInfo.name.toLowerCase();
+              const cleanTargetName = m.movie.name.toLowerCase();
+              const words = cleanCurrentName.split(' ');
+              words.forEach(w => {
+                if (w.length > 2 && cleanTargetName.includes(w)) {
+                  keywordScore += 4;
+                }
+              });
+
+              if (currentMovieInfo.content && m.movie.content) {
+                const currentContent = currentMovieInfo.content.toLowerCase();
+                const targetContent = m.movie.content.toLowerCase();
+                const commonWords = ['hành động', 'tình cảm', 'phiêu lưu', 'viễn tưởng', 'kinh dị', 'hài hước', 'chiến tranh', 'gia đình', 'kịch tính'];
+                commonWords.forEach(word => {
+                  if (currentContent.includes(word) && targetContent.includes(word)) {
+                    keywordScore += 2;
+                  }
+                });
+              }
+            }
+
+            // 4. Type match
+            const typeScore = (currentMovie && currentMovie.type === m.movie.type) ? 3 : 0;
+
+            const totalScore = (overlap * 10) + yearScore + keywordScore + typeScore;
+
+            return { item: m, score: totalScore, mGenres };
           })
-          .sort((a, b) => b.overlap - a.overlap)
+          .sort((a, b) => b.score - a.score)
           .slice(0, 3)
-          .map(x => ({
-            slug: x.item.movie.slug,
-            reason: `Phim cùng thể loại ${currentGenres.join(', ')} mang đến trải nghiệm cảm xúc tương đồng lôi cuốn.`
-          }));
+          .map(x => {
+            const commonGenres = x.mGenres.filter(g => currentGenres.includes(g));
+            const genreText = commonGenres.length > 0 ? commonGenres.join(', ') : x.mGenres.slice(0, 2).join(', ');
+            
+            let dynamicReason = `Dựa trên phong cách điện ảnh tương đồng và thể loại ${genreText}, tác phẩm này chắc chắn sẽ cuốn hút bạn từ những phút đầu tiên.`;
+            if (currentMovieInfo) {
+              if (x.score > 15) {
+                dynamicReason = `Kế thừa trọn vẹn mạch truyện kịch tính, nét diễn xuất đặc sắc và không khí điện ảnh hoành tráng giống như siêu phẩm ${currentMovieInfo.name}.`;
+              } else if (commonGenres.length > 1) {
+                dynamicReason = `Mang lại cảm xúc kịch tính đồng điệu với ${currentMovieInfo.name} thông qua sự hòa quyện hoàn hảo của chất phim ${genreText}.`;
+              }
+            }
+            
+            return {
+              slug: x.item.movie.slug,
+              reason: dynamicReason
+            };
+          });
       };
 
       let recommendations: Array<{ slug: string; reason: string }> = [];
@@ -2582,10 +2664,11 @@ async function startServer() {
             year: item.movie.year
           }));
 
-          const systemInstruction = `Bạn là Trợ lý Gợi ý Phim thông minh của rạp phim cao cấp FilmFlow.
-Nhiệm vụ của bạn là phân tích bộ phim người dùng đang xem và đề xuất ra đúng 3 bộ phim phù hợp nhất từ danh sách phim có sẵn (Candidate Pool) được cung cấp dưới dạng JSON.
-Nếu người dùng cung cấp lời nhắn/yêu cầu cụ thể (userPrompt), hãy ưu tiên đáp ứng đúng sở thích, tâm trạng, thể loại mà họ yêu cầu nhưng vẫn bám sát danh sách Candidate Pool có sẵn.
-Bạn PHẢI trả về kết quả dưới dạng JSON khớp hoàn hảo với cấu trúc responseSchema được yêu cầu. Không được tự bịa ra phim hay slug ngoài danh sách Candidate Pool.`;
+          const systemInstruction = `Bạn là Trợ lý Gợi ý Phim thông minh siêu cấp của rạp phim cao cấp FilmFlow.
+Nhiệm vụ của bạn là phân tích sâu sắc tác phẩm điện ảnh người dùng đang xem và đề xuất đúng 3 bộ phim tương đồng, chất lượng nhất từ danh sách Candidate Pool có sẵn.
+Hãy phân tích sự liên kết về nội dung, thể loại, cảm xúc hoặc không gian nghệ thuật để đưa ra quyết định thông thái nhất.
+Nếu người xem gửi kèm lời nhắn cá nhân (userPrompt), bạn hãy ưu tiên tuyệt đối việc tìm kiếm sự tương thích với tâm trạng, sở thích hoặc yêu cầu cụ thể của họ trong Candidate Pool.
+Bạn PHẢI trả về JSON khớp 100% với cấu trúc responseSchema được yêu cầu. Tuyệt đối không được chế tạo hay đề xuất phim không nằm trong Candidate Pool.`;
 
           const prompt = `Phim hiện tại người dùng đang xem:
 ${JSON.stringify(currentMovieInfo, null, 2)}
@@ -2625,10 +2708,19 @@ Hãy chọn ra đúng 3 bộ phim từ kho có sẵn phù hợp nhất để đ�
           });
 
           if (response.text) {
-            const parsed = JSON.parse(response.text.trim());
+            let text = response.text.trim();
+            if (text.startsWith('```')) {
+              text = text.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+            }
+            const parsed = JSON.parse(text);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              recommendations = parsed;
-              isAiGenerated = true;
+              const validRecs = parsed.filter(item => 
+                item && typeof item.slug === 'string' && allMovies.some(m => m.movie.slug === item.slug)
+              );
+              if (validRecs.length > 0) {
+                recommendations = validRecs;
+                isAiGenerated = true;
+              }
             }
           }
         } catch (err: any) {
@@ -2673,6 +2765,137 @@ Hãy chọn ra đúng 3 bộ phim từ kho có sẵn phù hợp nhất để đ�
     } catch (globalErr: any) {
       console.error('Recommend API global error:', globalErr);
       res.status(500).json({ status: false, message: 'Lỗi máy chủ khi xử lý gợi ý phim.' });
+    }
+  });
+
+  // API route for receiving reports (Báo lỗi hệ thống, báo cáo phim, báo cáo người dùng)
+  app.post('/api/report', async (req, res) => {
+    try {
+      const { type, email, content, title, extraData, images, video, smtpConfig } = req.body;
+      if (!type || !content) {
+        return res.status(400).json({ status: false, message: 'Vui lòng điền đầy đủ loại báo cáo và nội dung!' });
+      }
+
+      console.log(`[Report Received] Type: ${type}, Sender: ${email || 'Anonymous'}, Title: ${title || 'No Title'}`);
+
+      // Determine report name
+      let reportName = 'Báo cáo vi phạm';
+      if (type === 'bug') reportName = 'Báo lỗi hệ thống';
+      else if (type === 'movie') reportName = 'Báo cáo lỗi phim';
+      else if (type === 'user') reportName = 'Báo cáo người dùng';
+
+      let emailText = `Hệ thống FilmFlow vừa nhận được ${reportName.toUpperCase()} mới:\n\n`;
+      emailText += `========================================================\n`;
+      emailText += `Loại báo cáo: ${reportName}\n`;
+      emailText += `Email người gửi: ${email || 'Khách ẩn danh'}\n`;
+      if (title) emailText += `Tiêu đề: ${title}\n`;
+      emailText += `Nội dung chi tiết:\n${content}\n`;
+      
+      if (extraData && typeof extraData === 'object') {
+        emailText += `\nThông tin chi tiết đính kèm:\n`;
+        for (const [key, val] of Object.entries(extraData)) {
+          emailText += `- ${key}: ${typeof val === 'object' ? JSON.stringify(val) : val}\n`;
+        }
+      }
+
+      // Add attachment info to email text
+      if (images && Array.isArray(images) && images.length > 0) {
+        emailText += `\n[Đính kèm] Số lượng ảnh: ${images.length} ảnh\n`;
+      }
+      if (video && video.base64) {
+        emailText += `\n[Đính kèm] Video: ${video.name || 'video_attachment.mp4'}\n`;
+      }
+
+      emailText += `========================================================\n`;
+      emailText += `Thời gian nhận: ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} (UTC+7)\n`;
+      emailText += `Hệ thống FilmFlow Cloud Streaming Service\n`;
+
+      // Check if SMTP is configured
+      const smtpHost = smtpConfig?.host || process.env.SMTP_HOST;
+      const smtpPort = smtpConfig?.port || process.env.SMTP_PORT || '587';
+      const smtpUser = smtpConfig?.user || process.env.SMTP_USER;
+      const smtpPass = smtpConfig?.pass || process.env.SMTP_PASS;
+      const smtpFrom = smtpConfig?.fromEmail || process.env.SMTP_FROM_EMAIL || 'reports@filmflow.com';
+      const smtpTo = smtpConfig?.toEmail || process.env.SMTP_TO_EMAIL || 'muahakhongcoem@proton.me';
+
+      let sentRealEmail = false;
+      let smtpError = '';
+
+      // Construct attachments list for nodemailer
+      const nodemailerAttachments: any[] = [];
+      if (images && Array.isArray(images)) {
+        images.forEach((imgBase64, idx) => {
+          if (imgBase64 && typeof imgBase64 === 'string') {
+            // Find content type if possible, or default to image/png
+            let extension = 'png';
+            const match = imgBase64.match(/^data:image\/(\w+);base64,/);
+            if (match && match[1]) {
+              extension = match[1];
+            }
+            nodemailerAttachments.push({
+              filename: `hinh_anh_dinh_kem_${idx + 1}.${extension}`,
+              path: imgBase64
+            });
+          }
+        });
+      }
+
+      if (video && video.base64 && typeof video.base64 === 'string') {
+        nodemailerAttachments.push({
+          filename: video.name || 'video_dinh_kem.mp4',
+          path: video.base64
+        });
+      }
+
+      if (smtpHost && smtpUser && smtpPass) {
+        try {
+          const nodemailer = await import('nodemailer');
+          const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: parseInt(smtpPort),
+            secure: smtpPort === '465',
+            auth: {
+              user: smtpUser,
+              pass: smtpPass
+            },
+            tls: {
+              rejectUnauthorized: false
+            }
+          });
+
+          await transporter.sendMail({
+            from: `"FilmFlow Reports" <${smtpFrom}>`,
+            to: smtpTo,
+            subject: `[FilmFlow] ${reportName} - ${title || 'Báo cáo mới'}`,
+            text: emailText,
+            attachments: nodemailerAttachments
+          });
+
+          sentRealEmail = true;
+          console.log(`[SMTP Mailer] Sent real email report with ${nodemailerAttachments.length} attachments successfully to ${smtpTo}`);
+        } catch (mailErr: any) {
+          smtpError = mailErr.message || String(mailErr);
+          console.error(`[SMTP Mailer Error] Failed to send real email via SMTP:`, smtpError);
+        }
+      } else {
+        console.log(`[SMTP Mailer Skip] SMTP not fully configured. Logged to console as fallback.`);
+        smtpError = 'SMTP chưa được cấu hình. Vui lòng thiết lập cấu hình SMTP trong phần nâng cao bên dưới.';
+      }
+
+      res.json({
+        status: true,
+        message: sentRealEmail 
+          ? 'Báo cáo đã được gửi thực tế về hòm thư đại diện thành công!' 
+          : 'Hệ thống đã nhận phản hồi nhưng chưa gửi được email thực tế.',
+        sentRealEmail,
+        smtpError,
+        targetEmail: smtpTo,
+        loggedText: emailText,
+        attachmentsCount: nodemailerAttachments.length
+      });
+    } catch (err: any) {
+      console.error('Report submission API error:', err);
+      res.status(500).json({ status: false, message: 'Lỗi máy chủ khi xử lý báo cáo của bạn.' });
     }
   });
 

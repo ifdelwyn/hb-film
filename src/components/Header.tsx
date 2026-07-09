@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, Menu, X, ChevronDown, Film, Globe, Heart, User, Award, Flame, Clock, Tv } from 'lucide-react';
+import { Search, Bell, Menu, X, ChevronDown, Film, Globe, Heart, User, Award, Flame, Clock, Tv, Gamepad2, Wrench, ExternalLink, Mail } from 'lucide-react';
 import { Category, Country } from '../types/movie';
 import { MOCK_CATEGORIES, MOCK_COUNTRIES } from '../data/mockMovies';
 import { useUserPreferences } from '../lib/hooks/useUserPreferences';
@@ -18,6 +18,7 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
   const [genreOpen, setGenreOpen] = useState(false);
   const [countryOpen, setCountryOpen] = useState(false);
   const [entertainmentOpen, setEntertainmentOpen] = useState(false);
+  const [utilitiesOpen, setUtilitiesOpen] = useState(false);
   
   const [currentUser, setCurrentUser] = useState<any | null>(() => {
     const stored = localStorage.getItem('hb_user');
@@ -42,6 +43,7 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
   const genreTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const countryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const entertainmentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const utilitiesTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Clean up any active timers on component unmount
   useEffect(() => {
@@ -49,6 +51,7 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
       if (genreTimeoutRef.current) clearTimeout(genreTimeoutRef.current);
       if (countryTimeoutRef.current) clearTimeout(countryTimeoutRef.current);
       if (entertainmentTimeoutRef.current) clearTimeout(entertainmentTimeoutRef.current);
+      if (utilitiesTimeoutRef.current) clearTimeout(utilitiesTimeoutRef.current);
     };
   }, []);
 
@@ -114,6 +117,35 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
     }, 250);
   };
 
+  const handleUtilitiesMouseEnter = () => {
+    if (utilitiesTimeoutRef.current) {
+      clearTimeout(utilitiesTimeoutRef.current);
+      utilitiesTimeoutRef.current = null;
+    }
+    setUtilitiesOpen(true);
+    setGenreOpen(false);
+    setCountryOpen(false);
+    setEntertainmentOpen(false);
+    if (genreTimeoutRef.current) {
+      clearTimeout(genreTimeoutRef.current);
+      genreTimeoutRef.current = null;
+    }
+    if (countryTimeoutRef.current) {
+      clearTimeout(countryTimeoutRef.current);
+      countryTimeoutRef.current = null;
+    }
+    if (entertainmentTimeoutRef.current) {
+      clearTimeout(entertainmentTimeoutRef.current);
+      entertainmentTimeoutRef.current = null;
+    }
+  };
+
+  const handleUtilitiesMouseLeave = () => {
+    utilitiesTimeoutRef.current = setTimeout(() => {
+      setUtilitiesOpen(false);
+    }, 250);
+  };
+
   const handleGenreClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (genreOpen) {
@@ -122,6 +154,7 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
       setGenreOpen(true);
       setCountryOpen(false);
       setEntertainmentOpen(false);
+      setUtilitiesOpen(false);
     }
   };
 
@@ -133,6 +166,7 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
       setCountryOpen(true);
       setGenreOpen(false);
       setEntertainmentOpen(false);
+      setUtilitiesOpen(false);
     }
   };
 
@@ -144,6 +178,19 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
       setEntertainmentOpen(true);
       setGenreOpen(false);
       setCountryOpen(false);
+      setUtilitiesOpen(false);
+    }
+  };
+
+  const handleUtilitiesClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (utilitiesOpen) {
+      setUtilitiesOpen(false);
+    } else {
+      setUtilitiesOpen(true);
+      setGenreOpen(false);
+      setCountryOpen(false);
+      setEntertainmentOpen(false);
     }
   };
 
@@ -186,6 +233,7 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
     setGenreOpen(false);
     setCountryOpen(false);
     setEntertainmentOpen(false);
+    setUtilitiesOpen(false);
     setProfileDropdownOpen(false);
   };
 
@@ -429,6 +477,95 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
                           FREE
                         </span>
                       </div>
+
+                      {/* Game Center Choice */}
+                      <div
+                        onClick={() => navigateTo('tro-choi')}
+                        className="group/item flex items-center justify-between gap-3 text-xs text-zinc-400 hover:text-[#E63946] hover:bg-[#E63946]/5 px-3 py-2.5 border border-transparent hover:border-[#E63946]/20 rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.04] select-none font-bold"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>Trò Chơi Phim</span>
+                        </div>
+                        <span className="text-[8px] font-black tracking-wider px-1.5 py-0.5 rounded bg-purple-600 text-white">
+                          NEW
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* "Tiện ích" dropdown for utility services requested by the user */}
+            <div 
+              className="relative"
+              onMouseEnter={handleUtilitiesMouseEnter}
+              onMouseLeave={handleUtilitiesMouseLeave}
+            >
+              <button
+                id="navbar-utilities-dropdown-btn"
+                onClick={handleUtilitiesClick}
+                className={`text-[13px] font-bold py-1.5 px-3.5 rounded-full transition-all duration-300 cursor-pointer flex items-center gap-1.5 select-none ${
+                  utilitiesOpen
+                    ? 'text-white bg-[#E63946] shadow-md shadow-[#E63946]/20 font-black'
+                    : 'text-zinc-300 hover:text-white hover:bg-zinc-800/40'
+                }`}
+              >
+                <span>Tiện Ích</span>
+                <ChevronDown size={12} className={`transform transition-transform duration-300 ${utilitiesOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {utilitiesOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.96 }}
+                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute top-full left-[-30px] mt-2.5 w-60 bg-zinc-950/95 backdrop-blur-xl border border-zinc-900 rounded-[20px] p-4 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.9)] z-50 flex flex-col gap-2.5 text-left border-zinc-800/80"
+                  >
+                    <div className="flex flex-col gap-1.5">
+                      {/* Đăng ký tên miền miễn phí */}
+                      <a
+                        href="https://www.pavietnam.vn/en/ten-mien-mien-phi.html"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group/item flex items-center justify-between gap-3 text-xs text-zinc-400 hover:text-[#E63946] hover:bg-[#E63946]/5 px-3 py-2.5 border border-transparent hover:border-[#E63946]/20 rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.04] select-none font-bold"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Globe size={14} className="text-blue-400 group-hover/item:text-[#E63946] transition-colors" />
+                          <span>Đăng ký tên miền miễn phí</span>
+                        </div>
+                        <ExternalLink size={12} className="text-zinc-500 group-hover/item:text-[#E63946] transition-colors" />
+                      </a>
+
+                      {/* Lấy mã 2FA */}
+                      <a
+                        href="https://2fa.co.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group/item flex items-center justify-between gap-3 text-xs text-zinc-400 hover:text-[#E63946] hover:bg-[#E63946]/5 px-3 py-2.5 border border-transparent hover:border-[#E63946]/20 rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.04] select-none font-bold"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Wrench size={14} className="text-amber-400 group-hover/item:text-[#E63946] transition-colors" />
+                          <span>Lấy mã 2FA</span>
+                        </div>
+                        <ExternalLink size={12} className="text-zinc-500 group-hover/item:text-[#E63946] transition-colors" />
+                      </a>
+
+                      {/* Mail tạm thời */}
+                      <a
+                        href="https://temp-mail.org/vi/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group/item flex items-center justify-between gap-3 text-xs text-zinc-400 hover:text-[#E63946] hover:bg-[#E63946]/5 px-3 py-2.5 border border-transparent hover:border-[#E63946]/20 rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.04] select-none font-bold"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Mail size={14} className="text-emerald-400 group-hover/item:text-[#E63946] transition-colors" />
+                          <span>Mail tạm thời</span>
+                        </div>
+                        <ExternalLink size={12} className="text-zinc-500 group-hover/item:text-[#E63946] transition-colors" />
+                      </a>
                     </div>
                   </motion.div>
                 )}
@@ -655,6 +792,13 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
               <span className="text-[8px] font-black tracking-wider px-1.5 py-0.5 rounded bg-emerald-600 text-white">FREE</span>
             </span>
             <span
+              onClick={() => navigateTo('tro-choi')}
+              className={`text-lg font-bold p-2 rounded-lg flex items-center justify-between ${currentRoute === 'tro-choi' ? 'text-[var(--color-brand)] bg-zinc-900/40' : 'text-zinc-300'}`}
+            >
+              <span className="flex items-center gap-2">Trò Chơi Phim</span>
+              <span className="text-[8px] font-black tracking-wider px-1.5 py-0.5 rounded bg-purple-600 text-white">NEW</span>
+            </span>
+            <span
               onClick={() => navigateTo('download')}
               className={`text-lg font-bold p-2 rounded-lg ${currentRoute === 'download' ? 'text-[var(--color-brand)] bg-zinc-900/40' : 'text-zinc-300'}`}
             >
@@ -666,6 +810,53 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
             >
               Tủ Phim Cá Nhân
             </span>
+          </div>
+
+          {/* Section Utilities list */}
+          <div className="flex flex-col gap-2">
+            <h4 className="text-[11px] font-bold text-zinc-500 tracking-wider uppercase border-b border-zinc-900 pb-1 flex items-center gap-1.5">
+              <Wrench size={12} /> TIỆN ÍCH
+            </h4>
+            <div className="flex flex-col gap-2 mt-2">
+              <a
+                href="https://www.pavietnam.vn/en/ten-mien-mien-phi.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between p-3.5 bg-zinc-900/30 border border-zinc-900/80 rounded-xl hover:text-white"
+              >
+                <div className="flex items-center gap-2.5 text-xs text-zinc-350 font-bold">
+                  <Globe size={14} className="text-blue-400" />
+                  <span>Đăng ký tên miền miễn phí</span>
+                </div>
+                <ExternalLink size={12} className="text-zinc-500" />
+              </a>
+
+              <a
+                href="https://2fa.co.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between p-3.5 bg-zinc-900/30 border border-zinc-900/80 rounded-xl hover:text-white"
+              >
+                <div className="flex items-center gap-2.5 text-xs text-zinc-350 font-bold">
+                  <Wrench size={14} className="text-amber-400" />
+                  <span>Lấy mã 2FA</span>
+                </div>
+                <ExternalLink size={12} className="text-zinc-500" />
+              </a>
+
+              <a
+                href="https://temp-mail.org/vi/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between p-3.5 bg-zinc-900/30 border border-zinc-900/80 rounded-xl hover:text-white"
+              >
+                <div className="flex items-center gap-2.5 text-xs text-zinc-350 font-bold">
+                  <Mail size={14} className="text-emerald-400" />
+                  <span>Mail tạm thời</span>
+                </div>
+                <ExternalLink size={12} className="text-zinc-500" />
+              </a>
+            </div>
           </div>
 
           {/* Section Category mapping list */}

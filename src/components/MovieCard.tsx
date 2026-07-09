@@ -79,7 +79,7 @@ export default function MovieCard({
 
     // TMDB poster path or formatted path if stored
     if (movieItem.poster_path) {
-      return `https://image.tmdb.org/t/p/w342${movieItem.poster_path}`;
+      return `https://wsrv.nl/?url=${encodeURIComponent(`https://image.tmdb.org/t/p/w342${movieItem.poster_path}`)}`;
     }
 
     // Fallback KKPhim / general poster_url (usually full URL)

@@ -108,6 +108,9 @@ export function validateImageSize(url: string, minWidth = 1080): Promise<boolean
  */
 export async function resolvePremiumBackdrop(slug: string, vsmovBackdrop: string): Promise<string> {
   const custom = MOVIE_HIGH_RES_ASSETS[slug];
+  if (!custom) {
+    return vsmovBackdrop;
+  }
   
   // Setup sources sequence
   const candidates: { url: string; label: string }[] = [];
@@ -116,11 +119,9 @@ export async function resolvePremiumBackdrop(slug: string, vsmovBackdrop: string
     candidates.push({ url: vsmovBackdrop, label: 'VSMov Original' });
   }
 
-  if (custom) {
-    custom.TMDBBackdrops.forEach((url, i) => {
-      candidates.push({ url, label: `TMDB Original [${i}]` });
-    });
-  }
+  custom.TMDBBackdrops.forEach((url, i) => {
+    candidates.push({ url, label: `TMDB Original [${i}]` });
+  });
 
   // Check from high quality downwards
   for (const item of candidates) {
@@ -132,12 +133,14 @@ export async function resolvePremiumBackdrop(slug: string, vsmovBackdrop: string
   }
 
   // Last-chance default cache fallback
-  if (custom) return custom.backdropFallback;
-  return vsmovBackdrop;
+  return custom.backdropFallback;
 }
 
 export async function resolvePremiumPoster(slug: string, vsmovPoster: string): Promise<string> {
   const custom = MOVIE_HIGH_RES_ASSETS[slug];
+  if (!custom) {
+    return vsmovPoster;
+  }
   
   const candidates: { url: string; label: string }[] = [];
   
@@ -145,11 +148,9 @@ export async function resolvePremiumPoster(slug: string, vsmovPoster: string): P
     candidates.push({ url: vsmovPoster, label: 'VSMov Original Poster' });
   }
 
-  if (custom) {
-    custom.TMDBPosters.forEach((url, i) => {
-      candidates.push({ url, label: `TMDB Poster [${i}]` });
-    });
-  }
+  custom.TMDBPosters.forEach((url, i) => {
+    candidates.push({ url, label: `TMDB Poster [${i}]` });
+  });
 
   for (const item of candidates) {
     const isOk = await validateImageSize(item.url, 800);
@@ -158,6 +159,5 @@ export async function resolvePremiumPoster(slug: string, vsmovPoster: string): P
     }
   }
 
-  if (custom) return custom.posterFallback;
-  return vsmovPoster;
+  return custom.posterFallback;
 }

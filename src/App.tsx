@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import DonationModal from './components/DonationModal';
+import PolicyModal from './components/PolicyModal';
+import ReportModal from './components/ReportModal';
 
 // Screens
 import HomeScreen from './screens/HomeScreen';
@@ -17,6 +19,7 @@ import DownloadScreen from './screens/DownloadScreen';
 import BetaIOSScreen from './screens/BetaIOSScreen';
 import BetaAndroidScreen from './screens/BetaAndroidScreen';
 import MusicScreen from './screens/MusicScreen';
+import GameScreen from './screens/GameScreen';
 
 // Core types & hooks
 import { Search, X, Film, Flame, ShieldAlert, Sparkles, RefreshCw, Play, Clock, ChevronRight } from 'lucide-react';
@@ -158,6 +161,9 @@ export default function App() {
       setRouteParams({});
     } else if (path === 'music') {
       setRoute('music');
+      setRouteParams({});
+    } else if (path === 'tro-choi') {
+      setRoute('tro-choi');
       setRouteParams({});
     } else if (path.startsWith('phim/')) {
       const slug = path.replace('phim/', '');
@@ -537,6 +543,13 @@ export default function App() {
           <MusicScreen />
         )}
 
+        {route === 'tro-choi' && (
+          <GameScreen 
+            onNavigate={navigateTo} 
+            onNavigateToMoveDetail={(slug) => navigateTo(`phim/${slug}`)} 
+          />
+        )}
+
         {route === 'download' && (
           <DownloadScreen onNavigate={navigateTo} />
         )}
@@ -827,6 +840,12 @@ export default function App() {
 
       {/* GLOBAL DONATION MODAL FOR SUPPORTING THE DEVELOPER */}
       <DonationModal />
+
+      {/* GLOBAL POLICY MODAL FOR REGULATORY & COMPLIANCE INFOS */}
+      <PolicyModal />
+
+      {/* GLOBAL REPORT MODAL FOR REPORTING SYSTEMS, MOVIES, OR USERS */}
+      <ReportModal />
 
     </div>
   );

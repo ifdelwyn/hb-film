@@ -115,8 +115,16 @@ export function normalizeTmdbMovie(item: any): any {
 
   const poster_path = item.poster_path;
   const backdrop_path = item.backdrop_path;
-  const poster_url = poster_path ? `${IMG_URL}${poster_path}` : '/assets/no-poster.jpg';
-  const backdrop_url = backdrop_path ? `https://image.tmdb.org/t/p/original${backdrop_path}` : poster_url;
+  const raw_poster_url = poster_path ? `${IMG_URL}${poster_path}` : '/assets/no-poster.jpg';
+  const raw_backdrop_url = backdrop_path ? `https://image.tmdb.org/t/p/original${backdrop_path}` : raw_poster_url;
+
+  const poster_url = raw_poster_url.startsWith('http')
+    ? `https://wsrv.nl/?url=${encodeURIComponent(raw_poster_url)}`
+    : raw_poster_url;
+
+  const backdrop_url = raw_backdrop_url.startsWith('http')
+    ? `https://wsrv.nl/?url=${encodeURIComponent(raw_backdrop_url)}`
+    : raw_backdrop_url;
 
   const isJapanAnime = 
     item.id === 1144807 ||

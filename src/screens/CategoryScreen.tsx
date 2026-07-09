@@ -95,9 +95,7 @@ export default function CategoryScreen({ type, slug, onNavigateToMoveDetail }: C
                 {resolveTitle()}
               </h1>
             </div>
-            <p className="text-xs text-zinc-500 mt-2.5 font-medium ml-4">
-              Sàng lọc từ băng thông rộng của VSMOV dồi dào, cập nhật theo giờ, trạm phát ổn định, phụ đề tùy chỉnh.
-            </p>
+
           </div>
         </div>
 

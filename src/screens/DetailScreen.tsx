@@ -4,7 +4,7 @@ import { Movie, EpisodeServer, MovieListItem } from '../types/movie';
 import { useWatchlist } from '../lib/hooks/useWatchlist';
 import MovieCard from '../components/MovieCard';
 import ShareModal from '../components/ShareModal';
-import { Play, Plus, Check, Star, Calendar, Clock, Tv, Film, Compass, Users, Tag, Share2, Award, ChevronLeft, ChevronRight, ThumbsUp, MessageSquare } from 'lucide-react';
+import { Play, Plus, Check, Star, Calendar, Clock, Tv, Film, Compass, Users, Tag, Share2, Award, ChevronLeft, ChevronRight, ThumbsUp, MessageSquare, AlertTriangle } from 'lucide-react';
 import { getCustomSourceName } from '../config/sourceDisplayMap';
 
 interface DetailScreenProps {
@@ -453,6 +453,21 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
                 <Share2 size={18} />
                 <span>{shareSuccess ? 'Đã sao chép liên kết!' : 'Chia sẻ'}</span>
               </button>
+
+              <button
+                id="detail-report-btn"
+                onClick={() => window.dispatchEvent(new CustomEvent('open-report-modal', { 
+                  detail: { 
+                    type: 'movie', 
+                    movieName: movie.name 
+                  } 
+                }))}
+                className="flex items-center gap-2 bg-zinc-950/40 hover:bg-zinc-900 text-zinc-400 hover:text-red-400 border border-zinc-900 hover:border-zinc-850 font-semibold py-3.5 px-5 rounded-xl transition-all cursor-pointer"
+                title="Báo cáo lỗi phim"
+              >
+                <AlertTriangle size={18} />
+                <span>Báo lỗi</span>
+              </button>
             </div>
 
           </div>
@@ -859,14 +874,31 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
                             {c.content}
                           </p>
 
-                          {/* Likes trigger */}
-                          <button
-                            onClick={() => handleLikeComment(c.id)}
-                            className="flex items-center gap-1.5 mt-4 text-[10px] font-black text-zinc-500 hover:text-[var(--color-brand)] uppercase tracking-widest transition-colors cursor-pointer select-none"
-                          >
-                            <ThumbsUp size={11} />
-                            <span>Thích ({c.likes})</span>
-                          </button>
+                          <div className="flex items-center gap-4 mt-4 select-none">
+                            {/* Likes trigger */}
+                            <button
+                              onClick={() => handleLikeComment(c.id)}
+                              className="flex items-center gap-1.5 text-[10px] font-black text-zinc-500 hover:text-[var(--color-brand)] uppercase tracking-widest transition-colors cursor-pointer"
+                            >
+                              <ThumbsUp size={11} />
+                              <span>Thích ({c.likes})</span>
+                            </button>
+
+                            <button
+                              onClick={() => window.dispatchEvent(new CustomEvent('open-report-modal', { 
+                                detail: { 
+                                  type: 'user', 
+                                  username: c.name,
+                                  reason: `Báo cáo bình luận của người dùng trong phim "${movie.name}": "${c.content}"`
+                                } 
+                              }))}
+                              className="flex items-center gap-1.5 text-[10px] font-black text-zinc-500 hover:text-red-400 uppercase tracking-widest transition-colors cursor-pointer"
+                              title="Báo cáo bình luận này vi phạm quy chuẩn cộng đồng"
+                            >
+                              <AlertTriangle size={11} />
+                              <span>Báo cáo</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}

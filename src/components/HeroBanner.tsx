@@ -30,17 +30,22 @@ export default function HeroBanner({ movies, onPlay, onDetail }: HeroBannerProps
     let isMounted = true;
     const processImages = async () => {
       const results: Record<string, { backdrop: string; poster: string }> = {};
-      for (const m of movies) {
-        // VSMov has thumb_url as primary horizontal card, poster_url as primary portrait card
-        const finalBackdrop = await resolvePremiumBackdrop(m.slug, m.thumb_url || m.poster_url);
-        const finalPoster = await resolvePremiumPoster(m.slug, m.poster_url || m.thumb_url);
-        results[m.slug] = {
-          backdrop: finalBackdrop,
-          poster: finalPoster
-        };
-      }
-      if (isMounted) {
-        setResolvedImages(results);
+      try {
+        const promises = movies.map(async (m) => {
+          // VSMov has thumb_url as primary horizontal card, poster_url as primary portrait card
+          const finalBackdrop = await resolvePremiumBackdrop(m.slug, m.thumb_url || m.poster_url);
+          const finalPoster = await resolvePremiumPoster(m.slug, m.poster_url || m.thumb_url);
+          return { slug: m.slug, backdrop: finalBackdrop, poster: finalPoster };
+        });
+        const resolved = await Promise.all(promises);
+        resolved.forEach(({ slug, backdrop, poster }) => {
+          results[slug] = { backdrop, poster };
+        });
+        if (isMounted) {
+          setResolvedImages(results);
+        }
+      } catch (err) {
+        console.error('Error resolving premium spotlight images:', err);
       }
     };
     

@@ -48,13 +48,22 @@ export default function Footer({ onNavigate }: FooterProps) {
           {/* Guidelines / Terms */}
           <div>
             <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase mb-4 flex items-center gap-1">
-              <ShieldAlert size={12} /> Điều Khoản
+              <ShieldAlert size={12} /> Điều Khoản & Báo Cáo
             </h4>
             <div className="flex flex-col gap-2">
-              <span className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Quy chế hoạt động</span>
-              <span className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Hợp tác bản quyền</span>
-              <span className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Chính sách bảo mật</span>
-              <span className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Báo cáo vi phạm (DMCA)</span>
+              <span onClick={() => window.dispatchEvent(new CustomEvent('open-policy-modal', { detail: { tab: 'quy-che' } }))} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Quy chế hoạt động</span>
+              <span onClick={() => window.dispatchEvent(new CustomEvent('open-policy-modal', { detail: { tab: 'ban-quyen' } }))} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Hợp tác bản quyền</span>
+              <span onClick={() => window.dispatchEvent(new CustomEvent('open-policy-modal', { detail: { tab: 'bao-mat' } }))} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Chính sách bảo mật</span>
+              <span onClick={() => window.dispatchEvent(new CustomEvent('open-policy-modal', { detail: { tab: 'dmca' } }))} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Báo cáo vi phạm (DMCA)</span>
+              
+              <div className="w-full h-[1px] bg-zinc-900/80 my-1" />
+              
+              <span 
+                onClick={() => window.dispatchEvent(new CustomEvent('open-report-modal', { detail: { type: 'bug', location: window.location.hash } }))} 
+                className="text-xs text-[#E63946] hover:text-rose-400 font-semibold cursor-pointer transition-colors flex items-center gap-1.5"
+              >
+                💬 Gửi ý kiến phản hồi
+              </span>
             </div>
           </div>
 
@@ -73,10 +82,13 @@ export default function Footer({ onNavigate }: FooterProps) {
 
         {/* Social Media Connections Section */}
         <div className="border-t border-zinc-900/60 pb-12 pt-10 flex flex-col items-center justify-center gap-6">
-          <div className="flex flex-col items-center gap-2 text-center">
+          <div className="flex flex-col items-center gap-2.5 text-center max-w-lg">
             <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-zinc-400 select-none">
               Kênh Cộng Đồng &amp; Mạng Xã Hội
             </h4>
+            <p className="text-xs text-zinc-400 leading-relaxed max-w-md px-4">
+              Đăng ký quảng cáo vui lòng liên hệ tới 1 trong số mạng xã hội sau hoặc email (khuyên dùng để được phản hồi nhanh chóng):
+            </p>
             <a 
               href="mailto:muahakhongcoem@proton.me" 
               className="text-xs text-zinc-400 hover:text-rose-400 font-sans flex items-center gap-1.5 mt-1 transition-colors select-text cursor-pointer bg-zinc-950/40 border border-zinc-900 px-3 py-1.5 rounded-xl hover:border-zinc-800"

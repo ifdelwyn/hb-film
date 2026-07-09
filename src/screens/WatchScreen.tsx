@@ -3,7 +3,7 @@ import { fetchMovieDetail } from '../lib/api/vsmov';
 import { Movie, EpisodeServer, EpisodeData } from '../types/movie';
 import { useWatchHistory } from '../lib/hooks/useWatchHistory';
 import VideoPlayer from '../components/VideoPlayer';
-import { Play, Tv, ChevronRight, HelpCircle, Flame, Star, Compass, ArrowLeft, Sparkles, RefreshCw, Copy, Check } from 'lucide-react';
+import { Play, Tv, ChevronRight, HelpCircle, Flame, Star, Compass, ArrowLeft, Sparkles, RefreshCw, Copy, Check, AlertTriangle } from 'lucide-react';
 import { getCustomSourceName } from '../config/sourceDisplayMap';
 
 interface WatchScreenProps {
@@ -725,16 +725,32 @@ export default function WatchScreen({
             
             {/* Broad description, tags */}
             <div className="lg:col-span-8 flex flex-col gap-6">
-              <div>
-                <span className="text-[10px] text-[var(--color-brand)] font-bold tracking-widest uppercase mb-1 block">
-                  🎬 ĐANG PHÁT TRỰC TUYẾN
-                </span>
-                <h2 className="text-xl sm:text-2xl font-extrabold sm:font-black tracking-tighter text-white drop-shadow">
-                  {movie.name} {activeEpisode && (<span>— <span className="text-[var(--color-brand)] font-black">Tập {activeEpisode.name}</span></span>)}
-                </h2>
-                <p className="text-xs text-zinc-500 font-medium font-sans mt-1">
-                  {movie.origin_name} • {movie.quality} • {movie.lang} • Lượt xem: {movie.view.toLocaleString()} views
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-900/40 pb-4">
+                <div>
+                  <span className="text-[10px] text-[var(--color-brand)] font-bold tracking-widest uppercase mb-1 block">
+                    🎬 ĐANG PHÁT TRỰC TUYẾN
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-extrabold sm:font-black tracking-tighter text-white drop-shadow">
+                    {movie.name} {activeEpisode && (<span>— <span className="text-[var(--color-brand)] font-black">Tập {activeEpisode.name}</span></span>)}
+                  </h2>
+                  <p className="text-xs text-zinc-500 font-medium font-sans mt-1">
+                    {movie.origin_name} • {movie.quality} • {movie.lang} • Lượt xem: {movie.view.toLocaleString()} views
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-report-modal', { 
+                    detail: { 
+                      type: 'movie', 
+                      movieName: movie.name,
+                      episodeName: activeEpisode?.name ? `Tập ${activeEpisode.name}` : undefined
+                    } 
+                  }))}
+                  className="px-4 py-2 bg-zinc-950/80 hover:bg-zinc-900 border border-zinc-900 hover:border-zinc-800 text-zinc-400 hover:text-red-400 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors duration-200 cursor-pointer shadow-md select-none shrink-0 self-start sm:self-center"
+                >
+                  <AlertTriangle size={12} />
+                  <span>Báo lỗi tập này</span>
+                </button>
               </div>
 
               {/* Servers listing tags: Thiết kế Netflix-style, bo góc 999px, nền đỏ gradient, font Plus Jakarta Sans SemiBold, hover sáng nhẹ */}
