@@ -100,13 +100,7 @@ export default function VideoPlayer({
     if (isLoading) {
       setLoadTimeoutError(false);
       timer = setTimeout(() => {
-        if (playerType === 'native' && embedUrl && embedUrl.trim() !== '') {
-          console.warn('Native loading timed out. Falling back to Embed player.');
-          setPlayerType('embed');
-          setIsLoading(true);
-        } else {
-          setLoadTimeoutError(true);
-        }
+        setLoadTimeoutError(true);
       }, 10000);
     } else {
       setLoadTimeoutError(false);
@@ -114,7 +108,7 @@ export default function VideoPlayer({
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [isLoading, playerType, embedUrl]);
+  }, [isLoading]);
 
   // HLS.js setup and event parsing
   useEffect(() => {
@@ -170,10 +164,8 @@ export default function VideoPlayer({
               hls.recoverMediaError();
               break;
             default:
-              if (embedUrl) {
-                setPlayerType('embed');
-                setIsLoading(false);
-              }
+              setIsLoading(false);
+              setLoadTimeoutError(true);
               break;
           }
         }
@@ -625,10 +617,8 @@ export default function VideoPlayer({
               onCanPlay={() => setIsLoading(false)}
               onPlaying={() => setIsLoading(false)}
               onError={() => {
-                if (embedUrl) {
-                  setPlayerType('embed');
-                  setIsLoading(false);
-                }
+                setIsLoading(false);
+                setLoadTimeoutError(true);
               }}
               style={{ 
                 position: 'absolute', 
