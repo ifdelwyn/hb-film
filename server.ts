@@ -474,7 +474,7 @@ async function fetchWithFallback<T>(
     try {
       const url = getPath(source);
       const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 12000); // 12s timeout max per gateway
+      const id = setTimeout(() => controller.abort(), 3500); // 3.5s timeout max per gateway to fail fast
 
       const response = await fetch(url, { signal: controller.signal });
       clearTimeout(id);
@@ -523,7 +523,7 @@ async function fetchTrailerFromTmdb(movieName: string, year?: number): Promise<s
     const searchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${query}${yearParam}&language=vi-VN`;
 
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 15000);
+    const id = setTimeout(() => controller.abort(), 3000);
     const searchRes = await fetch(searchUrl, { signal: controller.signal });
     clearTimeout(id);
 
@@ -536,7 +536,7 @@ async function fetchTrailerFromTmdb(movieName: string, year?: number): Promise<s
         // Fetch videos/trailers
         const videosUrl = `https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_KEY}`;
         const vController = new AbortController();
-        const vId = setTimeout(() => vController.abort(), 15000);
+        const vId = setTimeout(() => vController.abort(), 3000);
         const videosRes = await fetch(videosUrl, { signal: vController.signal });
         clearTimeout(vId);
 
@@ -1624,7 +1624,7 @@ async function startServer() {
         const tmdbUrl = `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_KEY}&language=vi-VN&append_to_response=videos`;
         
         const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), 15000);
+        const id = setTimeout(() => controller.abort(), 4000);
         const response = await fetch(tmdbUrl, { signal: controller.signal });
         clearTimeout(id);
 
@@ -2024,7 +2024,7 @@ async function startServer() {
       try {
         const url = getPath(source);
         const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), 15000); // 15s timeout max per gateway
+        const id = setTimeout(() => controller.abort(), 4000); // 4s timeout max per gateway to fail fast
         const response = await fetch(url, { signal: controller.signal });
         clearTimeout(id);
 
@@ -2632,7 +2632,21 @@ Hãy chọn ra đúng 3 bộ phim từ kho có sẵn phù hợp nhất để đ�
             }
           }
         } catch (err: any) {
-          console.error('Gemini Recommendation API error:', err.message || err);
+          const errMsg = typeof err === 'string' ? err : (err?.message || JSON.stringify(err) || '');
+          const isRateLimit = errMsg.includes('429') || 
+                             errMsg.includes('RESOURCE_EXHAUSTED') || 
+                             errMsg.includes('quota') || 
+                             errMsg.includes('limit') || 
+                             errMsg.includes('exceeded');
+          const isBusy = errMsg.includes('503') || errMsg.includes('UNAVAILABLE') || errMsg.includes('demand');
+
+          if (isRateLimit) {
+            console.log('[Info] Đạt giới hạn hạn ngạch hoặc hạn mức tần suất Gemini API (429). Đã tự động chuyển sang chế độ gợi ý phim dự phòng thông minh.');
+          } else if (isBusy) {
+            console.log('[Info] Trợ lý Gemini AI đang bận hoặc quá tải (503). Đã tự động kích hoạt bộ gợi ý phim dự phòng.');
+          } else {
+            console.log('[Info] Đã tự động chuyển sang chế độ gợi ý phim dự phòng:', errMsg.slice(0, 150));
+          }
         }
       }
 
@@ -2826,6 +2840,15 @@ Hãy chọn ra đúng 3 bộ phim từ kho có sẵn phù hợp nhất để đ�
             playback: room.playback,
             triggeredBy: username
           }, ws); // exclude sender to prevent loops
+        }
+
+        else if (type === 'reaction') {
+          if (!currentRoomId) return;
+          broadcastToRoom(currentRoomId, {
+            type: 'reaction',
+            emoji: data.emoji,
+            username: username
+          });
         }
       } catch (err) {
         console.error('Error handling WebSocket message:', err);

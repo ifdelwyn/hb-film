@@ -203,9 +203,51 @@ export default function App() {
     };
     window.addEventListener('keydown', handleGlobalShortcuts);
 
+    // Chống mở F12, chuột phải kiểm tra phần tử và xem nguồn trang (View Source)
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    const handleKeyDownSecurity = (e: KeyboardEvent) => {
+      // 1. Chống phím F12
+      if (e.key === 'F12' || e.keyCode === 123) {
+        e.preventDefault();
+        return false;
+      }
+      
+      // 2. Chống Ctrl + Shift + I / J / C (DevTools trên Chrome, Edge, Firefox)
+      if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C' || e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
+        e.preventDefault();
+        return false;
+      }
+      
+      // 3. Chống Ctrl + U (Xem mã nguồn trang - View Source)
+      if (e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.keyCode === 85)) {
+        e.preventDefault();
+        return false;
+      }
+
+      // 4. Chống Command + Option + I / J / C (DevTools trên macOS Safari/Chrome)
+      if (e.metaKey && e.altKey && (e.key === 'i' || e.key === 'j' || e.key === 'c' || e.key === 'I' || e.key === 'J' || e.key === 'C' || e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
+        e.preventDefault();
+        return false;
+      }
+
+      // 5. Chống Command + Shift + C (Phần tử kiểm tra trên macOS)
+      if (e.metaKey && e.shiftKey && (e.key === 'c' || e.key === 'C' || e.keyCode === 67)) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    window.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('keydown', handleKeyDownSecurity);
+
     return () => {
       window.removeEventListener('hashchange', parseHash);
       window.removeEventListener('keydown', handleGlobalShortcuts);
+      window.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('keydown', handleKeyDownSecurity);
     };
   }, []);
 

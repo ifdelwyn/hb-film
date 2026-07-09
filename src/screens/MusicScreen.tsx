@@ -14,6 +14,7 @@ import {
   Share2 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import ShareModal from '../components/ShareModal';
 
 interface VideoTrack {
   id: string;
@@ -121,6 +122,7 @@ export default function MusicScreen() {
   });
   const [likedStatus, setLikedStatus] = useState<Record<string, boolean>>({});
   const [isCopied, setIsCopied] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
 
   // Filter tracks based on search query
   const filteredTracks = tracks.filter(track => 
@@ -143,9 +145,7 @@ export default function MusicScreen() {
   };
 
   const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+    setIsShareOpen(true);
   };
 
   return (
@@ -354,6 +354,16 @@ export default function MusicScreen() {
         </div>
 
       </div>
+
+      {/* Music Video Share Modal */}
+      <ShareModal
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        shareUrl={`${window.location.origin}/#/music?v=${activeVideo.id}`}
+        title={activeVideo.title}
+        imageUrl={activeVideo.thumbnail}
+        description={activeVideo.description}
+      />
     </div>
   );
 }

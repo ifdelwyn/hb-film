@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Heart, Sparkles, Copy, Check, ShieldCheck, QrCode } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import donationQr from '../assets/images/donation_qr_new_1783381532536.jpg';
 
 export default function DonationModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,9 +20,7 @@ export default function DonationModal() {
   }, []);
 
   const handleCopyAccount = () => {
-    // Standard developer account details matching the SePay QR Code
-    // We can allow users to copy the text to make it extremely user-friendly
-    navigator.clipboard.writeText('LE HUY BAO - Techcombank');
+    navigator.clipboard.writeText('70017112007');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -79,7 +76,7 @@ export default function DonationModal() {
             {/* QR Code Container */}
             <div className="relative mt-5 mb-5 mx-auto w-64 h-64 bg-white rounded-2xl overflow-hidden shadow-2xl p-2.5 border border-zinc-800/20 group">
               <img
-                src={donationQr}
+                src="https://api.vietqr.io/image/970407-70017112007-IpKFrt6.jpg?accountName=HUY%20BAO&amount=0"
                 alt="Developer Donation QR Code"
                 className="w-full h-full object-contain rounded-xl select-none"
                 referrerPolicy="no-referrer"
@@ -100,6 +97,9 @@ export default function DonationModal() {
                 <p className="text-xs font-bold text-white truncate">
                   Techcombank (Napas 24/7)
                 </p>
+                <p className="text-[11px] text-zinc-300 mt-0.5">
+                  Số TK: <span className="font-extrabold text-white text-xs select-all font-mono">70017112007</span>
+                </p>
                 <p className="text-[11px] text-zinc-400 mt-0.5">
                   Chủ TK: LE HUY BAO
                 </p>
@@ -114,7 +114,7 @@ export default function DonationModal() {
                 }`}
               >
                 {copied ? <Check size={12} /> : <Copy size={12} />}
-                <span>{copied ? 'Đã sao chép' : 'Sao chép'}</span>
+                <span>{copied ? 'Đã copy TK' : 'Copy Số TK'}</span>
               </button>
             </div>
 

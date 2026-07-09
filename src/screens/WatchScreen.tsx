@@ -3,7 +3,7 @@ import { fetchMovieDetail } from '../lib/api/vsmov';
 import { Movie, EpisodeServer, EpisodeData } from '../types/movie';
 import { useWatchHistory } from '../lib/hooks/useWatchHistory';
 import VideoPlayer from '../components/VideoPlayer';
-import { Play, Tv, ChevronRight, HelpCircle, Flame, Star, Compass, ArrowLeft, Sparkles } from 'lucide-react';
+import { Play, Tv, ChevronRight, HelpCircle, Flame, Star, Compass, ArrowLeft, Sparkles, RefreshCw, Copy, Check } from 'lucide-react';
 import { getCustomSourceName } from '../config/sourceDisplayMap';
 
 interface WatchScreenProps {
@@ -49,6 +49,38 @@ export default function WatchScreen({
 
   // Theater Mode state
   const [isTheaterMode, setIsTheaterMode] = useState(false);
+
+  // Watch Together premium additions state
+  const [reactions, setReactions] = useState<{ id: string; emoji: string; username: string; x: number }[]>([]);
+  const [showCopiedSuccess, setShowCopiedSuccess] = useState(false);
+
+  // Send a synchronized reaction emoji to all room members
+  const sendReaction = (emoji: string) => {
+    if (!ws || !roomId || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({
+      type: 'reaction',
+      roomId,
+      userId,
+      username: partyUsername,
+      data: { emoji }
+    }));
+  };
+
+  // Synchronize player with room state immediately
+  const syncPlaybackNow = () => {
+    if (!roomState?.playback) return;
+    const { isPlaying: extIsPlaying, currentTime: extTime, lastUpdated } = roomState.playback;
+    
+    // Estimate precise time based on elapsed time since last sync payload
+    const elapsed = extIsPlaying ? (Date.now() - lastUpdated) / 1000 : 0;
+    const estimatedTime = Math.max(0, extTime + elapsed);
+
+    setLastExternalEvent({
+      isPlaying: extIsPlaying,
+      currentTime: estimatedTime,
+      lastUpdated: Date.now()
+    });
+  };
 
   // AI recommendations states
   const [recommendations, setRecommendations] = useState<any[]>([]);
@@ -226,6 +258,18 @@ export default function WatchScreen({
             currentTime: payload.playback.currentTime,
             lastUpdated: payload.playback.lastUpdated
           });
+        } else if (payload.type === 'reaction') {
+          const newReaction = {
+            id: Math.random().toString(36).substring(2) + Date.now().toString(36),
+            emoji: payload.emoji,
+            username: payload.username,
+            x: 10 + Math.random() * 80 // localized horizontal floating drift
+          };
+          setReactions(prev => [...prev, newReaction]);
+          // Clean up floating element after animation finishes
+          setTimeout(() => {
+            setReactions(prev => prev.filter(r => r.id !== newReaction.id));
+          }, 2500);
         }
       } catch (err) {
         console.error('Error parsing WebSocket message:', err);
@@ -449,6 +493,28 @@ export default function WatchScreen({
                   isTheaterMode={isTheaterMode}
                   onToggleTheaterMode={() => setIsTheaterMode(prev => !prev)}
                 />
+
+                {/* Real-time Floating reactions overlay */}
+                {reactions.length > 0 && (
+                  <div className="absolute inset-0 pointer-events-none z-40 overflow-hidden">
+                    {reactions.map((react) => (
+                      <div
+                        key={react.id}
+                        className="absolute bottom-4 flex flex-col items-center animate-reaction-float"
+                        style={{
+                          left: `${react.x}%`,
+                        }}
+                      >
+                        <span className="text-4xl filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.9)] leading-none select-none">
+                          {react.emoji}
+                        </span>
+                        <span className="bg-black/80 border border-zinc-800/60 text-white font-extrabold text-[9px] tracking-wide px-2 py-0.5 rounded-md mt-1 scale-90 whitespace-nowrap opacity-90 shadow-2xl">
+                          {react.username}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="shadow-3xl bg-black rounded-2xl overflow-hidden aspect-video relative border border-zinc-900">
@@ -482,16 +548,42 @@ export default function WatchScreen({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                  {/* Force sync button */}
+                  <button
+                    onClick={syncPlaybackNow}
+                    title="Đồng bộ ngay thời gian phát phim của bạn khớp với mọi người trong phòng"
+                    className="px-4 py-2 bg-teal-950/50 hover:bg-teal-900/40 text-teal-300 text-xs font-bold rounded-xl border border-teal-900/40 cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 shadow-sm"
+                  >
+                    <RefreshCw size={12} />
+                    <span>Đồng Bộ Ngay</span>
+                  </button>
+
                   <button
                     onClick={() => {
                       const shareUrl = `${window.location.origin}/#/xem/${movie?.slug}?tap=${activeEpisode?.slug || ''}&server=${activeServerIdx}&room=${roomId}`;
                       navigator.clipboard.writeText(shareUrl);
-                      alert('Đã sao chép liên kết mời tham gia phòng xem chung!');
+                      setShowCopiedSuccess(true);
+                      setTimeout(() => setShowCopiedSuccess(false), 2000);
                     }}
-                    className="px-4 py-2 bg-zinc-900 hover:bg-zinc-850 text-zinc-300 text-xs font-bold rounded-xl border border-zinc-800 cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+                    className={`px-4 py-2 text-xs font-bold rounded-xl border cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 ${
+                      showCopiedSuccess
+                        ? 'bg-emerald-950/60 hover:bg-emerald-950/60 text-emerald-300 border-emerald-800'
+                        : 'bg-zinc-900 hover:bg-zinc-850 text-zinc-300 border-zinc-800'
+                    }`}
                   >
-                    🔗 Copy Link Mời
+                    {showCopiedSuccess ? (
+                      <>
+                        <Check size={12} className="text-emerald-400" />
+                        <span>Đã Copy!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={12} />
+                        <span>Copy Link Mời</span>
+                      </>
+                    )}
                   </button>
+
                   <button
                     onClick={() => {
                       setRoomId(null);
@@ -568,6 +660,23 @@ export default function WatchScreen({
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Emoji Reaction Quick Tray */}
+              <div className="px-3 py-1.5 bg-zinc-950 border-t border-zinc-900 flex items-center justify-between gap-1.5 select-none shrink-0">
+                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Thả cảm xúc:</span>
+                <div className="flex gap-2">
+                  {['😂', '🔥', '❤️', '😮', '😢', '🎉'].map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => sendReaction(emoji)}
+                      className="text-lg hover:scale-130 active:scale-95 transition-transform duration-150 cursor-pointer p-0.5 filter hover:drop-shadow-[0_0_4px_rgba(230,57,70,0.5)] focus:outline-none"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Chat Input */}

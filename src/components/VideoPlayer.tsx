@@ -350,6 +350,7 @@ export default function VideoPlayer({
     setVolume(val);
     videoRef.current.volume = val;
     setIsMuted(val === 0);
+    setVolumeIndicator({ visible: true, value: val });
     resetControlsTimer();
   };
 
@@ -402,8 +403,21 @@ export default function VideoPlayer({
       setIsFullscreen(!!document.fullscreenElement);
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      if (indicatorTimeoutRef.current) window.clearTimeout(indicatorTimeoutRef.current);
+    };
   }, []);
+
+  // Auto-hide volume HUD indicator after exactly 1.5 seconds
+  useEffect(() => {
+    if (volumeIndicator) {
+      const timer = setTimeout(() => {
+        setVolumeIndicator(null);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [volumeIndicator]);
 
   // Hotkey Control Handlers
   useEffect(() => {
@@ -411,10 +425,6 @@ export default function VideoPlayer({
 
     const showHUD = (val: number) => {
       setVolumeIndicator({ visible: true, value: val });
-      if (indicatorTimeoutRef.current) window.clearTimeout(indicatorTimeoutRef.current);
-      indicatorTimeoutRef.current = window.setTimeout(() => {
-        setVolumeIndicator(null);
-      }, 2000);
     };
 
     const triggerButtonFeedback = (buttonId: string) => {
@@ -494,7 +504,6 @@ export default function VideoPlayer({
     window.addEventListener('keydown', handleHotkeys);
     return () => {
       window.removeEventListener('keydown', handleHotkeys);
-      if (indicatorTimeoutRef.current) window.clearTimeout(indicatorTimeoutRef.current);
     };
   }, [playerType, isPlaying, duration, isMuted, onLocalSeek]);
 
@@ -678,14 +687,15 @@ export default function VideoPlayer({
               )}
             </div>
 
-            {/* FULLY BUILT CUSTOM OVERLAY CONTROLS BAR */}
+             {/* FULLY BUILT CUSTOM OVERLAY CONTROLS BAR */}
             <div 
               className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent flex flex-col justify-end transition-opacity duration-300 z-30 ${
                 showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             >
+              {/* DESKTOP LAYOUT (>= md): Single elegant row, exactly matching user's original screenshot */}
               <div 
-                className={`flex items-center bg-black/60 border-t border-zinc-900/40 w-full transition-all ${
+                className={`hidden md:flex items-center bg-black/60 border-t border-zinc-900/40 w-full transition-all ${
                   isFullscreen ? 'p-6 gap-6 text-sm' : 'p-3 gap-3.5 text-xs'
                 }`}
               >
@@ -792,8 +802,8 @@ export default function VideoPlayer({
                       <Volume2 size={isFullscreen ? 21 : 17} />
                     )}
                   </button>
-                  {/* Slide in volume width horizontal slider - always slightly visible on mobile */}
-                  <div className="w-12 sm:w-0 overflow-hidden sm:group-hover/volume:w-20 transition-all duration-300 flex items-center">
+                  {/* Slide in volume width horizontal slider */}
+                  <div className="w-0 overflow-hidden sm:group-hover/volume:w-20 transition-all duration-300 flex items-center">
                     <input
                       type="range"
                       min="0"
@@ -801,7 +811,7 @@ export default function VideoPlayer({
                       step="0.05"
                       value={isMuted ? 0 : volume}
                       onChange={handleVolumeChange}
-                      className="w-12 sm:w-18 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#E63946] outline-none"
+                      className="w-18 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#E63946] outline-none"
                     />
                   </div>
                 </div>
@@ -890,6 +900,116 @@ export default function VideoPlayer({
                     <Maximize2 size={isFullscreen ? 22 : 18} />
                   )}
                 </button>
+              </div>
+
+              {/* MOBILE LAYOUT (< md): Optimized layout specifically for smartphone and smaller viewport sizes */}
+              <div className="flex md:hidden flex-col w-full bg-black/85 border-t border-zinc-900/60 p-2.5 gap-2 pb-3">
+                {/* Row 1: Easy-to-drag full-width progress slider */}
+                <div className="w-full h-5 flex items-center relative cursor-pointer px-1">
+                  <div className="w-full bg-zinc-800 h-1.5 rounded-full relative overflow-hidden">
+                    <div 
+                      className="bg-[#E63946] h-full rounded-full"
+                      style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+                    />
+                  </div>
+                  <div 
+                    className="absolute w-3.5 h-3.5 bg-[#E63946] border border-white/30 rounded-full top-1/2 -translate-y-1/2 -ml-1.5 shadow-[0_0_8px_rgba(230,57,70,0.9)] pointer-events-none"
+                    style={{ left: `${(currentTime / (duration || 1)) * 100}%` }}
+                  />
+                  <input
+                    type="range"
+                    min="0"
+                    max={duration || 1}
+                    value={currentTime}
+                    onChange={handleSeekChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                </div>
+
+                {/* Row 2: Touch targets and crucial state buttons */}
+                <div className="flex items-center justify-between w-full">
+                  {/* Left Controls Group */}
+                  <div className="flex items-center gap-1">
+                    {/* Play Button */}
+                    <button 
+                      onClick={togglePlay} 
+                      className="cursor-pointer min-w-[38px] min-h-[38px] flex items-center justify-center rounded-full bg-zinc-900/40 text-white hover:text-[#E63946]"
+                    >
+                      {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+                    </button>
+
+                    {/* Rewind */}
+                    <button 
+                      onClick={() => seekRelative(-10)} 
+                      className="cursor-pointer min-w-[34px] min-h-[34px] flex items-center justify-center rounded-full text-zinc-350"
+                    >
+                      <RotateCcw size={13} />
+                    </button>
+
+                    {/* Forward */}
+                    <button 
+                      onClick={() => seekRelative(10)} 
+                      className="cursor-pointer min-w-[34px] min-h-[34px] flex items-center justify-center rounded-full text-zinc-350"
+                    >
+                      <RotateCw size={13} />
+                    </button>
+
+                    {/* Compact Timestamp */}
+                    <span className="text-[9.5px] font-mono font-bold text-zinc-400 select-none ml-1 whitespace-nowrap shrink-0">
+                      {formatTime(currentTime)} / {formatTime(duration)}
+                    </span>
+                  </div>
+
+                  {/* Right Controls Group */}
+                  <div className="flex items-center gap-1.5">
+                    {/* Compact Fit Button */}
+                    <button 
+                      onClick={toggleVideoFit} 
+                      className="bg-zinc-900 border border-zinc-800 px-2 py-1 rounded-md text-[9px] font-extrabold uppercase tracking-widest text-zinc-300 h-7 flex items-center justify-center min-w-[42px]"
+                    >
+                      {videoFit === 'contain' ? 'Gốc' : videoFit === 'cover' ? 'To' : 'Đầy'}
+                    </button>
+
+                    {/* Speed Selection */}
+                    <div className="relative">
+                      <button 
+                        onClick={() => setShowSpeedDropdown(!showSpeedDropdown)} 
+                        className="text-[9px] font-black tracking-wider uppercase px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 h-7 flex items-center justify-center min-w-[42px]"
+                      >
+                        {playbackSpeed === 1 ? '1x' : `${playbackSpeed}x`}
+                      </button>
+                      
+                      {showSpeedDropdown && (
+                        <div className="absolute bottom-full right-0 mb-2 bg-zinc-950 border border-zinc-850 rounded-xl p-1 flex flex-col gap-0.5 w-24 shadow-2xl z-55">
+                          {[0.5, 0.75, 1, 1.25, 1.5, 2].map(speed => (
+                            <button
+                              key={speed}
+                              onClick={() => {
+                                handleSpeedChange(speed);
+                                setShowSpeedDropdown(false);
+                              }}
+                              className={`px-2 py-1 rounded-lg text-left text-[10px] font-extrabold transition-colors cursor-pointer ${
+                                playbackSpeed === speed 
+                                  ? 'text-white bg-[#E63946]' 
+                                  : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
+                              }`}
+                            >
+                              {speed === 1 ? '1.0x' : `${speed}x`}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Fullscreen Toggle */}
+                    <button 
+                      onClick={toggleFullscreen} 
+                      className="min-w-[36px] min-h-[36px] flex items-center justify-center text-zinc-200 active:scale-95"
+                    >
+                      {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </>

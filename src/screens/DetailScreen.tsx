@@ -3,6 +3,7 @@ import { fetchMovieDetail, fetchMovieList } from '../lib/api/vsmov';
 import { Movie, EpisodeServer, MovieListItem } from '../types/movie';
 import { useWatchlist } from '../lib/hooks/useWatchlist';
 import MovieCard from '../components/MovieCard';
+import ShareModal from '../components/ShareModal';
 import { Play, Plus, Check, Star, Calendar, Clock, Tv, Film, Compass, Users, Tag, Share2, Award, ChevronLeft, ChevronRight, ThumbsUp, MessageSquare } from 'lucide-react';
 import { getCustomSourceName } from '../config/sourceDisplayMap';
 
@@ -88,6 +89,8 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
   const [activeServerIdx, setActiveServerIdx] = useState(0);
   const [shareSuccess, setShareSuccess] = useState(false);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Comments and rating state
   const [comments, setComments] = useState<any[]>([]);
@@ -190,9 +193,10 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
   useEffect(() => {
     const loadDetail = async () => {
       setIsLoading(true);
+      setError(null);
       try {
         const res = await fetchMovieDetail(slug);
-        if (res.status && res.movie) {
+        if (res && res.status && res.movie) {
           setMovie(res.movie);
           setEpisodes(res.episodes || []);
           
@@ -210,9 +214,12 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
             const filteredRel = (relRes.items || []).filter(item => item.slug !== slug);
             setRelated(filteredRel);
           }
+        } else {
+          setError("Không tìm thấy thông tin chi tiết phim này trên máy chủ.");
         }
       } catch (e) {
         console.error('Failed to load detail for film:', slug, e);
+        setError("Không thể kết nối đến máy chủ hoặc nguồn phim này hiện không khả dụng.");
       } finally {
         setIsLoading(false);
       }
@@ -222,13 +229,45 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [slug]);
 
-  if (isLoading || !movie) {
+  if (isLoading) {
     return (
       <div className="w-full min-h-screen bg-[var(--color-bg-base)] text-white pt-24 pb-20 select-none flex flex-col items-center justify-center animate-pulse gap-4">
         <div className="w-16 h-16 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
           <Star size={24} className="text-[var(--color-brand)] animate-bounce" />
         </div>
         <p className="text-xs text-zinc-400 font-medium">Đang giải mã dữ liệu tiêu điểm phim...</p>
+      </div>
+    );
+  }
+
+  if (error || !movie) {
+    return (
+      <div className="w-full min-h-screen bg-[var(--color-bg-base)] text-white pt-24 pb-20 select-none flex flex-col items-center justify-center gap-6 px-4">
+        <div className="w-20 h-20 rounded-full bg-zinc-900 border border-red-500/30 flex items-center justify-center text-red-500 animate-pulse">
+          <Film size={36} className="text-red-500 opacity-80" />
+        </div>
+        <div className="text-center max-w-md">
+          <h2 className="text-xl font-bold mb-2">Không tải được chi tiết phim</h2>
+          <p className="text-sm text-zinc-400 font-medium leading-relaxed">{error || "Không tìm thấy thông tin chi tiết phim."}</p>
+        </div>
+        <div className="flex gap-4">
+          <button 
+            onClick={() => {
+              setError(null);
+              setIsLoading(true);
+              window.location.reload();
+            }}
+            className="px-5 py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-sm font-semibold transition border border-zinc-750"
+          >
+            Thử lại
+          </button>
+          <button 
+            onClick={() => window.location.hash = ''}
+            className="px-5 py-2.5 rounded-lg bg-[var(--color-brand)] hover:bg-opacity-90 text-sm font-semibold text-black transition"
+          >
+            Quay lại Trang chủ
+          </button>
+        </div>
       </div>
     );
   }
@@ -256,11 +295,7 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
   };
 
   const shareLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setShareSuccess(true);
-    setTimeout(() => {
-      setShareSuccess(false);
-    }, 2500);
+    setIsShareOpen(true);
   };
 
   // Safe handler to watch first episode of play button
@@ -844,6 +879,16 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
         </div>
 
       </div>
+
+      {/* Modern Share Modal */}
+      <ShareModal
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        shareUrl={window.location.href}
+        title={movie.name}
+        imageUrl={movie.poster_url || movie.thumb_url}
+        description={movie.content ? movie.content.replace(/<[^>]*>/g, '').slice(0, 150) + '...' : undefined}
+      />
     </div>
   );
 }

@@ -146,15 +146,10 @@ export default function Footer({ onNavigate }: FooterProps) {
         </div>
 
         {/* Closing copyright rows */}
-        <div className="border-t border-zinc-900/50 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-zinc-600">
-            &copy; {new Date().getFullYear()} bao. Dự án web xem phim cao cấp cấp Production. All Rights Reserved.
+        <div className="border-t border-zinc-900/50 pt-8 flex items-center justify-center text-center">
+          <p className="text-xs text-zinc-600 font-medium flex items-center gap-1">
+            Made with <Heart size={10} className="text-red-500 fill-red-500 inline animate-pulse" /> Huy Bao
           </p>
-          <div className="flex items-center gap-1 text-[11px] text-zinc-600">
-            <span>Made with</span>
-            <Heart size={10} className="text-[var(--color-brand)] fill-[var(--color-brand)] inline animate-pulse" />
-            <span>by Bao Le Huy (lehuybao17112007@gmail.com)</span>
-          </div>
         </div>
       </div>
     </footer>
