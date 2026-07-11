@@ -4,6 +4,7 @@ import Footer from './components/Footer';
 import DonationModal from './components/DonationModal';
 import PolicyModal from './components/PolicyModal';
 import ReportModal from './components/ReportModal';
+import GuideModal from './components/GuideModal';
 
 // Screens
 import HomeScreen from './screens/HomeScreen';
@@ -950,6 +951,9 @@ export default function App() {
 
       {/* GLOBAL REPORT MODAL FOR REPORTING SYSTEMS, MOVIES, OR USERS */}
       <ReportModal />
+
+      {/* GLOBAL EDUCATION / CURRICULUM GUIDE MODAL */}
+      <GuideModal />
 
     </div>
   );

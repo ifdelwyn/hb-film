@@ -1,4 +1,4 @@
-import { Film, Github, ShieldAlert, Heart, Info, Globe, Mail } from 'lucide-react';
+import { Film, Github, ShieldAlert, Heart, Info, Globe, Mail, BookOpen } from 'lucide-react';
 import { SiFacebook, SiTiktok, SiThreads, SiInstagram } from 'react-icons/si';
 
 interface FooterProps {
@@ -26,16 +26,17 @@ export default function Footer({ onNavigate }: FooterProps) {
             </p>
           </div>
 
-          {/* Quick Links Column */}
+          {/* Quick Links & Apps Column */}
           <div>
             <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase mb-4 flex items-center gap-1">
-              <Info size={12} /> Khám Phá
+              <Info size={12} /> Khám Phá &amp; App
             </h4>
             <div className="flex flex-col gap-2">
               <span onClick={() => onNavigate('home')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Trang Chủ chính</span>
               <span onClick={() => onNavigate('phim-le')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Phim Lẻ Bản Đẹp</span>
               <span onClick={() => onNavigate('phim-bo')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Phim Bộ Trọn Bộ</span>
               <span onClick={() => onNavigate('tai-khoan')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Lịch Sử Xem</span>
+              <span onClick={() => onNavigate('download')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Tải ứng dụng (Beta iOS/Android)</span>
               <span 
                 onClick={() => window.dispatchEvent(new Event('open-donation-modal'))} 
                 className="text-xs text-rose-400 hover:text-rose-300 font-bold cursor-pointer transition-colors flex items-center gap-1 mt-1"
@@ -45,10 +46,25 @@ export default function Footer({ onNavigate }: FooterProps) {
             </div>
           </div>
 
+          {/* Hướng Dẫn Column - Combined into a single neat option as requested */}
+          <div>
+            <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase mb-4 flex items-center gap-1">
+              <BookOpen size={12} className="text-indigo-400" /> Hướng Dẫn
+            </h4>
+            <div className="flex flex-col gap-2">
+              <span 
+                onClick={() => window.dispatchEvent(new CustomEvent('open-guide-modal', { detail: { tab: 'overview' } }))} 
+                className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors flex items-center gap-1"
+              >
+                📖 Giáo trình Web cơ bản (6 buổi)
+              </span>
+            </div>
+          </div>
+
           {/* Guidelines / Terms */}
           <div>
             <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase mb-4 flex items-center gap-1">
-              <ShieldAlert size={12} /> Điều Khoản & Báo Cáo
+              <ShieldAlert size={12} /> Điều Khoản &amp; Báo Cáo
             </h4>
             <div className="flex flex-col gap-2">
               <span onClick={() => window.dispatchEvent(new CustomEvent('open-policy-modal', { detail: { tab: 'quy-che' } }))} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Quy chế hoạt động</span>
@@ -64,18 +80,6 @@ export default function Footer({ onNavigate }: FooterProps) {
               >
                 💬 Gửi ý kiến phản hồi
               </span>
-            </div>
-          </div>
-
-          {/* Application Column */}
-          <div>
-            <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase mb-4 flex items-center gap-1">
-              📱 Ứng Dụng
-            </h4>
-            <div className="flex flex-col gap-2">
-              <span onClick={() => onNavigate('download')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Tải ứng dụng</span>
-              <span onClick={() => onNavigate('download/beta/ios')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Beta iOS</span>
-              <span onClick={() => onNavigate('download/beta/android')} className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors">Beta Android</span>
             </div>
           </div>
         </div>
