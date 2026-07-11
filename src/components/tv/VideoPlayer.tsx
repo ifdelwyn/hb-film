@@ -353,7 +353,10 @@ export default function VideoPlayer({ streamUrl, channelName, channelLogo, userA
                   step="0.05"
                   value={isMuted ? 0 : volume}
                   onChange={handleVolumeChange}
-                  className="w-0 group-hover/volume:w-20 transition-all duration-300 origin-left scale-x-0 group-hover/volume:scale-x-100 h-1 bg-zinc-800 rounded-full appearance-none accent-[var(--color-brand)] cursor-pointer"
+                  className="custom-range-slider w-0 group-hover/volume:w-24 transition-all duration-300 origin-left scale-x-0 group-hover/volume:scale-x-100 h-1 rounded-full appearance-none cursor-pointer outline-none"
+                  style={{
+                    background: `linear-gradient(to right, #E63946 ${(isMuted ? 0 : volume) * 100}%, #4b5563 ${(isMuted ? 0 : volume) * 100}%)`,
+                  }}
                 />
               </div>
 

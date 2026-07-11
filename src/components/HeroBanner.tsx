@@ -4,6 +4,7 @@ import { Movie } from '../types/movie';
 import { useWatchlist } from '../lib/hooks/useWatchlist';
 import { motion, AnimatePresence } from 'motion/react';
 import { resolvePremiumBackdrop, resolvePremiumPoster } from '../lib/providers/PosterProvider';
+import { getAbsoluteFrontEndImageUrl } from '../lib/api/vsmov';
 
 interface HeroBannerProps {
   movies: Movie[];
@@ -90,6 +91,7 @@ export default function HeroBanner({ movies, onPlay, onDetail }: HeroBannerProps
 
   const currentMovie = movies[currentIndex];
   const isAdded = isInWatchlist(currentMovie.slug);
+  const cleanContent = currentMovie.content ? currentMovie.content.replace(/<[^>]*>/g, '').trim() : '';
 
   // Get resolved files or fallback directly to VSMov defaults
   const currentImages = resolvedImages[currentMovie.slug] || {
@@ -199,7 +201,7 @@ export default function HeroBanner({ movies, onPlay, onDetail }: HeroBannerProps
         >
           {/* Cover Art - Crisp 4K Backdrop, no blur, with precise image filter enhancements */}
           <img 
-            src={currentImages.backdrop} 
+            src={getAbsoluteFrontEndImageUrl(currentImages.backdrop)} 
             alt={currentMovie.name}
             className="w-full h-full object-cover object-center filter blur-0 brightness-[82%] contrast-[110%] saturate-[105%] transition-all duration-700"
             referrerPolicy="no-referrer"
@@ -324,9 +326,9 @@ export default function HeroBanner({ movies, onPlay, onDetail }: HeroBannerProps
                 isDescExpanded ? 'line-clamp-none' : 'line-clamp-4'
               }`}
             >
-              {currentMovie.content}
+              {cleanContent}
             </p>
-            {currentMovie.content && currentMovie.content.length > 200 && (
+            {cleanContent && cleanContent.length > 200 && (
               <button
                 onClick={() => setIsDescExpanded(!isDescExpanded)}
                 className="text-xs font-bold text-[#E50914] hover:text-[#ff2d3d] mt-2 flex items-center gap-1 cursor-pointer transition-colors"

@@ -527,7 +527,6 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
                   <>
                     {/* Server selectors */}
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-zinc-500 font-bold uppercase tracking-wider mr-2">Cổng Truyền:</span>
                       {episodes.map((svr, idx) => {
                         const customName = getCustomSourceName(svr.server_name, idx);
                         return (
@@ -554,7 +553,7 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
                             onClick={() => onNavigateToWatch(movie.slug, ep.slug, activeServerIdx)}
                             className="p-3 text-xs font-bold text-center rounded-lg bg-zinc-900 hover:bg-[var(--color-brand)] hover:text-white hover:scale-105 active:scale-95 transition-all cursor-pointer border border-zinc-800/80 hover:border-transparent"
                           >
-                            Tập {ep.name}
+                            {ep.name.trim().toLowerCase().startsWith('tập') ? ep.name : `Tập ${ep.name}`}
                           </button>
                         ))}
                       </div>
@@ -916,7 +915,7 @@ export default function DetailScreen({ slug, onNavigateToWatch, onNavigateToDeta
       <ShareModal
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}
-        shareUrl={window.location.href}
+        shareUrl={`${window.location.origin}/#/phim/${movie.slug}`}
         title={movie.name}
         imageUrl={movie.poster_url || movie.thumb_url}
         description={movie.content ? movie.content.replace(/<[^>]*>/g, '').slice(0, 150) + '...' : undefined}

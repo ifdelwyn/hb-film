@@ -22,8 +22,8 @@ import MusicScreen from './screens/MusicScreen';
 import GameScreen from './screens/GameScreen';
 
 // Core types & hooks
-import { Search, X, Film, Flame, ShieldAlert, Sparkles, RefreshCw, Play, Clock, ChevronRight } from 'lucide-react';
-import { searchMovies } from './lib/api/vsmov';
+import { Search, X, Film, Flame, ShieldAlert, Sparkles, RefreshCw, Play, Clock, ChevronRight, Mic, MicOff } from 'lucide-react';
+import { searchMovies, getAbsoluteFrontEndImageUrl } from './lib/api/vsmov';
 import { searchMovies as searchTmdbMovies } from './services/tmdbService';
 import { MovieListItem } from './types/movie';
 import { useUserPreferences } from './lib/hooks/useUserPreferences';
@@ -43,6 +43,91 @@ export default function App() {
   const [overlayResults, setOverlayResults] = useState<MovieListItem[]>([]);
   const [isOverlaySearching, setIsOverlaySearching] = useState(false);
   const [historyItems, setHistoryItems] = useState<any[]>([]);
+
+  // Voice Search states
+  const [isVoiceListening, setIsVoiceListening] = useState(false);
+  const [voiceLanguage, setVoiceLanguage] = useState('vi-VN');
+  const [voiceError, setVoiceError] = useState('');
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      setVoiceSupported(true);
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = voiceLanguage;
+      
+      rec.onstart = () => {
+        setIsVoiceListening(true);
+        setVoiceError('');
+      };
+      
+      rec.onresult = (event: any) => {
+        if (event.results && event.results[0] && event.results[0][0]) {
+          const transcript = event.results[0][0].transcript;
+          if (transcript) {
+            setOverlayQuery(transcript);
+          }
+        }
+      };
+      
+      rec.onerror = (event: any) => {
+        console.error('Speech recognition error', event.error);
+        if (event.error === 'not-allowed') {
+          setVoiceError('Hãy cấp quyền truy cập Micro để sử dụng tìm kiếm giọng nói.');
+        } else if (event.error === 'no-speech') {
+          setVoiceError('Không phát hiện tiếng nói. Xin hãy thử lại.');
+        } else {
+          setVoiceError(`Lỗi nhận diện: ${event.error}`);
+        }
+        setIsVoiceListening(false);
+      };
+      
+      rec.onend = () => {
+        setIsVoiceListening(false);
+      };
+      
+      setRecognitionInstance(rec);
+    }
+  }, [voiceLanguage]);
+
+  // Stop listening when search overlay is closed
+  useEffect(() => {
+    if (!isSearchOverlayOpen && isVoiceListening && recognitionInstance) {
+      try {
+        recognitionInstance.stop();
+      } catch (err) {
+        console.error(err);
+      }
+      setIsVoiceListening(false);
+    }
+  }, [isSearchOverlayOpen, isVoiceListening, recognitionInstance]);
+
+  const toggleVoiceSearch = () => {
+    if (!voiceSupported) {
+      setVoiceError('Trình duyệt không hỗ trợ Web Speech API.');
+      return;
+    }
+    
+    if (isVoiceListening) {
+      try {
+        recognitionInstance?.stop();
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      setVoiceError('');
+      try {
+        recognitionInstance?.start();
+      } catch (err) {
+        console.error('Failed to start speech recognition', err);
+      }
+    }
+  };
 
   useEffect(() => {
     if (isSearchOverlayOpen) {
@@ -568,52 +653,131 @@ export default function App() {
 
       {/* 2B. COMMAND PALETTE SEARCH OVERLAY DRAWER MODAL */}
       {isSearchOverlayOpen && (
-        <div id="command-palette-modal" className="fixed inset-0 z-50 bg-black/90 backdrop-blur-2xl flex items-center justify-center p-4 sm:p-6 transition-all duration-300">
+        <div id="command-palette-modal" className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 transition-all duration-300">
           <div className="absolute inset-0 cursor-pointer" onClick={() => setIsSearchOverlayOpen(false)} />
           
-          <div className="relative w-full max-w-4xl bg-zinc-950/95 border border-zinc-850 rounded-[28px] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] overflow-hidden flex flex-col max-h-[90vh] animate-scale-in">
+          <div className="relative w-full max-w-3xl bg-zinc-950 border border-zinc-900 rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] overflow-hidden flex flex-col max-h-[85vh] animate-scale-in">
             {/* Header: Input Bar */}
-            <div className="relative flex items-center justify-between gap-4 border-b border-zinc-900/60 p-5 sm:p-6">
+            <div className="relative flex items-center justify-between gap-4 border-b border-zinc-900 p-4 sm:p-5">
               <div className="flex-grow relative flex items-center">
-                <Search size={22} className="absolute left-1 text-zinc-500 pointer-events-none" />
+                <Search size={20} className="absolute left-3.5 text-zinc-500 pointer-events-none" />
                 <input
                   type="text"
                   value={overlayQuery}
                   onChange={(e) => setOverlayQuery(e.target.value)}
-                  className="w-full bg-transparent pl-9 pr-6 pb-0.5 outline-none font-black text-base sm:text-lg tracking-tight text-white placeholder-zinc-600 font-sans"
-                  placeholder="Tìm kiếm phim, anime, chương trình truyền hình..."
+                  className={`w-full bg-zinc-900/40 pl-11 ${voiceSupported ? 'pr-20' : 'pr-10'} py-2.5 outline-none font-medium text-base tracking-tight text-white placeholder-zinc-500 font-sans border border-zinc-800/60 rounded-full transition-all focus:border-[var(--color-brand)] focus:bg-zinc-900/80`}
+                  placeholder={isVoiceListening ? "Đang lắng nghe... Hãy nói tên phim..." : "Tìm kiếm phim, anime, chương trình..."}
                   autoFocus
                 />
-                {overlayQuery && (
-                  <button 
-                    onClick={() => setOverlayQuery('')}
-                    className="absolute right-1 text-zinc-500 hover:text-white transition-colors"
-                  >
-                    <X size={18} />
-                  </button>
-                )}
+                
+                <div className="absolute right-3.5 flex items-center gap-2">
+                  {overlayQuery && (
+                    <button 
+                      onClick={() => setOverlayQuery('')}
+                      className="p-1 rounded-full text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all"
+                      title="Xóa tìm kiếm"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                  
+                  {voiceSupported && (
+                    <button
+                      onClick={toggleVoiceSearch}
+                      className={`p-1.5 rounded-full transition-all duration-300 relative ${
+                        isVoiceListening 
+                          ? 'bg-red-500 text-white shadow-[0_0_12px_rgba(239,68,68,0.6)] scale-105' 
+                          : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                      }`}
+                      title={isVoiceListening ? "Dừng ghi âm" : "Tìm kiếm bằng giọng nói"}
+                    >
+                      {isVoiceListening ? (
+                        <>
+                          <Mic size={16} className="relative z-10" />
+                          <span className="absolute inset-0 rounded-full bg-red-500/30 animate-ping" />
+                        </>
+                      ) : (
+                        <Mic size={16} />
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
               <button 
                 onClick={() => setIsSearchOverlayOpen(false)}
-                className="text-xs font-black px-4 py-2 rounded-full border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-900 hover:border-zinc-700 transition-all duration-300"
+                className="text-xs font-bold px-4 py-2.5 rounded-full border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-900 hover:border-zinc-700 transition-all duration-300 shrink-0"
               >
                 Đóng (ESC)
               </button>
             </div>
 
+            {/* Voice Search Status & Controls - Simple Bar */}
+            {(isVoiceListening || voiceError) && (
+              <div className="px-5 py-2 bg-zinc-900/40 border-b border-zinc-900 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  {isVoiceListening ? (
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                      </span>
+                      <p className="text-xs font-semibold text-red-400">
+                        Đang nghe tiếng {voiceLanguage === 'vi-VN' ? 'Việt' : 'Anh'}... Thử nói tên phim.
+                      </p>
+                      
+                      <div className="flex items-end gap-0.5 h-3">
+                        <span className="w-0.5 bg-red-400 animate-pulse h-1.5" style={{ animationDelay: '0.1s' }}></span>
+                        <span className="w-0.5 bg-red-400 animate-pulse h-3" style={{ animationDelay: '0.3s' }}></span>
+                        <span className="w-0.5 bg-red-400 animate-pulse h-1" style={{ animationDelay: '0.5s' }}></span>
+                        <span className="w-0.5 bg-red-400 animate-pulse h-2" style={{ animationDelay: '0.2s' }}></span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs font-medium text-amber-500">
+                      ⚠️ {voiceError}
+                    </p>
+                  )}
+                </div>
+
+                {voiceSupported && isVoiceListening && (
+                  <div className="flex items-center gap-1 bg-zinc-900 p-0.5 rounded-full border border-zinc-800">
+                    <button
+                      onClick={() => setVoiceLanguage('vi-VN')}
+                      className={`text-[9px] font-bold px-2.5 py-0.5 rounded-full transition-all ${
+                        voiceLanguage === 'vi-VN'
+                          ? 'bg-[var(--color-brand)] text-black'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      TIẾNG VIỆT
+                    </button>
+                    <button
+                      onClick={() => setVoiceLanguage('en-US')}
+                      className={`text-[9px] font-bold px-2.5 py-0.5 rounded-full transition-all ${
+                        voiceLanguage === 'en-US'
+                          ? 'bg-[var(--color-brand)] text-black'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      ENGLISH
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Scrollable Contents Pane */}
-            <div className="flex-grow overflow-y-auto p-5 sm:p-6 no-scrollbar">
+            <div className="flex-grow overflow-y-auto p-5 no-scrollbar">
               {isOverlaySearching ? (
                 /* GORGEOUS SKELETON SHIMMER LOADING STAGE */
-                <div className="flex flex-col gap-4 py-2">
-                  <div className="h-4 w-32 bg-zinc-900 rounded mb-2 animate-pulse" />
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="flex gap-4 p-3 bg-zinc-900/35 rounded-2xl border border-zinc-900/40 animate-pulse">
-                      <div className="w-14 h-20 bg-zinc-900 rounded-xl shrink-0" />
-                      <div className="flex-grow flex flex-col justify-center gap-2">
-                        <div className="w-2/5 h-4 bg-zinc-900 rounded" />
+                <div className="flex flex-col gap-3 py-2">
+                  <div className="h-3 w-24 bg-zinc-900 rounded mb-1 animate-pulse" />
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex gap-4 p-3 bg-zinc-900/20 rounded-2xl border border-zinc-900/50 animate-pulse">
+                      <div className="w-12 h-18 bg-zinc-900 rounded-lg shrink-0" />
+                      <div className="flex-grow flex flex-col justify-center gap-1.5">
+                        <div className="w-2/5 h-3.5 bg-zinc-900 rounded" />
                         <div className="w-1/4 h-3 bg-zinc-900 rounded" />
-                        <div className="w-1/2 h-3 bg-zinc-900 rounded" />
                       </div>
                     </div>
                   ))}
@@ -621,62 +785,60 @@ export default function App() {
               ) : overlayQuery.trim() ? (
                 overlayResults.length > 0 ? (
                   /* RESULTS PANEL */
-                  <div className="flex flex-col gap-4">
-                    <h4 className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-1">
+                  <div className="flex flex-col gap-3">
+                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">
                       KẾT QUẢ TÌM KIẾM ({overlayResults.length})
                     </h4>
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-2.5">
                       {overlayResults.map((movieItem) => {
-                        const isSeries = movieItem.type === 'series' || movieItem.type === 'tvshows' || movieItem.type === 'tv-shows';
-                        const genreDesc = isSeries 
-                          ? 'Phim bộ chất lượng cao. Cập nhật tập mới nhất liên tục, âm thanh sống động và vietsub hoàn chỉnh.' 
-                          : 'Phim lẻ bom tấn chiếu rạp. Trải nghiệm tốc độ truyền tải nhanh, hình ảnh chuẩn rạp không giật lag.';
-                        
                         return (
                           <div
                             key={movieItem.slug}
                             onClick={() => handleAutocompleteItemClick(movieItem.slug)}
-                            className="flex gap-4 p-3.5 rounded-2xl bg-zinc-900/20 hover:bg-zinc-900/60 border border-zinc-900/20 hover:border-zinc-800/40 cursor-pointer transition-all duration-300 group text-left"
+                            className="flex gap-4 p-2.5 rounded-2xl bg-zinc-900/10 hover:bg-zinc-900/50 border border-zinc-900/20 hover:border-zinc-800/40 cursor-pointer transition-all duration-300 group text-left"
                           >
                             <img 
-                              src={movieItem.poster_url || movieItem.thumb_url} 
+                              src={getAbsoluteFrontEndImageUrl(movieItem.poster_url || movieItem.thumb_url)} 
                               alt={movieItem.name} 
                               onError={(e) => {
-                                (e.target as HTMLImageElement).src = '/assets/no-poster.jpg';
+                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=300&auto=format&fit=crop&q=80';
                               }}
-                              className="w-16 h-24 object-cover rounded-xl shadow-md border border-white/5 shrink-0 group-hover:scale-[1.03] transition-transform duration-300"
+                              className="w-12 h-18 object-cover rounded-lg shadow border border-white/5 shrink-0 group-hover:scale-[1.03] transition-transform duration-300"
                               referrerPolicy="no-referrer"
                             />
                             <div className="flex-grow min-w-0 flex flex-col justify-between py-0.5">
                               <div>
                                 <div className="flex items-start justify-between gap-3">
-                                  <h4 className="text-sm sm:text-base font-bold text-white group-hover:text-[var(--color-brand)] transition-colors truncate">
+                                  <h4 className="text-sm font-bold text-white group-hover:text-[var(--color-brand)] transition-colors truncate">
                                     {movieItem.name}
                                   </h4>
-                                  <span className="text-[10px] font-black bg-amber-500/15 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full shrink-0">
-                                    ★ 8.5
+                                  <span className="text-[9px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded shrink-0">
+                                    ★ {movieItem.imdb?.star || '8.2'}
                                   </span>
                                 </div>
                                 <p className="text-[11px] text-zinc-500 font-bold truncate mt-0.5">
                                   {movieItem.origin_name} • {movieItem.year}
                                 </p>
-                                <p className="text-xs text-zinc-400 mt-1.5 line-clamp-2 leading-relaxed">
-                                  {genreDesc}
-                                </p>
+                                
+                                {movieItem.category && movieItem.category.length > 0 && (
+                                  <p className="text-[10px] text-zinc-500 mt-1 truncate">
+                                    {movieItem.category.map((c: any) => typeof c === 'string' ? c : c.name).join(' • ')}
+                                  </p>
+                                )}
                               </div>
                               
-                              <div className="flex items-center justify-between mt-2.5">
+                              <div className="flex items-center justify-between mt-1.5">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[9px] px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono font-black uppercase">
+                                  <span className="text-[8px] px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-400 font-mono font-black uppercase">
                                     {movieItem.quality || 'FHD'}
                                   </span>
-                                  <span className="text-[9px] px-2 py-0.5 rounded bg-zinc-800/60 text-zinc-400 font-bold">
+                                  <span className="text-[8px] px-1.5 py-0.5 rounded bg-zinc-900/60 text-zinc-500 font-bold">
                                     {movieItem.lang || 'Vietsub'}
                                   </span>
                                 </div>
                                 
-                                <button className="text-[10px] px-3.5 py-1.5 rounded-full bg-[var(--color-brand)] text-white font-bold hover:bg-opacity-90 transition-all flex items-center gap-1 shrink-0">
-                                  <Play size={10} fill="currentColor" />
+                                <button className="text-[9px] px-2.5 py-1 rounded-full bg-[var(--color-brand)] text-white font-bold hover:bg-opacity-90 transition-all flex items-center gap-1 shrink-0">
+                                  <Play size={8} fill="currentColor" />
                                   Xem ngay
                                 </button>
                               </div>
@@ -688,149 +850,91 @@ export default function App() {
                   </div>
                 ) : (
                   /* FRIENDLY NOT FOUND PANEL */
-                  <div className="flex flex-col items-center justify-center py-12 text-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-500 shadow-inner">
-                      <ShieldAlert size={26} className="text-[var(--color-brand)] animate-pulse" />
+                  <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500">
+                      <ShieldAlert size={22} className="text-[var(--color-brand)] animate-pulse" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-black text-zinc-200">Không tìm thấy nội dung phù hợp</h4>
-                      <p className="text-xs text-zinc-500 max-w-sm mt-1.5 mx-auto leading-relaxed">
-                        Thử rà soát lại từ khóa hoặc sử dụng các từ khóa phổ biến của cộng đồng như: <strong className="text-zinc-400">Conan</strong>, <strong className="text-zinc-400">One Piece</strong>, hoặc <strong className="text-zinc-400">Dune</strong>.
+                      <h4 className="text-xs font-black text-zinc-200">Không tìm thấy nội dung phù hợp</h4>
+                      <p className="text-[11px] text-zinc-500 max-w-sm mt-1 mx-auto leading-relaxed">
+                        Thử tìm kiếm với từ khóa khác hoặc bấm từ khóa thịnh hành phía dưới.
                       </p>
                     </div>
                   </div>
                 )
               ) : (
-                /* DEFAULT PRE-SEARCH STATE: MULTI-COLUMN PREMIUM WIDGETS */
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 select-none">
-                  {/* Left Column (8-Span): History & Trending */}
-                  <div className="md:col-span-7 flex flex-col gap-6">
-                    {/* A. Continue Watching / History */}
-                    {historyItems.length > 0 && (
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-center gap-1.5 text-xs font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-900/60 pb-2">
-                          <Clock size={13} className="text-[var(--color-brand)]" />
-                          <span>Tiếp Tục Xem &amp; Gần Đây</span>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {historyItems.map((hist: any, i: number) => (
-                            <div
-                              key={hist.movieSlug || i}
-                              onClick={() => handleAutocompleteItemClick(hist.movieSlug)}
-                              className="flex gap-2.5 p-2 rounded-xl bg-zinc-900/30 hover:bg-zinc-900/80 border border-zinc-900/40 cursor-pointer transition-all group text-left"
-                            >
-                              <img 
-                                src={hist.posterUrl} 
-                                alt={hist.movieName} 
-                                className="w-11 h-15 object-cover rounded-lg shadow shrink-0"
-                                referrerPolicy="no-referrer"
-                              />
-                              <div className="min-w-0 flex flex-col justify-between py-0.5">
-                                <div className="min-w-0">
-                                  <p className="text-[11px] font-black text-white group-hover:text-[var(--color-brand)] transition-colors truncate">
-                                    {hist.movieName}
-                                  </p>
-                                  <p className="text-[10px] text-zinc-500 mt-0.5">
-                                    Đang xem: {hist.episodeName || 'Tập 1'}
-                                  </p>
-                                </div>
-                                <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden mt-1">
-                                  <div 
-                                    className="bg-[var(--color-brand)] h-full" 
-                                    style={{ width: `${hist.progress || 50}%` }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                /* DEFAULT PRE-SEARCH STATE: COMPACT & MINIMAL */
+                <div className="flex flex-col gap-6 select-none">
+                  {/* Trending Keywords */}
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-1.5 text-[10px] font-black text-zinc-500 uppercase tracking-widest border-b border-zinc-900/60 pb-1.5">
+                      <Sparkles size={11} className="text-yellow-400" />
+                      <span>Từ Khóa Thịnh Hành</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {[
+                        { name: 'Thám Tử Conan', query: 'Conan' },
+                        { name: 'One Piece', query: 'One Piece' },
+                        { name: 'Wednesday', query: 'Wednesday' },
+                        { name: 'Your Name', query: 'Your Name' },
+                        { name: 'Solo Leveling', query: 'Solo' },
+                        { name: 'Doraemon', query: 'Doraemon' }
+                      ].map((item, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setOverlayQuery(item.query)}
+                          className="px-3.5 py-1.5 rounded-full bg-zinc-900/40 hover:bg-zinc-800 text-[11px] font-bold text-zinc-300 hover:text-white border border-zinc-800/40 transition-all cursor-pointer"
+                        >
+                          🔥 {item.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-                    {/* B. Trending (Xu hướng) */}
+                  {/* Continue Watching / History */}
+                  {historyItems.length > 0 && (
                     <div className="flex flex-col gap-3">
-                      <div className="flex items-center gap-1.5 text-xs font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-900/60 pb-2">
-                        <Flame size={13} className="text-amber-500 animate-pulse" />
-                        <span>Xu Hướng Phổ Biến</span>
+                      <div className="flex items-center gap-1.5 text-[10px] font-black text-zinc-500 uppercase tracking-widest border-b border-zinc-900/60 pb-1.5">
+                        <Clock size={11} className="text-[var(--color-brand)]" />
+                        <span>Xem Gần Đây</span>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                        {[
-                          { name: 'Thám Tử Lừng Danh Conan', slug: 'tham-tu-lung-danh-conan', poster: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=150', year: 2024, star: '8.4' },
-                          { name: 'Đảo Hải Tặc (One Piece)', slug: 'one-piece', poster: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=150', year: 2024, star: '8.8' },
-                          { name: 'Hành Tinh Cát 2 (Dune)', slug: 'dune-hanh-tinh-cat-phan-2', poster: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=150', year: 2024, star: '8.6' }
-                        ].map((trend) => (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {historyItems.slice(0, 4).map((hist: any, i: number) => (
                           <div
-                            key={trend.slug}
-                            onClick={() => handleAutocompleteItemClick(trend.slug)}
-                            className="flex flex-col bg-zinc-900/20 hover:bg-zinc-900/50 rounded-2xl border border-zinc-900/30 overflow-hidden cursor-pointer transition-all duration-300 group relative text-left"
+                            key={hist.movieSlug || i}
+                            onClick={() => handleAutocompleteItemClick(hist.movieSlug)}
+                            className="flex gap-2.5 p-2 rounded-xl bg-zinc-900/10 hover:bg-zinc-900/40 border border-zinc-900/30 cursor-pointer transition-all group text-left"
                           >
-                            <div className="aspect-[2/3] w-full relative overflow-hidden bg-zinc-900">
-                              <img 
-                                src={trend.poster} 
-                                alt={trend.name} 
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                referrerPolicy="no-referrer"
-                              />
-                              <div className="absolute top-1.5 left-1.5 bg-black/60 backdrop-blur-md border border-white/5 rounded px-1.5 py-0.5 text-[9px] text-amber-400 font-bold flex items-center gap-0.5">
-                                <span>★</span><span>{trend.star}</span>
+                            <img 
+                              src={getAbsoluteFrontEndImageUrl(hist.posterUrl)} 
+                              alt={hist.movieName} 
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=300&auto=format&fit=crop&q=80';
+                              }}
+                              className="w-10 h-14 object-cover rounded-lg shadow shrink-0 border border-white/5"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="min-w-0 flex flex-col justify-between py-0.5">
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-bold text-white group-hover:text-[var(--color-brand)] transition-colors truncate">
+                                  {hist.movieName}
+                                </p>
+                                <p className="text-[9px] text-zinc-500 mt-0.5">
+                                  {hist.episodeName || 'Tập 1'}
+                                </p>
                               </div>
-                            </div>
-                            <div className="p-2.5 min-w-0">
-                              <p className="text-[11px] font-black text-white group-hover:text-[var(--color-brand)] transition-colors truncate">
-                                {trend.name}
-                              </p>
-                              <p className="text-[9px] text-zinc-500 font-bold mt-0.5">
-                                {trend.year} • Thể loại hot
-                              </p>
+                              <div className="w-24 bg-zinc-900 h-1 rounded-full overflow-hidden mt-1">
+                                <div 
+                                  className="bg-[var(--color-brand)] h-full" 
+                                  style={{ width: `${hist.progress || 50}%` }}
+                                />
+                              </div>
                             </div>
                           </div>
                         ))}
                       </div>
                     </div>
-                  </div>
-
-                  {/* Right Column (5-Span): Popular Searches & Quick Tips */}
-                  <div className="md:col-span-5 flex flex-col gap-6">
-                    {/* C. Popular Searches */}
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center gap-1.5 text-xs font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-900/60 pb-2">
-                        <Sparkles size={13} className="text-yellow-400" />
-                        <span>Từ Khóa Thịnh Hành</span>
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        {[
-                          { name: 'Thám Tử Conan (Anime)', query: 'Conan' },
-                          { name: 'One Piece (Vua Hải Tặc)', query: 'One Piece' },
-                          { name: 'Wednesday Addams', query: 'Wednesday' },
-                          { name: 'Kimi no Na wa (Your Name)', query: 'Your Name' },
-                          { name: 'Solo Leveling', query: 'Solo' },
-                          { name: 'Hoạt hình Ghibli', query: 'Ghibli' }
-                        ].map((item, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => setOverlayQuery(item.query)}
-                            className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/10 hover:bg-zinc-900/50 text-xs font-bold text-zinc-300 hover:text-white border border-transparent hover:border-zinc-900/60 transition-all text-left cursor-pointer"
-                          >
-                            <span className="flex items-center gap-2">
-                              <span className="text-[10px] font-mono text-zinc-600">0{idx + 1}</span>
-                              <span>{item.name}</span>
-                            </span>
-                            <ChevronRight size={14} className="text-zinc-600" />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* D. Quick info banner */}
-                    <div className="p-4 rounded-2xl bg-gradient-to-br from-red-950/15 to-zinc-950 border border-red-900/10 text-left select-none">
-                      <p className="text-[10px] font-black text-[var(--color-brand)] tracking-widest uppercase mb-1">
-                        🚀 TÌM KIẾM NHANH CHÓNG
-                      </p>
-                      <p className="text-xs text-zinc-400 leading-relaxed font-medium">
-                        Bạn có thể ấn phím tắt <kbd className="bg-zinc-900 border border-zinc-800 text-[10px] px-1.5 py-0.5 rounded text-white font-mono font-bold mx-1 shadow">/</kbd> ở bất kỳ màn hình nào để mở nhanh ô tìm kiếm rạp phim cao cấp này.
-                      </p>
-                    </div>
-                  </div>
+                  )}
                 </div>
               )}
             </div>

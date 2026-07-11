@@ -31,6 +31,17 @@ interface VideoTrack {
 export default function MusicScreen() {
   const tracks: VideoTrack[] = [
     {
+      id: 'N08HIbIkBhI',
+      title: 'Hồng Thanh - XIN LỖI VÌ ĐÃ XUẤT HIỆN | Official Music Video',
+      creator: 'Hồng Thanh',
+      duration: '04:18',
+      embedUrl: 'https://www.youtube.com/embed/N08HIbIkBhI?si=jnyUoSYuz46c3pUf&autoplay=1',
+      thumbnail: 'https://i.ytimg.com/vi/N08HIbIkBhI/hqdefault.jpg',
+      views: '1.5M lượt xem',
+      uploadedAt: 'Vừa xong',
+      description: 'MV "Xin Lỗi Vì Đã Xuất Hiện" đầy cảm xúc - Thưởng thức ngay giai điệu lắng đọng, da diết ngọt ngào này.'
+    },
+    {
       id: '82ZTNQNEQgE',
       title: 'tlinh - “ái” album | THE LISTENING EXPERIENCE',
       creator: 'tlinh',
@@ -112,6 +123,7 @@ export default function MusicScreen() {
   const [activeVideo, setActiveVideo] = useState<VideoTrack>(tracks[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const [likes, setLikes] = useState<Record<string, number>>({
+    'N08HIbIkBhI': 150000,
     '82ZTNQNEQgE': 48000,
     'lnJVF5TjbWs': 12500,
     'BBytiT94y2A': 17400,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchPhimMoi, fetchMovieList } from '../lib/api/vsmov';
+import { fetchPhimMoi, fetchMovieList, fetchMovieDetail } from '../lib/api/vsmov';
 import { Movie, MovieListItem } from '../types/movie';
 import HeroBanner from '../components/HeroBanner';
 import MovieCard from '../components/MovieCard';
@@ -149,9 +149,78 @@ export default function HomeScreen({
       setNowPlayingPhim(nowPlaying || []);
       setUpcomingPhim(upcoming || []);
 
-      if (trending && trending.length > 0) {
-        setHeroPhim(trending.slice(0, 10));
+      // 7. Determine Hero Banner Movies (Customize this array to pin/promote any movies by slug in the system!)
+      // Cấu hình danh sách các slug phim muốn ghim lên Banner trang chủ tại đây (Ví dụ: ['tham-tu-lung-danh-conan', 'one-piece']).
+      // Nếu mảng này trống [], hệ thống sẽ tự động lấy danh sách phim mới nhất để hiển thị.
+      const CURATED_BANNER_SLUGS: string[] = [
+        'tham-tu-lung-danh-conan',
+        'doraemon-nobita-va-ban-giao-huong-dia-cau',
+        'dau-pha-thuong-khung-phan-5',
+        'one-piece'
+      ];
+
+      let initialHeroMovies: Movie[] = [];
+
+      if (CURATED_BANNER_SLUGS.length > 0) {
+        // Fetch curated movies by slug
+        const fetchedCurated = await Promise.all(
+          CURATED_BANNER_SLUGS.map(async (slug) => {
+            try {
+              const resDetail = await fetchMovieDetail(slug);
+              if (resDetail && resDetail.movie) {
+                return resDetail.movie;
+              }
+            } catch (err) {
+              console.warn(`Could not load curated banner movie with slug: ${slug}`, err);
+            }
+            return null;
+          })
+        );
+        initialHeroMovies = fetchedCurated.filter((m): m is Movie => m !== null);
       }
+
+      // Fallback to phim mới cập nhật if no curated movies were found or if curated list is empty
+      if (initialHeroMovies.length === 0) {
+        if (resPhimMoi.items && resPhimMoi.items.length > 0) {
+          initialHeroMovies = resPhimMoi.items.slice(0, 10) as any[];
+        } else if (nowPlaying && nowPlaying.length > 0) {
+          initialHeroMovies = nowPlaying.slice(0, 10) as any[];
+        } else if (trending && trending.length > 0) {
+          initialHeroMovies = trending.slice(0, 10) as any[];
+        }
+      }
+
+      setHeroPhim(initialHeroMovies);
+
+      // Fetch background details for all hero banner movies to ensure the descriptions (content),
+      // categories (category), and durations (time) are fully populated and visible in the premium UI.
+      Promise.all(
+        initialHeroMovies.map(async (movie) => {
+          if (movie.content && movie.category && movie.category.length > 0 && movie.time) {
+            // Already has full detail loaded (from curation)
+            return movie;
+          }
+          try {
+            const resDetail = await fetchMovieDetail(movie.slug);
+            if (resDetail && resDetail.movie) {
+              return {
+                ...movie,
+                content: resDetail.movie.content || movie.content || '',
+                category: resDetail.movie.category || movie.category || [],
+                time: resDetail.movie.time || movie.time || '',
+                quality: resDetail.movie.quality || movie.quality || 'FHD',
+                lang: resDetail.movie.lang || movie.lang || 'Vietsub',
+                imdb: resDetail.movie.imdb || movie.imdb
+              };
+            }
+          } catch (err) {
+            console.warn(`Error loading detailed banner info for ${movie.slug}:`, err);
+          }
+          return movie;
+        })
+      ).then(detailedHeroMovies => {
+        setHeroPhim(detailedHeroMovies);
+      });
 
     } catch (e) {
       console.error('HomeScreen fetch error:', e);
@@ -380,158 +449,31 @@ export default function HomeScreen({
 
         {/* ── TMDB NEW SECTIONS START ── */}
 
-        {/* SECTION 1: 🎬 Movie & 📺 Tập Ngắn Thám Tử Lừng Danh Conan */}
+        {/* SECTION 1: 🎬 Movie Thám Tử Lừng Danh Conan */}
         {(!isLoading || conanPhim.length > 0) && (
           <section id="homepage-tmdb-conan-row" className="flex flex-col gap-6 bg-zinc-950/40 p-4 sm:p-6 rounded-2xl border border-zinc-900 shadow-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-900 pb-4">
+            <div className="flex items-center justify-between border-b border-zinc-900 pb-4">
               <div className="flex items-center gap-3">
                 <div className="w-1.5 h-6 bg-[#E63946] rounded-full shadow-[0_0_12px_rgba(230,57,70,0.5)]"></div>
                 <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold md:font-black tracking-tighter text-[#F0F0F5] uppercase flex items-center gap-2">
                   <Award size={22} className="text-[#E63946]" /> Thám Tử Lừng Danh Conan
                 </h2>
               </div>
-              
-              {/* Dual Tab Buttons */}
-              <div className="flex items-center gap-2 self-start sm:self-auto bg-zinc-900/80 p-1 rounded-xl border border-zinc-800">
-                <button
-                  onClick={() => setConanTab('movie')}
-                  className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-300 ${
-                    conanTab === 'movie'
-                      ? 'bg-[#E63946] text-white shadow-[0_0_12px_rgba(230,57,70,0.4)]'
-                      : 'text-zinc-400 hover:text-white hover:bg-zinc-800/60'
-                  }`}
-                >
-                  🎬 Movies ({conanPhim.length})
-                </button>
-                <button
-                  onClick={() => setConanTab('series')}
-                  className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-300 ${
-                    conanTab === 'series'
-                      ? 'bg-[#E63946] text-white shadow-[0_0_12px_rgba(230,57,70,0.4)]'
-                      : 'text-zinc-400 hover:text-white hover:bg-zinc-800/60'
-                  }`}
-                >
-                  📺 Tập Ngắn (1000+)
-                </button>
-              </div>
+              <span className="text-xs text-zinc-500 font-bold uppercase tracking-widest font-mono">
+                {conanPhim.length} PHIM KHẢ DỤNG
+              </span>
             </div>
 
-            {/* TAB 1: MOVIES */}
-            {conanTab === 'movie' && (
-              isLoading ? renderSkeletonRow() : (
-                <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 no-scrollbar scroll-smooth snap-x snap-mandatory">
-                  {conanPhim.map((item) => (
-                    <div key={item.slug} className="w-[140px] sm:w-[170px] md:w-[190px] flex-shrink-0 snap-start">
-                      <MovieCard 
-                        movie={item}
-                        onClick={() => onNavigateToMoveDetail(item.slug)}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )
-            )}
-
-            {/* TAB 2: SERIES (EPISODIC) */}
-            {conanTab === 'series' && (
-              <div className="flex flex-col gap-5 animate-fade-in">
-                {/* Search & Statistics Panel */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-900/25 p-4 sm:p-5 rounded-2xl border border-zinc-900/60">
-                  <div className="relative flex-1 max-w-md">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-zinc-500">
-                      <Search size={16} />
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="Tìm kiếm nhanh tập... (Ví dụ: 100, 521, Conan)"
-                      value={conanSearch}
-                      onChange={(e) => {
-                        setConanSearch(e.target.value);
-                      }}
-                      className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#E63946] focus:ring-1 focus:ring-[#E63946] transition-all duration-300"
+            {isLoading ? renderSkeletonRow() : (
+              <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 no-scrollbar scroll-smooth snap-x snap-mandatory">
+                {conanPhim.map((item) => (
+                  <div key={item.slug} className="w-[140px] sm:w-[170px] md:w-[190px] flex-shrink-0 snap-start">
+                    <MovieCard 
+                      movie={item}
+                      onClick={() => onNavigateToMoveDetail(item.slug)}
                     />
-                    {conanSearch && (
-                      <button
-                        onClick={() => setConanSearch('')}
-                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-400 hover:text-white"
-                      >
-                        <X size={16} />
-                      </button>
-                    )}
                   </div>
-                  <div className="text-xs sm:text-sm text-zinc-400 font-mono flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                    Tìm thấy: <strong className="text-white font-black">{filteredConanEpisodes.length}</strong> / {conanEpisodes.length} tập chính thức
-                  </div>
-                </div>
-
-                {/* Horizontal Paging Group Selector on Landing Page */}
-                {conanSearch.trim() === '' && conanEpisodes.length > GROUP_SIZE && (
-                  <div className="flex flex-col gap-2 bg-zinc-900/10 p-3 rounded-2xl border border-zinc-900/30">
-                    <span className="text-[10px] font-black tracking-widest uppercase text-zinc-500 font-mono">Chọn nhóm tập:</span>
-                    <div className="flex gap-1.5 overflow-x-auto pb-2 pt-0.5 custom-scrollbar-horizontal scroll-smooth">
-                      {Array.from({ length: Math.ceil(conanEpisodes.length / GROUP_SIZE) }).map((_, gIdx) => {
-                        const startEp = gIdx * GROUP_SIZE + 1;
-                        const endEp = Math.min((gIdx + 1) * GROUP_SIZE, conanEpisodes.length);
-                        const isCurrentGroup = landingSelectedGroupIdx === gIdx;
-                        return (
-                          <button
-                            key={`landing-group-tab-${gIdx}`}
-                            onClick={() => setLandingSelectedGroupIdx(gIdx)}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-300 border cursor-pointer ${
-                              isCurrentGroup 
-                                ? 'bg-[#E63946] border-[#E63946] text-white font-black shadow-md shadow-[#E63946]/20' 
-                                : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-850'
-                            }`}
-                          >
-                            Tập {startEp} - {endEp}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Loading State */}
-                {isLoadingConanEps && (
-                  <div className="flex flex-col items-center justify-center py-20 gap-3 text-zinc-500">
-                    <RefreshCw size={28} className="animate-spin text-[#E63946]" />
-                    <p className="text-xs font-bold uppercase tracking-widest animate-pulse">Đang tải danh sách tập Conan...</p>
-                  </div>
-                )}
-
-                {/* Episodes Grid */}
-                {!isLoadingConanEps && (
-                  <>
-                    {filteredConanEpisodes.length === 0 ? (
-                      <div className="text-center py-16 bg-zinc-900/20 border border-zinc-900 rounded-xl">
-                        <p className="text-zinc-500 text-sm">Không tìm thấy tập nào khớp với từ khóa của bạn.</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-12 gap-2 sm:gap-3">
-                        {(conanSearch.trim() !== '' 
-                          ? filteredConanEpisodes 
-                          : conanEpisodes.slice(landingSelectedGroupIdx * GROUP_SIZE, (landingSelectedGroupIdx + 1) * GROUP_SIZE)
-                        ).map((ep, idx) => {
-                          const originalIdx = conanEpisodes.findIndex(e => e.name === ep.name);
-                          return (
-                            <button
-                              key={`${ep.name}-${idx}`}
-                              onClick={() => {
-                                setPlayingConanEp(ep);
-                                setActivePlayIdx(originalIdx !== -1 ? originalIdx : 0);
-                              }}
-                              className="group relative overflow-hidden bg-zinc-900/60 hover:bg-[#E63946] border border-zinc-800 hover:border-[#E63946] text-zinc-300 hover:text-white px-2 py-3 rounded-xl text-xs font-bold text-center transition-all duration-300 hover:scale-105 active:scale-95 flex flex-col items-center justify-center gap-1.5 shadow-md hover:shadow-[0_0_12px_rgba(230,57,70,0.3)] cursor-pointer"
-                            >
-                              <Play size={9} className="text-[#E63946] group-hover:text-white transition-colors duration-300" />
-                              <span className="truncate w-full font-mono">{ep.name}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </>
-                )}
+                ))}
               </div>
             )}
           </section>

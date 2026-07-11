@@ -3,6 +3,7 @@ import { useWatchlist } from '../lib/hooks/useWatchlist';
 import { useWatchHistory } from '../lib/hooks/useWatchHistory';
 import { useUserPreferences } from '../lib/hooks/useUserPreferences';
 import MovieCard from '../components/MovieCard';
+import { getAbsoluteFrontEndImageUrl } from '../lib/api/vsmov';
 import { motion, AnimatePresence } from 'motion/react';
 import { ANIME_AVATARS } from '../data/animeAvatars';
 import { 
@@ -704,7 +705,7 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
                           >
                             <div className="flex items-center gap-4 min-w-0">
                               <img 
-                                src={record.posterUrl} 
+                                src={getAbsoluteFrontEndImageUrl(record.posterUrl)} 
                                 alt={record.movieName}
                                 className="w-12 h-16 object-cover rounded-xl shadow-lg border border-white/5 flex-shrink-0"
                                 referrerPolicy="no-referrer"
@@ -717,7 +718,7 @@ export default function ProfileScreen({ onNavigateToMoveDetail, onNavigateToWatc
                                   {record.movieName}
                                 </h4>
                                 <p className="text-[10px] text-zinc-500 mt-1 font-medium">
-                                  Tập {record.episodeName} • {new Date(record.watchedAt).toLocaleDateString()}
+                                  {record.episodeName.trim().toLowerCase().startsWith('tập') ? record.episodeName : `Tập ${record.episodeName}`} • {new Date(record.watchedAt).toLocaleDateString()}
                                 </p>
                                 
                                 {/* Timeline mini bar */}

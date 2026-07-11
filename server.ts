@@ -1177,6 +1177,30 @@ async function startServer() {
           episode_current: "Hoàn tất (12/12)"
         },
         {
+          name: "Bếp trưởng năm sao",
+          slug: "bep-truong-nam-sao",
+          origin_name: "Five Star Chef",
+          thumb_url: "https://phim.nguonc.com/public/images/Film/bep-truong-nam-sao-thumb.jpg",
+          poster_url: "https://phim.nguonc.com/public/images/Film/bep-truong-nam-sao-poster.jpg",
+          year: 2022,
+          time: "46 phút/tập",
+          quality: "HD",
+          lang: "Vietsub",
+          episode_current: "Hoàn tất (6/6)"
+        },
+        {
+          name: "Ban Nhạc Bên Bờ Biển",
+          slug: "ban-nhac-ben-bo-bien",
+          origin_name: "The Seaside Band",
+          thumb_url: "https://phim.nguonc.com/public/images/Film/ban-nhac-ben-bo-bien-thumb.jpg",
+          poster_url: "https://phim.nguonc.com/public/images/Film/ban-nhac-ben-bo-bien-poster.jpg",
+          year: 2021,
+          time: "45 phút/tập",
+          quality: "HD",
+          lang: "Vietsub",
+          episode_current: "Hoàn tất (8/8)"
+        },
+        {
           name: "Show Của Đen",
           slug: "show-cua-den",
           origin_name: "Show Của Đen",
@@ -1423,18 +1447,22 @@ async function startServer() {
           const raw = await response.json();
           let itemsList: any[] = [];
           let pathImg = src.imgBase;
+          let fallbackBase = src.imgBase;
+          if (src.name === 'NguonPhim') {
+            fallbackBase = 'https://img.ophim.live/uploads/movies';
+          }
 
           if (raw.data && Array.isArray(raw.data.items)) {
             itemsList = raw.data.items;
-            pathImg = raw.data.pathImage || src.imgBase;
+            pathImg = raw.data.pathImage || raw.data.APP_DOMAIN_CDN_IMAGE || fallbackBase;
           } else if (Array.isArray(raw.items)) {
             itemsList = raw.items;
-            pathImg = raw.pathImage || src.imgBase;
+            pathImg = raw.pathImage || raw.APP_DOMAIN_CDN_IMAGE || fallbackBase;
           } else if (raw.data && Array.isArray(raw.data)) {
             itemsList = raw.data;
           }
 
-          return itemsList.map(item => normalizeItem(item, pathImg, src.imgBase));
+          return itemsList.map(item => normalizeItem(item, pathImg, fallbackBase));
         }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
@@ -1632,6 +1660,100 @@ async function startServer() {
               server_name: "Vietsub #1",
               server_data: [
                 { name: "Full", slug: "tap-full", filename: "Show Của Đen", link_embed: "https://embed.streamc.xyz/embed.php?hash=3c023d5bda4b93b5477003c41e139e92", link_m3u8: "" }
+              ]
+            }
+          ]
+        });
+      }
+
+      if (slug === 'bep-truong-nam-sao') {
+        return res.json({
+          status: true,
+          movie: {
+            name: "Bếp trưởng năm sao",
+            slug: "bep-truong-nam-sao",
+            origin_name: "Five Star Chef",
+            content: "Bảy đầu bếp chuyên nghiệp cạnh tranh để đưa ý tưởng ẩm thực cao cấp của họ vào nhà hàng Palm Court lịch sử tại khách sạn Langham sang trọng ở London.",
+            type: "tvshows",
+            status: "completed",
+            thumb_url: "https://phim.nguonc.com/public/images/Film/bep-truong-nam-sao-thumb.jpg",
+            poster_url: "https://phim.nguonc.com/public/images/Film/bep-truong-nam-sao-poster.jpg",
+            backdrop_url: "https://phim.nguonc.com/public/images/Film/bep-truong-nam-sao-thumb.jpg",
+            trailer_url: "",
+            year: 2022,
+            view: 31200,
+            actor: ["Michel Roux Jr.", "Mike Reid", "Ravneet Gill"],
+            director: [],
+            category: [{"id": "tv-shows", "name": "TV shows", "slug": "tv-shows"}],
+            country: [{"id": "anh", "name": "Anh", "slug": "anh"}],
+            time: "46 phút/tập",
+            episode_current: "Hoàn tất (6/6)",
+            episode_total: "6 tập",
+            lang: "Vietsub",
+            quality: "HD",
+            imdb: {
+              star: "8.0",
+              vote: "450"
+            }
+          },
+          episodes: [
+            {
+              server_name: "Vietsub #1",
+              server_data: [
+                { name: "1", slug: "tap-1", filename: "Bếp trưởng năm sao Tập 1", link_embed: "https://embed.streamc.xyz/embed.php?hash=5a19e4545ff751def305cd049d25ea9d", link_m3u8: "" },
+                { name: "2", slug: "tap-2", filename: "Bếp trưởng năm sao Tập 2", link_embed: "https://embed.streamc.xyz/embed.php?hash=ed61618f3123d47f85a647b80c4b3d30", link_m3u8: "" },
+                { name: "3", slug: "tap-3", filename: "Bếp trưởng năm sao Tập 3", link_embed: "https://embed.streamc.xyz/embed.php?hash=7496536aa67e2e37f918fbbc71b05667", link_m3u8: "" },
+                { name: "4", slug: "tap-4", filename: "Bếp trưởng năm sao Tập 4", link_embed: "https://embed.streamc.xyz/embed.php?hash=c468a830e2ea67ee46d37c4b8f0958bc", link_m3u8: "" },
+                { name: "5", slug: "tap-5", filename: "Bếp trưởng năm sao Tập 5", link_embed: "https://embed.streamc.xyz/embed.php?hash=8e9dc604dca1160626478b421f11c1a5", link_m3u8: "" },
+                { name: "6", slug: "tap-6", filename: "Bếp trưởng năm sao Tập 6", link_embed: "https://embed.streamc.xyz/embed.php?hash=9946b84e9b4912264ab88ec49c4faac9", link_m3u8: ""}
+              ]
+            }
+          ]
+        });
+      }
+
+      if (slug === 'ban-nhac-ben-bo-bien') {
+        return res.json({
+          status: true,
+          movie: {
+            name: "Ban Nhạc Bên Bờ Biển",
+            slug: "ban-nhac-ben-bo-bien",
+            origin_name: "The Seaside Band",
+            content: "Là chương trình truyền hình thực tế truyền cảm hứng dành cho phụ nữ do Mango TV thực hiện. Trong chương trình, sáu khách mời nữ trên 30 tuổi với chuyên môn âm nhạc và sự hiểu biết đầy đủ của riêng mình sẽ cùng nhau đến một vùng biển. Trong 21 ngày, họ xây dựng và vận hành một nhà hàng âm nhạc bên bờ biển từ hai bàn tay trắng. Họ cũng sẽ khám phá mối quan hệ giữa công việc và cuộc sống trong quá trình hoạt động.quan hệ, truyền tải quan điểm sống “làm việc chăm chỉ và sống tốt”.",
+            type: "tvshows",
+            status: "completed",
+            thumb_url: "https://phim.nguonc.com/public/images/Film/ban-nhac-ben-bo-bien-thumb.jpg",
+            poster_url: "https://phim.nguonc.com/public/images/Film/ban-nhac-ben-bo-bien-poster.jpg",
+            backdrop_url: "https://phim.nguonc.com/public/images/Film/ban-nhac-ben-bo-bien-thumb.jpg",
+            trailer_url: "",
+            year: 2021,
+            view: 18400,
+            actor: [],
+            director: [],
+            category: [{"id": "tv-shows", "name": "TV shows", "slug": "tv-shows"}],
+            country: [{"id": "trung-quoc", "name": "Trung Quốc", "slug": "trung-quoc"}],
+            time: "45 phút/tập",
+            episode_current: "Hoàn tất (8/8)",
+            episode_total: "8 tập",
+            lang: "Vietsub",
+            quality: "HD",
+            imdb: {
+              star: "8.3",
+              vote: "210"
+            }
+          },
+          episodes: [
+            {
+              server_name: "Vietsub #1",
+              server_data: [
+                { name: "GT", slug: "tap-gt", filename: "Ban Nhạc Bên Bờ Biển Tập GT", link_embed: "https://embed.streamc.xyz/embed.php?hash=c8ce6405681aa91bdfb187a416152c72", link_m3u8: "" },
+                { name: "1", slug: "tap-1", filename: "Ban Nhạc Bên Bờ Biển Tập 1", link_embed: "https://embed.streamc.xyz/embed.php?hash=f6d5461a2e234d38e0f42ee5d693daab", link_m3u8: "" },
+                { name: "2", slug: "tap-2", filename: "Ban Nhạc Bên Bờ Biển Tập 2", link_embed: "https://embed.streamc.xyz/embed.php?hash=50dc7525968cc50680874c04f9d2f9ff", link_m3u8: "" },
+                { name: "3", slug: "tap-3", filename: "Ban Nhạc Bên Bờ Biển Tập 3", link_embed: "https://embed.streamc.xyz/embed.php?hash=f152f907f4c7780b666323d88f30f0ec", link_m3u8: "" },
+                { name: "5", slug: "tap-5", filename: "Ban Nhạc Bên Bờ Biển Tập 5", link_embed: "https://embed.streamc.xyz/embed.php?hash=0d540dc5ec6c4c8bdfd8e13c0e4c71e3", link_m3u8: "" },
+                { name: "6", slug: "tap-6", filename: "Ban Nhạc Bên Bờ Biển Tập 6", link_embed: "https://embed.streamc.xyz/embed.php?hash=e820d6c842c255ec7d895c4804aca252", link_m3u8: "" },
+                { name: "7", slug: "tap-7", filename: "Ban Nhạc Bên Bờ Biển Tập 7", link_embed: "https://embed.streamc.xyz/embed.php?hash=198786c73ec075a35471a87f790dab2b", link_m3u8: "" },
+                { name: "8", slug: "tap-8", filename: "Ban Nhạc Bên Bờ Biển Tập 8", link_embed: "https://embed.streamc.xyz/embed.php?hash=bfca2f1aa85e597c536fd57ff701c513", link_m3u8: ""}
               ]
             }
           ]

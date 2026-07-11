@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useWatchHistory } from '../lib/hooks/useWatchHistory';
 import { Clock, Trash2, Calendar, Play, Film, ArrowRight } from 'lucide-react';
+import { getAbsoluteFrontEndImageUrl } from '../lib/api/vsmov';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface HistoryScreenProps {
@@ -182,7 +183,7 @@ export default function HistoryScreen({ onNavigateToWatch, onNavigate }: History
                             className="w-14 h-20 rounded-[14px] overflow-hidden bg-zinc-950 flex-shrink-0 cursor-pointer relative shadow-md"
                           >
                             <img
-                              src={item.posterUrl || "https://images.unsplash.com/photo-1485846234645-a62644f84728?w=300&fit=crop&q=80"}
+                              src={getAbsoluteFrontEndImageUrl(item.posterUrl)}
                               alt={item.movieName}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                               referrerPolicy="no-referrer"

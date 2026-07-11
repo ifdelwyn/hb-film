@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchMovieDetail } from '../lib/api/vsmov';
+import { fetchMovieDetail, getAbsoluteFrontEndImageUrl } from '../lib/api/vsmov';
 import { Movie, EpisodeServer, EpisodeData } from '../types/movie';
 import { useWatchHistory } from '../lib/hooks/useWatchHistory';
 import VideoPlayer from '../components/VideoPlayer';
@@ -21,6 +21,15 @@ export default function WatchScreen({
   onNavigateToDetail,
   onBack
 }: WatchScreenProps) {
+  const formatEpName = (name: string) => {
+    if (!name) return '';
+    const trimmed = name.trim();
+    if (/^tập\s+/i.test(trimmed)) {
+      return trimmed;
+    }
+    return `Tập ${trimmed}`;
+  };
+
   const [movie, setMovie] = useState<Movie | null>(null);
   const [episodes, setEpisodes] = useState<EpisodeServer[]>([]);
   const [activeServerIdx, setActiveServerIdx] = useState(initialServerIdx);
@@ -336,7 +345,7 @@ export default function WatchScreen({
       updateHistory({
         movieSlug: movie.slug,
         movieName: movie.name,
-        posterUrl: movie.poster_url || movie.thumb_url,
+        posterUrl: getAbsoluteFrontEndImageUrl(movie.poster_url || movie.thumb_url),
         episodeName: activeEpisode.name,
         episodeSlug: activeEpisode.slug,
         progress: existing?.progress || 0,
@@ -354,7 +363,7 @@ export default function WatchScreen({
     updateHistory({
       movieSlug: movie.slug,
       movieName: movie.name,
-      posterUrl: movie.poster_url || movie.thumb_url,
+      posterUrl: getAbsoluteFrontEndImageUrl(movie.poster_url || movie.thumb_url),
       episodeName: activeEpisode.name,
       episodeSlug: activeEpisode.slug,
       progress: progressPercent,
@@ -452,7 +461,7 @@ export default function WatchScreen({
                   key={`movie-player-${activeEpisode.link_embed || activeEpisode.slug || 'player'}`}
                   embedUrl={activeEpisode.link_embed}
                   m3u8Url={activeEpisode.link_m3u8}
-                  title={`${movie.name} - Tập ${activeEpisode.name}`}
+                  title={`${movie.name} - ${formatEpName(activeEpisode.name)}`}
                   poster={movie.poster_url || movie.thumb_url}
                   onEnded={handleNextEpisode}
                   onProgress={handleProgress}
@@ -731,7 +740,7 @@ export default function WatchScreen({
                     🎬 ĐANG PHÁT TRỰC TUYẾN
                   </span>
                   <h2 className="text-xl sm:text-2xl font-extrabold sm:font-black tracking-tighter text-white drop-shadow">
-                    {movie.name} {activeEpisode && (<span>— <span className="text-[var(--color-brand)] font-black">Tập {activeEpisode.name}</span></span>)}
+                    {movie.name} {activeEpisode && (<span>— <span className="text-[var(--color-brand)] font-black">{formatEpName(activeEpisode.name)}</span></span>)}
                   </h2>
                   <p className="text-xs text-zinc-500 font-medium font-sans mt-1">
                     {movie.origin_name} • {movie.quality} • {movie.lang} • Lượt xem: {movie.view.toLocaleString()} views
@@ -743,7 +752,7 @@ export default function WatchScreen({
                     detail: { 
                       type: 'movie', 
                       movieName: movie.name,
-                      episodeName: activeEpisode?.name ? `Tập ${activeEpisode.name}` : undefined
+                      episodeName: activeEpisode?.name ? formatEpName(activeEpisode.name) : undefined
                     } 
                   }))}
                   className="px-4 py-2 bg-zinc-950/80 hover:bg-zinc-900 border border-zinc-900 hover:border-zinc-800 text-zinc-400 hover:text-red-400 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors duration-200 cursor-pointer shadow-md select-none shrink-0 self-start sm:self-center"

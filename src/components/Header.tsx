@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, Menu, X, ChevronDown, Film, Globe, Heart, User, Award, Flame, Clock, Tv, Gamepad2, Wrench, ExternalLink, Mail } from 'lucide-react';
+import { Search, Bell, Menu, X, ChevronDown, Film, Globe, Heart, User, Award, Flame, Clock, Tv, Gamepad2, Wrench, ExternalLink, Mail, QrCode } from 'lucide-react';
 import { Category, Country } from '../types/movie';
 import { MOCK_CATEGORIES, MOCK_COUNTRIES } from '../data/mockMovies';
 import { useUserPreferences } from '../lib/hooks/useUserPreferences';
@@ -25,6 +25,80 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
     return stored ? JSON.parse(stored) : null;
   });
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+
+  // States for interactive and dynamic notification list
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([
+    {
+      id: 1,
+      title: "🔥 Siêu kinh điển Dune: Phần 2",
+      body: "Vừa được phát sóng bản FHD Vietsub độ phân giải cao!",
+      time: "Vừa xong"
+    },
+    {
+      id: 2,
+      title: "🎬 Wednesday có cập nhật",
+      body: "Học viện Nevermore mở rộng tập phim mới trọn bộ!",
+      time: "10 phút trước"
+    }
+  ]);
+  const [realMoviesForNotif, setRealMoviesForNotif] = useState<any[]>([]);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  // Fetch real movies for notifications
+  useEffect(() => {
+    fetch('/api/danh-sach/phim-moi-cap-nhat?page=1&limit=20')
+      .then(res => res.json())
+      .then(data => {
+        if (data && Array.isArray(data.items)) {
+          setRealMoviesForNotif(data.items);
+        }
+      })
+      .catch(e => console.log('Failed to fetch movies for notifications:', e));
+  }, []);
+
+  // Set up continuous notification generator
+  useEffect(() => {
+    if (realMoviesForNotif.length === 0) return;
+
+    const templates = [
+      { prefix: "🎬", action: "vừa cập nhật bản thuyết minh cực hay!" },
+      { prefix: "🔥 Phim bùng nổ:", action: "đã có tập mới FullHD cực nét!" },
+      { prefix: "⭐ Đề cử HOT:", action: "vừa được thêm vào mục phim thịnh hành!" },
+      { prefix: "👀 Xem ngay:", action: "vừa phát sóng vietsub chuẩn tốc độ cao!" },
+      { prefix: "✨ Tin vui:", action: "đã hoàn tất bản lồng tiếng chất lượng rạp!" }
+    ];
+
+    const interval = setInterval(() => {
+      const randomMovie = realMoviesForNotif[Math.floor(Math.random() * realMoviesForNotif.length)];
+      if (!randomMovie) return;
+
+      const template = templates[Math.floor(Math.random() * templates.length)];
+      
+      const newNotif = {
+        id: Date.now(),
+        title: `${template.prefix} ${randomMovie.name}`,
+        body: `${randomMovie.origin_name || randomMovie.name} ${template.action}`,
+        time: "Vừa xong",
+        slug: randomMovie.slug
+      };
+
+      setNotifications(prev => [newNotif, ...prev.slice(0, 9)]);
+    }, 25000); // 25s auto-update interval
+
+    return () => clearInterval(interval);
+  }, [realMoviesForNotif]);
+
+  // Click outside to close notification panel
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const handleUserUpdate = () => {
@@ -566,6 +640,20 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
                         </div>
                         <ExternalLink size={12} className="text-zinc-500 group-hover/item:text-[#E63946] transition-colors" />
                       </a>
+
+                      {/* Tạo QR Code */}
+                      <a
+                        href="https://qr-generator.ai"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group/item flex items-center justify-between gap-3 text-xs text-zinc-400 hover:text-[#E63946] hover:bg-[#E63946]/5 px-3 py-2.5 border border-transparent hover:border-[#E63946]/20 rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.04] select-none font-bold"
+                      >
+                        <div className="flex items-center gap-2">
+                          <QrCode size={14} className="text-purple-400 group-hover/item:text-[#E63946] transition-colors" />
+                          <span>Tạo QR Code</span>
+                        </div>
+                        <ExternalLink size={12} className="text-zinc-500 group-hover/item:text-[#E63946] transition-colors" />
+                      </a>
                     </div>
                   </motion.div>
                 )}
@@ -593,29 +681,60 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
             </button>
 
             {/* Bell Notifications */}
-            <div className="relative group">
-              <button className="p-2 text-zinc-300 hover:text-white hover:bg-white/5 rounded-full transition-colors cursor-pointer">
+            <div className="relative" ref={notifRef}>
+              <button 
+                onClick={() => setNotifOpen(!notifOpen)}
+                className="p-2 text-zinc-300 hover:text-white hover:bg-white/5 rounded-full transition-colors cursor-pointer relative"
+              >
                 <Bell size={20} />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--color-brand)] rounded-full animate-ping" />
+                {notifications.length > 0 && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--color-brand)] rounded-full" />
+                )}
               </button>
               
-              {/* Notification Overlay Panel Dropdown list on hover */}
-              <div className="absolute right-0 mt-1 w-80 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl p-4 shadow-2xl opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 z-50">
-                <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-1.5 border-b border-zinc-800 pb-2">
-                  <Flame size={14} className="text-[var(--color-brand)]" />
-                  Thông báo mới nhất
-                </h4>
-                <div className="flex flex-col gap-2.5 max-h-60 overflow-y-auto">
-                  <div className="text-xs hover:bg-zinc-800/40 p-2 rounded-lg cursor-pointer transition-colors">
-                    <p className="font-semibold text-white">🔥 Siêu kinh điển Dune: Phần 2</p>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">Vừa được phát sóng bản FHD Vietsub độ phân giải cao!</p>
-                  </div>
-                  <div className="text-xs hover:bg-zinc-800/40 p-2 rounded-lg cursor-pointer transition-colors">
-                    <p className="font-semibold text-white">🎬 Wednesday có cập nhật</p>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">Học viện Nevermore mở rộng tập phim mới trọn bộ!</p>
+              {/* Notification Overlay Panel Dropdown list */}
+              {notifOpen && (
+                <div className="fixed md:absolute right-4 md:right-0 left-4 md:left-auto mt-2 w-auto md:w-80 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl p-4 shadow-2xl z-50 animate-scale-in text-left">
+                  <h4 className="text-sm font-bold text-white mb-2 flex items-center justify-between border-b border-zinc-800 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <Flame size={14} className="text-[var(--color-brand)]" />
+                      <span>Thông báo mới nhất</span>
+                    </div>
+                    {notifications.length > 0 && (
+                      <button 
+                        onClick={() => setNotifications([])}
+                        className="text-[10px] text-zinc-500 hover:text-[var(--color-brand)] transition-colors"
+                      >
+                        Xóa tất cả
+                      </button>
+                    )}
+                  </h4>
+                  <div className="flex flex-col gap-2.5 max-h-60 overflow-y-auto pr-1">
+                    {notifications.length === 0 ? (
+                      <div className="text-center py-6 text-xs text-zinc-500">
+                        Không có thông báo mới nào
+                      </div>
+                    ) : (
+                      notifications.map((notif) => (
+                        <div 
+                          key={notif.id}
+                          onClick={() => {
+                            if (notif.slug) {
+                              onNavigate(`phim/${notif.slug}`);
+                            }
+                            setNotifOpen(false);
+                          }}
+                          className="text-xs hover:bg-zinc-800/40 p-2 rounded-lg cursor-pointer transition-colors border-b border-zinc-900/40 last:border-0"
+                        >
+                          <p className="font-semibold text-white truncate">{notif.title}</p>
+                          <p className="text-[10px] text-zinc-400 mt-0.5 line-clamp-2 leading-relaxed">{notif.body}</p>
+                          <p className="text-[9px] text-zinc-500 mt-1">{notif.time}</p>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Public Movie Box Page Trigger with Dropdown / Login button */}
@@ -853,6 +972,19 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
                 <div className="flex items-center gap-2.5 text-xs text-zinc-350 font-bold">
                   <Mail size={14} className="text-emerald-400" />
                   <span>Mail tạm thời</span>
+                </div>
+                <ExternalLink size={12} className="text-zinc-500" />
+              </a>
+
+              <a
+                href="https://qr-generator.ai"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between p-3.5 bg-zinc-900/30 border border-zinc-900/80 rounded-xl hover:text-white"
+              >
+                <div className="flex items-center gap-2.5 text-xs text-zinc-350 font-bold">
+                  <QrCode size={14} className="text-purple-400" />
+                  <span>Tạo QR Code</span>
                 </div>
                 <ExternalLink size={12} className="text-zinc-500" />
               </a>

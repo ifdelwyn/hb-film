@@ -65,3 +65,45 @@ export async function fetchByCountry(slug: string, page = 1, limit = 24): Promis
 export async function fetchByYear(year: string | number, page = 1, limit = 24): Promise<MovieListResponse> {
   return fetchMovieList({ year, page, limit });
 }
+
+export function getAbsoluteFrontEndImageUrl(url: string | undefined | null): string {
+  if (!url) return 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=300&auto=format&fit=crop&q=80';
+  let absUrl = url.trim();
+  if (!absUrl.startsWith('http://') && !absUrl.startsWith('https://') && !absUrl.startsWith('//')) {
+    // If it's a relative path, let's normalize it!
+    const trimmedUrl = absUrl.replace(/^\//, '');
+    if (trimmedUrl.startsWith('uploads/movies/') || trimmedUrl.startsWith('upload/vod/') || trimmedUrl.startsWith('uploads/') || trimmedUrl.startsWith('upload/')) {
+      absUrl = `https://phimimg.com/${trimmedUrl}`;
+    } else {
+      absUrl = `https://img.ophim.live/uploads/movies/${trimmedUrl}`;
+    }
+  } else if (absUrl.startsWith('//')) {
+    absUrl = `https:${absUrl}`;
+  }
+
+  // Ensure it's proxied via wsrv.nl if it belongs to one of the blocked domains
+  const proxyDomains = [
+    'phimimg.com',
+    'ophimimg.com',
+    'img.ophim.live',
+    'img.phimapi.com',
+    'phim.nguonc.com',
+    'img.nguonphim.tv',
+    'api.nguonphim.tv',
+    'ophim1.com',
+    'ophim17.cc',
+    'phimapi.com',
+    'myanimelist.net',
+    'cdn.myanimelist.net',
+    'image.tmdb.org'
+  ];
+
+  const needsProxy = proxyDomains.some(domain => absUrl.includes(domain));
+  const isAlreadyProxied = absUrl.includes('image.php?url=') || absUrl.includes('wsrv.nl') || absUrl.includes('weserv.nl');
+
+  if (needsProxy && !isAlreadyProxied) {
+    return `https://wsrv.nl/?url=${encodeURIComponent(absUrl)}`;
+  }
+  return absUrl;
+}
+

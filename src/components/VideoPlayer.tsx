@@ -336,7 +336,6 @@ export default function VideoPlayer({
     setVolume(val);
     videoRef.current.volume = val;
     setIsMuted(val === 0);
-    setVolumeIndicator({ visible: true, value: val });
     resetControlsTimer();
   };
 
@@ -813,7 +812,7 @@ export default function VideoPlayer({
                     )}
                   </button>
                   {/* Slide in volume width horizontal slider */}
-                  <div className="w-0 overflow-hidden sm:group-hover/volume:w-20 transition-all duration-300 flex items-center">
+                  <div className="w-0 overflow-hidden group-hover/volume:w-24 transition-all duration-300 flex items-center h-8 ml-1">
                     <input
                       type="range"
                       min="0"
@@ -821,7 +820,10 @@ export default function VideoPlayer({
                       step="0.05"
                       value={isMuted ? 0 : volume}
                       onChange={handleVolumeChange}
-                      className="w-18 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#E63946] outline-none"
+                      className="custom-range-slider w-20 h-1 rounded-lg appearance-none cursor-pointer outline-none transition-all duration-150"
+                      style={{
+                        background: `linear-gradient(to right, #E63946 ${(isMuted ? 0 : volume) * 100}%, #4b5563 ${(isMuted ? 0 : volume) * 100}%)`,
+                      }}
                     />
                   </div>
                 </div>
