@@ -46,7 +46,7 @@ export default function Footer({ onNavigate }: FooterProps) {
             </div>
           </div>
 
-          {/* Hướng Dẫn Column - Combined into a single neat option as requested */}
+          {/* Hướng Dẫn Column */}
           <div>
             <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase mb-4 flex items-center gap-1">
               <BookOpen size={12} className="text-indigo-400" /> Hướng Dẫn
@@ -54,9 +54,9 @@ export default function Footer({ onNavigate }: FooterProps) {
             <div className="flex flex-col gap-2">
               <span 
                 onClick={() => window.dispatchEvent(new CustomEvent('open-guide-modal', { detail: { tab: 'overview' } }))} 
-                className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors flex items-center gap-1"
+                className="text-xs text-zinc-500 hover:text-white cursor-pointer transition-colors flex items-center gap-1.5"
               >
-                📖 Giáo trình Web cơ bản (6 buổi)
+                📚 Giáo trình lập trình Web (Cơ bản &amp; Nâng cao)
               </span>
             </div>
           </div>

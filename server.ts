@@ -1760,9 +1760,104 @@ async function startServer() {
         });
       }
 
+      if (slug === 'doraemon-nobita-va-ban-giao-huong-dia-cau' || slug.includes('nobita-va-ban-giao-huong-dia-cau')) {
+        return res.json({
+          status: true,
+          movie: {
+            name: "Phim điện ảnh Doraemon: Nobita và bản giao hưởng địa cầu",
+            slug: "doraemon-nobita-va-ban-giao-huong-dia-cau",
+            origin_name: "映画ドラえもん のび太 của 地球交響楽",
+            content: "Âm nhạc là một phần thiết yếu của cuộc sống thường nhật, đem đến những thanh âm kỳ diệu gắn kết con người với thế giới. Thế nhưng, điều gì sẽ xảy ra nếu âm nhạc biến mất? Doraemon và những người bạn sẽ dấn thân vào một cuộc phiêu lưu hoàn toàn mới nhằm cứu lấy Trái Đất khỏi hiểm họa diệt vong bằng sức mạnh của những nốt nhạc quen thuộc!",
+            type: "single",
+            status: "completed",
+            thumb_url: "https://image.tmdb.org/t/p/original/b9U98I64g5S0Nn8xZbe6A611777.jpg",
+            poster_url: "https://image.tmdb.org/t/p/w500/kZgZ2Ksh9q40O5mIqR0QYmYgHby.jpg",
+            backdrop_url: "https://image.tmdb.org/t/p/original/b9U98I64g5S0Nn8xZbe6A611777.jpg",
+            trailer_url: "https://www.youtube.com/embed/5U9T2W7j230",
+            year: 2024,
+            view: 38400,
+            actor: ["Mizuta Wasabi", "Oohara Megumi", "Karasago Yumi", "Sekiba Tomokazu", "Kimura Subaru"],
+            director: ["Imai Kazuaki"],
+            category: [{"id": "hoat-hinh", "name": "Hoạt Hình", "slug": "hoat-hinh"}],
+            country: [{"id": "nhat-ban", "name": "Nhật Bản", "slug": "nhat-ban"}],
+            time: "115 phút",
+            episode_current: "Full",
+            episode_total: "1 tập",
+            lang: "Vietsub + Lồng Tiếng",
+            quality: "FHD",
+            imdb: {
+              star: "8.1",
+              vote: "1,520"
+            }
+          },
+          episodes: [
+            {
+              server_name: "Chất Lượng Cao (Vietsub)",
+              server_data: [
+                {
+                  name: "Full HD VIP 1",
+                  slug: "full-vietsub-1",
+                  filename: "Doraemon Bản Giao Hưởng Địa Cầu",
+                  link_embed: "https://embed.su/embed/movie/1148677",
+                  link_m3u8: ""
+                },
+                {
+                  name: "Full HD VIP 2",
+                  slug: "full-vietsub-2",
+                  filename: "Doraemon Bản Giao Hưởng Địa Cầu",
+                  link_embed: "https://vidsrc.to/embed/movie/1148677",
+                  link_m3u8: ""
+                },
+                {
+                  name: "Full HD VIP 3",
+                  slug: "full-vietsub-3",
+                  filename: "Doraemon Bản Giao Hưởng Địa Cầu",
+                  link_embed: "https://vidsrc.cc/v2/embed/movie/1148677",
+                  link_m3u8: ""
+                }
+              ]
+            },
+            {
+              server_name: "Chất Lượng Cao (Lồng Tiếng)",
+              server_data: [
+                {
+                  name: "Lồng Tiếng VIP 1",
+                  slug: "full-longtieng-1",
+                  filename: "Doraemon Bản Giao Hưởng Địa Cầu",
+                  link_embed: "https://embed.su/embed/movie/1148677",
+                  link_m3u8: ""
+                },
+                {
+                  name: "Lồng Tiếng VIP 2",
+                  slug: "full-longtieng-2",
+                  filename: "Doraemon Bản Giao Hưởng Địa Cầu",
+                  link_embed: "https://vidsrc.to/embed/movie/1148677",
+                  link_m3u8: ""
+                },
+                {
+                  name: "Lồng Tiếng VIP 3",
+                  slug: "full-longtieng-3",
+                  filename: "Doraemon Bản Giao Hưởng Địa Cầu",
+                  link_embed: "https://vidsrc.cc/v2/embed/movie/1148677",
+                  link_m3u8: ""
+                }
+              ]
+            }
+          ]
+        });
+      }
+
       if (slug === 'tham-tu-lung-danh-conan-movie-29' || slug.includes('conan-movie-29')) {
-      slug = 'tmdb-1144807';
-    }
+        slug = 'tmdb-1144807';
+      }
+
+      if (slug === 'doraemon-nobita-va-ban-giao-huong-dia-cau' || slug.includes('nobita-va-ban-giao-huong-dia-cau')) {
+        slug = 'tmdb-1148677';
+      }
+
+      if (slug === 'ke-huy-diet' || slug === 'the-terminator' || slug === 'ke-huy-diet-1984' || slug.includes('ke-huy-diet') || slug.includes('the-terminator')) {
+        slug = 'tmdb-218';
+      }
 
     if (slug.startsWith('tmdb-')) {
       const tmdbId = slug.replace('tmdb-', '');
@@ -1781,6 +1876,9 @@ async function startServer() {
           let title = item.title || item.original_title || 'Phim VIP';
           if (tmdbId === '1144807') {
             title = "Thám Tử Lừng Danh Conan Movie 29: Ngôi Sao Năm Cánh 1 Triệu Đô";
+          }
+          if (tmdbId === '218') {
+            title = "Kẻ Hủy Diệt (1984)";
           }
           const original_title = item.original_title || '';
           
@@ -1916,6 +2014,80 @@ async function startServer() {
                     slug: "vip-longtieng-3",
                     filename: title,
                     link_embed: `https://vidsrc.cc/v2/embed/movie/1144807`,
+                    link_m3u8: ""
+                  }
+                ]
+              }
+            );
+          }
+
+          if (tmdbId === '1148677') {
+            episodes.unshift(
+              {
+                server_name: "Nguồn Vietsub (Premium)",
+                server_data: [
+                  {
+                    name: "Vietsub VIP 1 (High-Speed)",
+                    slug: "vip-vietsub-1",
+                    filename: title,
+                    link_embed: `https://embed.su/embed/movie/1148677`,
+                    link_m3u8: ""
+                  },
+                  {
+                    name: "Vietsub VIP 2 (UHD Multi-Sub)",
+                    slug: "vip-vietsub-2",
+                    filename: title,
+                    link_embed: `https://vidsrc.to/embed/movie/1148677`,
+                    link_m3u8: ""
+                  },
+                  {
+                    name: "Vietsub VIP 3 (Tokyo CDN)",
+                    slug: "vip-vietsub-3",
+                    filename: title,
+                    link_embed: `https://vidsrc.cc/v2/embed/movie/1148677`,
+                    link_m3u8: ""
+                  }
+                ]
+              },
+              {
+                server_name: "Nguồn Lồng Tiếng (Premium)",
+                server_data: [
+                  {
+                    name: "Lồng Tiếng VIP 1 (High-Speed)",
+                    slug: "vip-longtieng-1",
+                    filename: title,
+                    link_embed: `https://embed.su/embed/movie/1148677`,
+                    link_m3u8: ""
+                  },
+                  {
+                    name: "Lồng Tiếng VIP 2 (Tokyo Server)",
+                    slug: "vip-longtieng-2",
+                    filename: title,
+                    link_embed: `https://vidsrc.to/embed/movie/1148677`,
+                    link_m3u8: ""
+                  },
+                  {
+                    name: "Lồng Tiếng VIP 3 (Backup CDN)",
+                    slug: "vip-longtieng-3",
+                    filename: title,
+                    link_embed: `https://vidsrc.cc/v2/embed/movie/1148677`,
+                    link_m3u8: ""
+                  }
+                ]
+              }
+            );
+          }
+
+          if (tmdbId === '218') {
+            episodes.unshift(
+              {
+                server_name: "Nguồn Vietsub (Premium VIP)",
+                server_data: [
+                  {
+                    name: "Vietsub VIP 1 (High-Speed)",
+                    slug: "vip-vietsub-1",
+                    filename: title,
+                    link_embed: "https://embed5.streamc.xyz/embed.php?hash=61c0782afd3a3bccdb85374f7b09337b",
                     link_m3u8: ""
                   }
                 ]

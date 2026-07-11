@@ -150,13 +150,21 @@ export default function HomeScreen({
       setUpcomingPhim(upcoming || []);
 
       // 7. Determine Hero Banner Movies (Customize this array to pin/promote any movies by slug in the system!)
-      // Cấu hình danh sách các slug phim muốn ghim lên Banner trang chủ tại đây (Ví dụ: ['tham-tu-lung-danh-conan', 'one-piece']).
-      // Nếu mảng này trống [], hệ thống sẽ tự động lấy danh sách phim mới nhất để hiển thị.
+      // Cấu hình danh sách các slug phim muốn ghim lên Banner trang chủ tại đây để đạt đủ 12 phim cao cấp.
+      // Nếu bất kỳ phim nào tải lỗi hoặc thiếu, hệ thống sẽ tự động lấy phim mới/thịnh hành để bù đắp cho đủ đúng 12 phim.
       const CURATED_BANNER_SLUGS: string[] = [
         'tham-tu-lung-danh-conan',
         'doraemon-nobita-va-ban-giao-huong-dia-cau',
         'dau-pha-thuong-khung-phan-5',
-        'one-piece'
+        'one-piece',
+        'the-gioi-hoan-my',
+        'pham-nhan-tu-tien',
+        'tu-la-vo-song',
+        'dau-la-dai-luc-2-tuyet-the-duong-mon',
+        'vo-dong-can-khon-phan-4',
+        'than-lan-dai-luc',
+        'tay-hanh-ky-phan-5',
+        'nghich-thien-ta-than'
       ];
 
       let initialHeroMovies: Movie[] = [];
@@ -177,17 +185,6 @@ export default function HomeScreen({
           })
         );
         initialHeroMovies = fetchedCurated.filter((m): m is Movie => m !== null);
-      }
-
-      // Fallback to phim mới cập nhật if no curated movies were found or if curated list is empty
-      if (initialHeroMovies.length === 0) {
-        if (resPhimMoi.items && resPhimMoi.items.length > 0) {
-          initialHeroMovies = resPhimMoi.items.slice(0, 10) as any[];
-        } else if (nowPlaying && nowPlaying.length > 0) {
-          initialHeroMovies = nowPlaying.slice(0, 10) as any[];
-        } else if (trending && trending.length > 0) {
-          initialHeroMovies = trending.slice(0, 10) as any[];
-        }
       }
 
       setHeroPhim(initialHeroMovies);

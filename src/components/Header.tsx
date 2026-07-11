@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, Menu, X, ChevronDown, Film, Globe, Heart, User, Award, Flame, Clock, Tv, Gamepad2, Wrench, ExternalLink, Mail, QrCode } from 'lucide-react';
+import { Search, Bell, Menu, X, ChevronDown, Film, Globe, Heart, User, Award, Flame, Clock, Tv, Gamepad2, Wrench, ExternalLink, Mail, QrCode, Code, BookOpen } from 'lucide-react';
 import { Category, Country } from '../types/movie';
 import { MOCK_CATEGORIES, MOCK_COUNTRIES } from '../data/mockMovies';
 import { useUserPreferences } from '../lib/hooks/useUserPreferences';
@@ -596,7 +596,7 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.96 }}
                     transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                    className="absolute top-full left-[-30px] mt-2.5 w-60 bg-zinc-950/95 backdrop-blur-xl border border-zinc-900 rounded-[20px] p-4 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.9)] z-50 flex flex-col gap-2.5 text-left border-zinc-800/80"
+                    className="absolute top-full left-[-30px] mt-2.5 w-64 bg-zinc-950/95 backdrop-blur-xl border border-zinc-900 rounded-[20px] p-4 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.9)] z-50 flex flex-col gap-2.5 text-left border-zinc-800/80"
                   >
                     <div className="flex flex-col gap-1.5">
                       {/* Đăng ký tên miền miễn phí */}
@@ -651,6 +651,20 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
                         <div className="flex items-center gap-2">
                           <QrCode size={14} className="text-purple-400 group-hover/item:text-[#E63946] transition-colors" />
                           <span>Tạo QR Code</span>
+                        </div>
+                        <ExternalLink size={12} className="text-zinc-500 group-hover/item:text-[#E63946] transition-colors" />
+                      </a>
+
+                      {/* API Tham khảo */}
+                      <a
+                        href="https://kkphim2.com/api-document"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group/item flex items-center justify-between gap-3 text-xs text-zinc-400 hover:text-[#E63946] hover:bg-[#E63946]/5 px-3 py-2.5 border border-transparent hover:border-[#E63946]/20 rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.04] select-none font-bold"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Code size={14} className="text-pink-400 group-hover/item:text-[#E63946] transition-colors" />
+                          <span>API tham khảo</span>
                         </div>
                         <ExternalLink size={12} className="text-zinc-500 group-hover/item:text-[#E63946] transition-colors" />
                       </a>
@@ -985,6 +999,19 @@ export default function Header({ currentRoute, onNavigate, onSearchOpen }: Heade
                 <div className="flex items-center gap-2.5 text-xs text-zinc-350 font-bold">
                   <QrCode size={14} className="text-purple-400" />
                   <span>Tạo QR Code</span>
+                </div>
+                <ExternalLink size={12} className="text-zinc-500" />
+              </a>
+
+              <a
+                href="https://kkphim2.com/api-document"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between p-3.5 bg-zinc-900/30 border border-zinc-900/80 rounded-xl hover:text-white"
+              >
+                <div className="flex items-center gap-2.5 text-xs text-zinc-350 font-bold">
+                  <Code size={14} className="text-pink-400" />
+                  <span>API tham khảo</span>
                 </div>
                 <ExternalLink size={12} className="text-zinc-500" />
               </a>

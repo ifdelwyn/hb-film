@@ -56,7 +56,7 @@ export default function HeroBanner({ movies, onPlay, onDetail }: HeroBannerProps
     };
   }, [movies]);
 
-  // 2. 10-second autoplay rotation interval (10000ms) with restart defense
+  // 2. 4.712-second autoplay rotation interval (4712ms) with restart defense
   const startAutoplay = () => {
     stopAutoplay();
     if (movies.length <= 1) return;
@@ -64,7 +64,7 @@ export default function HeroBanner({ movies, onPlay, onDetail }: HeroBannerProps
       setDirection('next');
       setCurrentIndex((prev) => (prev + 1) % movies.length);
       setIsDescExpanded(false); // Reset expanded description on slide change
-    }, 10000);
+    }, 4712);
   };
 
   const stopAutoplay = () => {
